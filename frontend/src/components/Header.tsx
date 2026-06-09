@@ -1,5 +1,5 @@
 import type { ComponentProps } from 'react'
-import Icon from './Icon'
+import { Icon } from './Icon'
 
 function ControlChip({
   icon,
@@ -14,39 +14,39 @@ function ControlChip({
     <button
       type="button"
       className={[
-        'flex h-[56px] items-center gap-3 rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 text-[14px] font-medium text-slate-200 transition-colors hover:bg-white/5 hover:text-white',
+        'flex h-[56px] items-center gap-3 rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-nav text-slate-200 transition-colors hover:bg-white/5 hover:text-white',
         className,
       ].join(' ')}
     >
-      <Icon name={icon} className="h-5 w-5 text-slate-400" />
-      <span>{label}</span>
-      <Icon name="chevronD" className="h-4 w-4 text-slate-400" />
+      <Icon name={icon} className="h-5 w-5 shrink-0 text-slate-400" />
+      <span className="truncate">{label}</span>
+      <Icon name="chevronDown" className="h-4 w-4 shrink-0 text-slate-400" />
     </button>
   )
 }
 
-export default function Header() {
+export default function Header({ className = '' }: { className?: string }) {
   return (
-    <header className="border-b border-[var(--border)] bg-[rgba(10,16,34,0.92)] px-8 py-4 backdrop-blur">
-      <div className="flex items-center justify-between gap-5">
-        <div className="min-w-0">
-          <h1 className="text-[22px] font-bold leading-none tracking-[-0.03em] text-white">Dashboard</h1>
-          <p className="mt-2 text-[13px] leading-none text-[var(--text-muted)]">
+    <header className={['border-b border-[var(--border)] bg-[rgba(10,16,34,0.92)] px-8 py-4 backdrop-blur', className].join(' ')}>
+      <div className="flex min-w-0 items-center justify-between gap-6">
+        <div className="min-w-0 flex-shrink-0">
+          <h1 className="t-title text-[22px] text-white">Dashboard</h1>
+          <p className="mt-2 whitespace-nowrap t-meta text-[var(--text-muted)]">
             Welcome back, Aarav · Mon, 09 Jun 2026
           </p>
         </div>
 
-        <div className="flex flex-1 items-center justify-end gap-3.5">
-          <label className="flex h-[56px] min-w-[430px] max-w-[430px] items-center gap-4 rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-5 text-slate-400">
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
+          <label className="flex h-[56px] min-w-0 flex-1 max-w-[430px] items-center gap-4 rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-5 text-slate-400">
             <Icon name="search" className="h-5 w-5 shrink-0 text-slate-400" />
-            <span className="text-[14px] text-slate-400">Search stocks, cards...</span>
+            <span className="truncate t-body text-slate-400">Search stocks, cards...</span>
           </label>
 
-          <ControlChip icon="calendar" label="FY 2025-26" className="min-w-[250px]" />
+          <ControlChip icon="calendar" label="FY 2025-26" className="min-w-[246px] shrink-0" />
 
           <button
             type="button"
-            className="grid h-[56px] w-[56px] place-items-center rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
+            className="grid h-[56px] w-[56px] shrink-0 place-items-center rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
             aria-label="Theme toggle"
           >
             <Icon name="sun" className="h-5 w-5" />
@@ -54,20 +54,20 @@ export default function Header() {
 
           <button
             type="button"
-            className="relative grid h-[56px] w-[56px] place-items-center rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
+            className="relative grid h-[56px] w-[56px] shrink-0 place-items-center rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
             aria-label="Notifications"
           >
             <Icon name="bell" className="h-5 w-5" />
-            <span className="absolute right-3 top-3 h-2 w-2 rounded-full bg-rose-500" />
+            <span className="absolute right-[12px] top-[12px] h-2.5 w-2.5 rounded-full bg-rose-500" />
           </button>
 
-          <div className="flex items-center gap-3 pl-1">
+          <div className="flex shrink-0 items-center gap-3 pl-1">
             <div className="grid h-14 w-14 place-items-center rounded-full bg-[var(--accent-600)] text-[15px] font-bold text-white">
               AS
             </div>
-            <div>
-              <div className="text-[14px] font-semibold leading-tight text-white">Aarav Sharma</div>
-              <div className="text-[12px] leading-tight text-[var(--text-muted)]">Pro plan</div>
+            <div className="min-w-0">
+              <div className="truncate t-nav text-white">Aarav Sharma</div>
+              <div className="t-meta text-[var(--text-muted)]">Pro plan</div>
             </div>
           </div>
         </div>

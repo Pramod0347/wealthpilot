@@ -1,17 +1,22 @@
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
+import Dashboard from './components/Dashboard'
 
 export default function App() {
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="flex min-h-screen">
-        <Sidebar />
+    <main className="h-screen w-full overflow-hidden bg-slate-950 text-slate-100">
+      <div className="flex h-screen w-full overflow-hidden bg-[#050816]">
+        <Sidebar className="sticky top-0 h-screen shrink-0" />
 
-        <section className="flex-1">
-          <Header />
+        <div className="flex min-w-0 flex-1 flex-col h-screen">
+          <Header className="sticky top-0 z-40 shrink-0" />
 
-          <div className="min-h-[480px]" />
-        </section>
+          <main className="flex-1 overflow-y-auto overflow-x-hidden">
+            <div className="p-6 xl:p-8">
+              <Dashboard />
+            </div>
+          </main>
+        </div>
       </div>
     </main>
   )
