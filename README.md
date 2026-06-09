@@ -11,3 +11,37 @@ Private personal finance dashboard for manual portfolio, credit card, spend, and
 ## Current State
 
 Project skeleton only. The first UI target will be the dashboard screen using dummy data.
+
+## Run
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### Backend
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+### Backend checks
+
+- `http://127.0.0.1:8000/health`
+- `http://127.0.0.1:8000/docs`
+
+### Verify the backend venv
+
+```bash
+which python
+which pip
+```
+
+Both should point to `backend/.venv/...` after activation.
