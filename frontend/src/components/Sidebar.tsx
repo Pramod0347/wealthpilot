@@ -3,23 +3,31 @@ import { Icon, type IconName } from './Icon'
 import Logo from './Logo'
 
 type NavItem = {
+  key: string
   label: string
   icon: IconName
-  active?: boolean
 }
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard', icon: 'dashboard', active: true },
-  { label: 'Portfolio', icon: 'portfolio' },
-  { label: 'Stocks', icon: 'stocks' },
-  { label: 'Credit Cards', icon: 'cards' },
-  { label: 'Transactions', icon: 'transactions' },
-  { label: 'Analytics', icon: 'analytics' },
-  { label: 'Reports', icon: 'reports' },
-  { label: 'Settings', icon: 'settings' },
+  { key: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
+  { key: 'portfolio', label: 'Portfolio', icon: 'portfolio' },
+  { key: 'stocks', label: 'Stocks', icon: 'stocks' },
+  { key: 'cards', label: 'Credit Cards', icon: 'cards' },
+  { key: 'transactions', label: 'Transactions', icon: 'transactions' },
+  { key: 'analytics', label: 'Analytics', icon: 'analytics' },
+  { key: 'reports', label: 'Reports', icon: 'reports' },
+  { key: 'settings', label: 'Settings', icon: 'settings' },
 ]
 
-export default function Sidebar({ className = '' }: { className?: string }) {
+export default function Sidebar({
+  className = '',
+  activePage,
+  onNavigate,
+}: {
+  className?: string
+  activePage: 'dashboard' | 'stocks'
+  onNavigate: (page: 'dashboard' | 'stocks') => void
+}) {
   const [collapsed, setCollapsed] = useState(false)
 
   return (
@@ -44,20 +52,26 @@ export default function Sidebar({ className = '' }: { className?: string }) {
 
       <nav className={['mt-6 flex min-w-0 flex-1 flex-col', collapsed ? 'items-center gap-2' : 'gap-2'].join(' ')}>
         {navItems.map((item) => {
-          const isActive = item.active
+          const isActive = item.key === activePage
+          const isNavigable = item.key === 'dashboard' || item.key === 'stocks'
           return (
             <button
               key={item.label}
               type="button"
               title={item.label}
               aria-label={item.label}
+              aria-current={isActive ? 'page' : undefined}
+              onClick={isNavigable ? () => onNavigate(item.key as 'dashboard' | 'stocks') : undefined}
               className={[
                 'group flex min-w-0 items-center rounded-[6px] text-left transition-colors duration-200 focus-visible:outline-none',
                 collapsed ? 'h-11 w-11 justify-center' : 'h-[52px] w-full gap-4 px-4',
                 isActive
                   ? 'bg-[#15313d] text-[var(--accent-400)]'
-                  : 'text-[var(--text-muted)] hover:bg-white/5 hover:text-slate-100',
+                  : isNavigable
+                    ? 'text-[var(--text-muted)] hover:bg-white/5 hover:text-slate-100'
+                    : 'cursor-not-allowed text-slate-500 opacity-70',
               ].join(' ')}
+              disabled={!isNavigable}
             >
               <Icon name={item.icon} className={collapsed ? 'h-5 w-5 shrink-0' : 'h-[18px] w-[18px] shrink-0'} />
               {!collapsed && (

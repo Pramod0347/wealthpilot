@@ -32,6 +32,7 @@ import {
   Inbox,
   Plus,
   Download,
+  Pencil,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -70,6 +71,7 @@ export const icons = {
   empty: Inbox,
   add: Plus,
   download: Download,
+  edit: Pencil,
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof icons

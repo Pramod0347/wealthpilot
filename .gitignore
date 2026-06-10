@@ -5,6 +5,7 @@ frontend/*.tsbuildinfo
 
 # Backend
 backend/.venv/
+backend/.env
 backend/__pycache__/
 backend/**/__pycache__/
 backend/*.pyc

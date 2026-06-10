@@ -25,21 +25,29 @@ function ControlChip({
   )
 }
 
-export default function Header({ className = '' }: { className?: string }) {
+export default function Header({
+  className = '',
+  title = 'Dashboard',
+  subtitle = 'Welcome back, Aarav · Mon, 09 Jun 2026',
+  searchPlaceholder = 'Search stocks, cards...',
+}: {
+  className?: string
+  title?: string
+  subtitle?: string
+  searchPlaceholder?: string
+}) {
   return (
     <header className={['border-b border-[var(--border)] bg-[rgba(10,16,34,0.92)] px-8 py-4 backdrop-blur', className].join(' ')}>
       <div className="flex min-w-0 items-center justify-between gap-6">
         <div className="min-w-0 flex-shrink-0">
-          <h1 className="t-title text-[22px] text-white">Dashboard</h1>
-          <p className="mt-2 whitespace-nowrap t-meta text-[var(--text-muted)]">
-            Welcome back, Aarav · Mon, 09 Jun 2026
-          </p>
+          <h1 className="t-title text-[22px] text-white">{title}</h1>
+          <p className="mt-2 whitespace-nowrap t-meta text-[var(--text-muted)]">{subtitle}</p>
         </div>
 
         <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
           <label className="flex h-[56px] min-w-0 flex-1 max-w-[430px] items-center gap-4 rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-5 text-slate-400">
             <Icon name="search" className="h-5 w-5 shrink-0 text-slate-400" />
-            <span className="truncate t-body text-slate-400">Search stocks, cards...</span>
+            <span className="truncate t-body text-slate-400">{searchPlaceholder}</span>
           </label>
 
           <ControlChip icon="calendar" label="FY 2025-26" className="min-w-[246px] shrink-0" />

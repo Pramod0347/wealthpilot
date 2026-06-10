@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import {
   Area,
   AreaChart,
@@ -12,24 +12,90 @@ import {
   YAxis,
 } from 'recharts'
 import { Icon } from './Icon'
+import { ApiError, apiFetch } from '../lib/api'
 import { formatINR, formatINRShort, formatPct } from '../lib/format'
+
+type ApiDashboardSummary = {
+  total_invested: string | number
+  current_value: string | number
+  total_pnl: string | number
+  total_return_pct: string | number
+  holdings_count: number
+  allocations?: Array<{
+    asset_type: string
+    label: string
+    amount: string | number
+    percentage: string | number
+  }>
+}
+
+type ApiHolding = {
+  id: number
+  symbol: string
+  company_name: string
+  asset_type: string
+  exchange_symbol: string | null
+  quantity: string | number
+  avg_buy_price: string | number
+  current_price: string | number
+  price_source: string
+  last_price_refreshed_at: string | null
+  sector: string | null
+  notes: string | null
+  as_of_date: string
+  created_at: string
+  updated_at: string
+  invested_amount: string | number
+  current_value: string | number
+  pnl: string | number
+  return_pct: string | number
+}
 
 type SummaryCard = {
   label: string
   value: string
   meta: string
-  icon: 'netWorth' | 'up' | 'analytics' | 'cards'
+  icon: 'netWorth' | 'up' | 'analytics' | 'portfolio'
   iconBg: string
   valueClass?: string
   metaClass?: string
 }
 
-const summaryCards: SummaryCard[] = [
-  { label: 'Net Worth', value: '₹12.09 L', meta: '↑ 8.4% Assets − liabilities', icon: 'netWorth', iconBg: 'bg-accent-500 text-white' },
-  { label: 'Current Value', value: '₹5.39 L', meta: 'Invested ₹4.76L', icon: 'up', iconBg: 'bg-slate-800 text-slate-300' },
-  { label: 'Total P&L', value: '+₹62,850', meta: '+13.20% overall return', icon: 'analytics', iconBg: 'bg-slate-800 text-slate-300', valueClass: 'text-emerald-400', metaClass: 'text-slate-400' },
-  { label: 'Credit Card Dues', value: '₹60,000', meta: 'Due this cycle', icon: 'cards', iconBg: 'bg-amber-500/20 text-amber-400', valueClass: 'text-white' },
-]
+type BulkRefreshResponse = {
+  updated_count: number
+  failed_count: number
+  failures: Array<{
+    holding_id: number
+    symbol: string
+    reason: string
+  }>
+}
+
+type HoldingFormState = {
+  symbol: string
+  company_name: string
+  asset_type: string
+  quantity: string
+  avg_buy_price: string
+  current_price: string
+  sector: string
+  notes: string
+  as_of_date: string
+}
+
+type FormErrors = Partial<Record<keyof HoldingFormState, string>>
+
+const defaultHoldingForm: HoldingFormState = {
+  symbol: '',
+  company_name: '',
+  asset_type: 'stock',
+  quantity: '',
+  avg_buy_price: '',
+  current_price: '',
+  sector: '',
+  notes: '',
+  as_of_date: '',
+}
 
 const performanceData = [
   { label: 'Jan', value: 4.22 },
@@ -52,21 +118,21 @@ const performanceData = [
   { label: 'Jun', value: 5.38 },
 ]
 
-const allocationData = [
-  { name: 'Stocks', value: 42.5, color: '#0d9488' },
-  { name: 'Mutual Funds', value: 33.1, color: '#0ea5e9' },
-  { name: 'Cash', value: 14.6, color: '#a78bfa' },
-  { name: 'Other Assets', value: 9.8, color: '#f59e0b' },
+const assetTypeOptions = [
+  { value: 'stock', label: 'Stock' },
+  { value: 'etf', label: 'ETF' },
+  { value: 'mutual_fund', label: 'Mutual Fund' },
+  { value: 'cash', label: 'Cash' },
+  { value: 'other', label: 'Other' },
 ]
 
-const holdings = [
-  { stock: 'RELIANCE', company: 'Reliance Industries', qty: 40, avg: 2380, ltp: 2910, invested: 95200, value: 116400 },
-  { stock: 'ICICIBANK', company: 'ICICI Bank', qty: 80, avg: 980, ltp: 1245, invested: 78400, value: 99600 },
-  { stock: 'TCS', company: 'Tata Consultancy', qty: 25, avg: 3450, ltp: 3890, invested: 86250, value: 97250 },
-  { stock: 'INFY', company: 'Infosys', qty: 60, avg: 1420, ltp: 1560, invested: 85200, value: 93600 },
-  { stock: 'HDFCBANK', company: 'HDFC Bank', qty: 50, avg: 1580, ltp: 1685, invested: 79000, value: 84250 },
-  { stock: 'WIPRO', company: 'Wipro', qty: 100, avg: 520, ltp: 478, invested: 52000, value: 47800 },
-]
+const assetTypePalette: Record<string, { label: string; color: string }> = {
+  stock: { label: 'Stocks', color: '#0d9488' },
+  etf: { label: 'ETFs', color: '#0ea5e9' },
+  mutual_fund: { label: 'Mutual Funds', color: '#a78bfa' },
+  cash: { label: 'Cash', color: '#f59e0b' },
+  other: { label: 'Other Assets', color: '#64748b' },
+}
 
 const cards = [
   { name: 'HDFC Regalia', bank: 'HDFC Bank ••4821', status: 'Due Soon', tone: 'amber', used: 71420, limit: 500000, bill: 38450, dueDate: '12 Jun 2026', percent: 28 },
@@ -94,6 +160,112 @@ const insights = [
 
 const timeFilters = ['1M', '3M', '6M', '1Y', 'All']
 
+function toNumber(value: string | number | null | undefined) {
+  return Number(value ?? 0)
+}
+
+function getAssetTypeMeta(assetType: string | null | undefined) {
+  const normalized = (assetType || 'other').toLowerCase()
+  return assetTypePalette[normalized] ?? assetTypePalette.other
+}
+
+function getAssetTypeBadgeClass(assetType: string | null | undefined) {
+  const normalized = (assetType || 'other').toLowerCase()
+  if (normalized === 'stock') return 'bg-accent-500/15 text-accent-400'
+  if (normalized === 'etf') return 'bg-sky-500/15 text-sky-400'
+  if (normalized === 'mutual_fund') return 'bg-violet-500/15 text-violet-400'
+  if (normalized === 'cash') return 'bg-amber-500/15 text-amber-400'
+  return 'bg-slate-700 text-slate-300'
+}
+
+function formatRefreshTimestamp(value: string | null | undefined) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return new Intl.DateTimeFormat('en-IN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date)
+}
+
+function formatApiError(error: unknown) {
+  if (error instanceof ApiError) {
+    if (error.validationErrors.length > 0) {
+      return error.validationErrors
+        .map((item) => `${item.path ? `${item.path}: ` : ''}${item.message}`)
+        .join('\n')
+    }
+    return error.message || 'Request failed'
+  }
+
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  return 'Request failed'
+}
+
+function buildSummaryCards(summary: ApiDashboardSummary | null, loading: boolean, error: string | null): SummaryCard[] {
+  if (loading) {
+    return [
+      { label: 'Total Invested', value: 'Loading...', meta: 'Fetching from backend', icon: 'netWorth', iconBg: 'bg-accent-500 text-white' },
+      { label: 'Current Value', value: 'Loading...', meta: 'Fetching from backend', icon: 'up', iconBg: 'bg-slate-800 text-slate-300' },
+      { label: 'Total P&L', value: 'Loading...', meta: 'Fetching from backend', icon: 'analytics', iconBg: 'bg-slate-800 text-slate-300' },
+      { label: 'Total Return %', value: 'Loading...', meta: 'Fetching from backend', icon: 'portfolio', iconBg: 'bg-amber-500/20 text-amber-400' },
+    ]
+  }
+
+  if (error || summary === null) {
+    return [
+      { label: 'Total Invested', value: '—', meta: error ?? 'No data available', icon: 'netWorth', iconBg: 'bg-accent-500 text-white' },
+      { label: 'Current Value', value: '—', meta: error ?? 'No data available', icon: 'up', iconBg: 'bg-slate-800 text-slate-300' },
+      { label: 'Total P&L', value: '—', meta: error ?? 'No data available', icon: 'analytics', iconBg: 'bg-slate-800 text-slate-300' },
+      { label: 'Total Return %', value: '—', meta: error ?? 'No data available', icon: 'portfolio', iconBg: 'bg-amber-500/20 text-amber-400' },
+    ]
+  }
+
+  const totalInvested = toNumber(summary.total_invested)
+  const currentValue = toNumber(summary.current_value)
+  const totalPnl = toNumber(summary.total_pnl)
+  const totalReturnPct = toNumber(summary.total_return_pct)
+  const pnlPositive = totalPnl >= 0
+  const returnPositive = totalReturnPct >= 0
+
+  return [
+    {
+      label: 'Total Invested',
+      value: formatINR(totalInvested),
+      meta: `${summary.holdings_count} holdings`,
+      icon: 'netWorth',
+      iconBg: 'bg-accent-500 text-white',
+    },
+    {
+      label: 'Current Value',
+      value: formatINR(currentValue),
+      meta: 'Live from holdings',
+      icon: 'up',
+      iconBg: 'bg-slate-800 text-slate-300',
+    },
+    {
+      label: 'Total P&L',
+      value: `${pnlPositive ? '+' : '-'}${formatINR(Math.abs(totalPnl)).replace('₹', '')}`,
+      meta: `${pnlPositive ? '+' : '-'}${formatPct(Math.abs(totalReturnPct))} overall return`,
+      icon: 'analytics',
+      iconBg: 'bg-slate-800 text-slate-300',
+      valueClass: pnlPositive ? 'text-emerald-400' : 'text-rose-400',
+      metaClass: 'text-slate-400',
+    },
+    {
+      label: 'Total Return %',
+      value: `${returnPositive ? '+' : '-'}${formatPct(Math.abs(totalReturnPct))}`,
+      meta: 'Based on holdings',
+      icon: 'portfolio',
+      iconBg: 'bg-amber-500/20 text-amber-400',
+      valueClass: returnPositive ? 'text-white' : 'text-rose-400',
+    },
+  ]
+}
+
 function SectionCard({
   title,
   children,
@@ -111,8 +283,262 @@ function SectionCard({
   )
 }
 
-export default function Dashboard() {
+function FormField({
+  label,
+  error,
+  children,
+}: {
+  label: string
+  error?: string
+  children: ReactNode
+}) {
+  return (
+    <label className="block">
+      <div className="mb-2 t-label text-slate-300">{label}</div>
+      {children}
+      {error ? <div className="mt-2 t-meta text-rose-400">{error}</div> : null}
+    </label>
+  )
+}
+
+export default function Dashboard({ onOpenStocks }: { onOpenStocks?: () => void } = {}) {
   const [activeFilter, setActiveFilter] = useState('6M')
+  const [summary, setSummary] = useState<ApiDashboardSummary | null>(null)
+  const [holdings, setHoldings] = useState<ApiHolding[]>([])
+  const [summaryLoading, setSummaryLoading] = useState(true)
+  const [holdingsLoading, setHoldingsLoading] = useState(true)
+  const [summaryError, setSummaryError] = useState<string | null>(null)
+  const [holdingsError, setHoldingsError] = useState<string | null>(null)
+  const [isHoldingModalOpen, setIsHoldingModalOpen] = useState(false)
+  const [holdingForm, setHoldingForm] = useState<HoldingFormState>(defaultHoldingForm)
+  const [formErrors, setFormErrors] = useState<FormErrors>({})
+  const [formErrorMessage, setFormErrorMessage] = useState<string | null>(null)
+  const [isSavingHolding, setIsSavingHolding] = useState(false)
+  const [isRefreshingAllPrices, setIsRefreshingAllPrices] = useState(false)
+  const [refreshingHoldingId, setRefreshingHoldingId] = useState<number | null>(null)
+  const [refreshMessage, setRefreshMessage] = useState<string | null>(null)
+  const [refreshTone, setRefreshTone] = useState<'emerald' | 'rose' | 'amber' | 'slate'>('emerald')
+
+  const loadDashboardData = async (signal?: AbortSignal) => {
+    setSummaryLoading(true)
+    setHoldingsLoading(true)
+    setSummaryError(null)
+    setHoldingsError(null)
+
+    const [summaryResult, holdingsResult] = await Promise.allSettled([
+      apiFetch<ApiDashboardSummary>('/api/dashboard/summary', { signal }),
+      apiFetch<ApiHolding[]>('/api/holdings', { signal }),
+    ])
+
+    if (summaryResult.status === 'fulfilled') {
+      setSummary(summaryResult.value)
+    } else if (summaryResult.reason?.name !== 'AbortError') {
+      setSummaryError(formatApiError(summaryResult.reason))
+      setSummary(null)
+    }
+    setSummaryLoading(false)
+
+    if (holdingsResult.status === 'fulfilled') {
+      setHoldings(holdingsResult.value)
+    } else if (holdingsResult.reason?.name !== 'AbortError') {
+      setHoldingsError(formatApiError(holdingsResult.reason))
+      setHoldings([])
+    }
+    setHoldingsLoading(false)
+  }
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    loadDashboardData(controller.signal).catch((error) => {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return
+      }
+      const message = formatApiError(error)
+      setSummaryError(message)
+      setHoldingsError(message)
+      setSummaryLoading(false)
+      setHoldingsLoading(false)
+    })
+
+    return () => controller.abort()
+  }, [])
+
+  const summaryCards = useMemo(
+    () => buildSummaryCards(summary, summaryLoading, summaryError),
+    [summary, summaryLoading, summaryError],
+  )
+
+  const allocationData = useMemo(() => {
+    if (summary?.allocations && summary.allocations.length > 0) {
+      return summary.allocations.map((entry) => {
+        const meta = getAssetTypeMeta(entry.asset_type)
+        return {
+          key: entry.asset_type,
+          name: entry.label || meta.label,
+          value: toNumber(entry.amount),
+          percentage: toNumber(entry.percentage),
+          color: meta.color,
+        }
+      })
+    }
+
+    const totals = holdings.reduce<Record<string, number>>((accumulator, holding) => {
+      const meta = getAssetTypeMeta(holding.asset_type)
+      accumulator[meta.label] = (accumulator[meta.label] ?? 0) + toNumber(holding.current_value)
+      return accumulator
+    }, {})
+
+    const totalValue = Object.values(totals).reduce((accumulator, value) => accumulator + value, 0)
+
+    return Object.entries(totals).map(([name, amount]) => {
+      const paletteEntry = Object.values(assetTypePalette).find((item) => item.label === name) ?? assetTypePalette.other
+      return {
+        key: name,
+        name,
+        value: amount,
+        percentage: totalValue > 0 ? (amount / totalValue) * 100 : 0,
+        color: paletteEntry.color,
+      }
+    })
+  }, [holdings, summary])
+
+  async function handleCreateHolding(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setFormErrors({})
+    setFormErrorMessage(null)
+
+    const nextErrors: FormErrors = {}
+    const symbol = holdingForm.symbol.trim().toUpperCase()
+    const companyName = holdingForm.company_name.trim()
+    const assetType = holdingForm.asset_type.trim()
+    const quantity = holdingForm.quantity.trim()
+    const avgBuyPrice = holdingForm.avg_buy_price.trim()
+    const currentPrice = holdingForm.current_price.trim()
+    const sector = holdingForm.sector.trim()
+    const notes = holdingForm.notes.trim()
+    const asOfDate = holdingForm.as_of_date.trim()
+
+    if (!symbol) nextErrors.symbol = 'Symbol is required.'
+    if (!companyName) nextErrors.company_name = 'Company name is required.'
+    if (!assetType) nextErrors.asset_type = 'Asset type is required.'
+    if (!quantity) nextErrors.quantity = 'Quantity is required.'
+    if (!avgBuyPrice) nextErrors.avg_buy_price = 'Average buy price is required.'
+    if (!currentPrice) nextErrors.current_price = 'Current price is required.'
+
+    const numericChecks = [
+      ['quantity', quantity],
+      ['avg_buy_price', avgBuyPrice],
+      ['current_price', currentPrice],
+    ] as const
+
+    numericChecks.forEach(([field, value]) => {
+      if (value && Number.isNaN(Number(value))) {
+        nextErrors[field] = 'Enter a valid decimal number.'
+      }
+    })
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFormErrors(nextErrors)
+      return
+    }
+
+    setIsSavingHolding(true)
+
+    try {
+      await apiFetch('/api/holdings', {
+        method: 'POST',
+        body: JSON.stringify({
+          symbol,
+          company_name: companyName,
+          asset_type: assetType,
+          quantity,
+          avg_buy_price: avgBuyPrice,
+          current_price: currentPrice,
+          sector: sector || null,
+          notes: notes || null,
+          as_of_date: asOfDate || null,
+        }),
+      })
+
+      setIsHoldingModalOpen(false)
+      setHoldingForm(defaultHoldingForm)
+      await loadDashboardData()
+    } catch (error) {
+      if (error instanceof ApiError && error.validationErrors.length > 0) {
+        const mappedErrors: FormErrors = {}
+        error.validationErrors.forEach((item) => {
+          if (item.path in defaultHoldingForm) {
+            mappedErrors[item.path as keyof HoldingFormState] = item.message
+          }
+        })
+        setFormErrors(mappedErrors)
+        setFormErrorMessage('Please fix the highlighted fields.')
+      } else {
+        setFormErrorMessage(formatApiError(error))
+      }
+    } finally {
+      setIsSavingHolding(false)
+    }
+  }
+
+  async function handleRefreshHolding(holdingId: number) {
+    setRefreshingHoldingId(holdingId)
+    setRefreshMessage(null)
+
+    try {
+      await apiFetch<ApiHolding>(`/api/holdings/${holdingId}/refresh-price`, {
+        method: 'POST',
+      })
+      setRefreshTone('emerald')
+      setRefreshMessage('Price refreshed successfully.')
+      await loadDashboardData()
+    } catch (error) {
+      setRefreshTone('rose')
+      setRefreshMessage(formatApiError(error))
+    } finally {
+      setRefreshingHoldingId(null)
+    }
+  }
+
+  async function handleRefreshAllPrices() {
+    setIsRefreshingAllPrices(true)
+    setRefreshMessage(null)
+
+    try {
+      const result = await apiFetch<BulkRefreshResponse>('/api/holdings/refresh-prices', {
+        method: 'POST',
+      })
+      if (result.failed_count > 0) {
+        setRefreshTone('amber')
+        setRefreshMessage(`Refreshed ${result.updated_count} holdings. ${result.failed_count} failed.`)
+      } else {
+        setRefreshTone('emerald')
+        setRefreshMessage(`Refreshed ${result.updated_count} holdings successfully.`)
+      }
+      await loadDashboardData()
+    } catch (error) {
+      setRefreshTone('rose')
+      setRefreshMessage(formatApiError(error))
+    } finally {
+      setIsRefreshingAllPrices(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!isHoldingModalOpen) {
+      return
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsHoldingModalOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [isHoldingModalOpen])
 
   return (
     <div className="min-w-0 w-full overflow-x-hidden">
@@ -123,22 +549,14 @@ export default function Dashboard() {
             <span className="t-body whitespace-nowrap text-[var(--text-muted)]">Prices last updated</span>
             <span className="t-body whitespace-nowrap font-medium text-slate-200">09 Jun 2026, 3:42 PM IST</span>
           </div>
-          <div className="flex shrink-0 items-center gap-4">
-            <button
-              type="button"
-              className="flex h-14 items-center gap-3 rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-5 t-body font-semibold text-slate-200 transition-colors hover:bg-white/5"
-            >
-              <Icon name="cards" className="h-5 w-5 text-slate-300" />
-              Add Credit Card
-            </button>
-            <button
-              type="button"
-              className="flex h-14 items-center gap-3 rounded-[6px] bg-[var(--accent-600)] px-5 t-body font-semibold text-white transition-colors hover:bg-[var(--accent-700)]"
-            >
-              <Icon name="add" className="h-5 w-5 text-white" />
-              Add Holding
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={onOpenStocks}
+            className="flex h-14 shrink-0 items-center gap-3 rounded-[6px] bg-[var(--accent-600)] px-5 t-body font-semibold text-white transition-colors hover:bg-[var(--accent-700)]"
+          >
+            <Icon name="stocks" className="h-5 w-5 text-white" />
+            Open Stocks
+          </button>
         </div>
 
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -217,43 +635,54 @@ export default function Dashboard() {
             <div className="t-section text-white">Asset Allocation</div>
             <div className="mt-1 t-body text-slate-400">By current market value</div>
             <div className="mt-8 grid min-w-0 grid-cols-1 gap-6 md:grid-cols-[180px_1fr]">
-              <div className="relative mx-auto h-[180px] w-[180px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={allocationData}
-                      dataKey="value"
-                      innerRadius={58}
-                      outerRadius={84}
-                      paddingAngle={3}
-                      stroke="transparent"
-                    >
-                      {allocationData.map((entry) => (
-                        <Cell key={entry.name} fill={entry.color} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-                  <div className="t-meta uppercase text-slate-400">Total assets</div>
-                  <div className="mt-1 font-mono text-[18px] font-bold tabular-nums text-white">₹12.69 L</div>
-                </div>
-              </div>
-
-              <div className="flex flex-col justify-center gap-4">
-                {allocationData.map((entry) => (
-                  <div key={entry.name} className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <span className="h-3 w-3 rounded-[3px]" style={{ backgroundColor: entry.color }} />
-                      <span className="t-body text-slate-200">{entry.name}</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="t-nav text-white">{entry.value.toFixed(1)}%</div>
-                      <div className="t-meta">₹{entry.name === 'Stocks' ? '5.39 L' : entry.name === 'Mutual Funds' ? '4.20 L' : entry.name === 'Cash' ? '1.85 L' : '1.25 L'}</div>
+              {allocationData.length > 0 ? (
+                <>
+                  <div className="relative mx-auto h-[180px] w-[180px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={allocationData}
+                          dataKey="value"
+                          innerRadius={58}
+                          outerRadius={84}
+                          paddingAngle={3}
+                          stroke="transparent"
+                        >
+                          {allocationData.map((entry) => (
+                            <Cell key={entry.key} fill={entry.color} />
+                          ))}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+                      <div className="t-meta uppercase text-slate-400">Total assets</div>
+                      <div className="mt-1 font-mono text-[18px] font-bold tabular-nums text-white">{formatINR(toNumber(summary?.current_value ?? 0))}</div>
                     </div>
                   </div>
-                ))}
-              </div>
+
+                  <div className="flex flex-col justify-center gap-4">
+                    {allocationData.map((entry) => (
+                      <div key={entry.key} className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <span className="h-3 w-3 rounded-[3px]" style={{ backgroundColor: entry.color }} />
+                          <span className="t-body text-slate-200">{entry.name}</span>
+                        </div>
+                        <div className="text-right">
+                          <div className="t-nav text-white">{entry.percentage.toFixed(1)}%</div>
+                          <div className="t-meta">{formatINRShort(entry.value)}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="md:col-span-2">
+                  <div className="rounded-[6px] border border-dashed border-[rgba(51,65,85,0.6)] bg-[#0f172a] p-8 text-center">
+                    <div className="t-section text-white">No allocation data</div>
+                    <div className="mt-2 t-body text-slate-400">Add holdings to populate the allocation chart.</div>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="mt-6 flex items-center justify-between border-t border-[rgba(51,65,85,0.45)] pt-4">
               <div>
@@ -268,194 +697,6 @@ export default function Dashboard() {
           </SectionCard>
         </div>
 
-        <SectionCard className="min-w-0 overflow-hidden">
-          <div className="flex items-center justify-between border-b border-[rgba(51,65,85,0.45)] px-6 py-5">
-            <div>
-              <div className="t-section text-white">Stock Holdings</div>
-              <div className="mt-1 t-meta">6 stocks · invested ₹4.76 L · Live · updated 3:42 PM</div>
-            </div>
-            <button type="button" className="t-body font-semibold text-accent-400 hover:text-accent-300">
-              View all →
-            </button>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-[980px] w-full border-separate border-spacing-0">
-              <thead>
-                <tr className="text-left">
-                  {['Stock', 'Qty', 'Avg Buy', 'LTP', 'Invested', 'Cur. Value', 'P&L', 'Return %', ''].map((head) => (
-                    <th key={head} className="px-6 py-4 t-th">
-                      {head}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {holdings.map((row) => {
-                  const pnl = row.value - row.invested
-                  const pct = (pnl / row.invested) * 100
-                  const positive = pnl >= 0
-                  return (
-                    <tr key={row.stock} className="border-t border-[rgba(51,65,85,0.35)]">
-                      <td className="px-6 py-5">
-                        <div className="t-nav text-white">{row.stock}</div>
-                        <div className="t-meta">{row.company}</div>
-                      </td>
-                      <td className="px-6 py-5 t-num text-slate-200">{row.qty}</td>
-                      <td className="px-6 py-5 t-num text-slate-200">{formatINR(row.avg)}</td>
-                      <td className="px-6 py-5 t-num text-slate-200">{formatINR(row.ltp)}</td>
-                      <td className="px-6 py-5 t-num text-slate-200">{formatINR(row.invested)}</td>
-                      <td className="px-6 py-5 t-num text-white">{formatINR(row.value)}</td>
-                      <td className={['px-6 py-5 t-num', positive ? 'text-emerald-400' : 'text-rose-400'].join(' ')}>
-                        {positive ? '+' : ''}
-                        {formatINR(Math.abs(pnl)).slice(1)}
-                      </td>
-                      <td className={['px-6 py-5 t-badge', positive ? 'text-emerald-400' : 'text-rose-400'].join(' ')}>
-                        {positive ? '↑' : '↓'} {formatPct(pct)}
-                      </td>
-                      <td className="px-6 py-5 text-right text-slate-400">
-                        <button type="button" className="rounded-[6px] px-2 py-1 hover:bg-white/5">
-                          <Icon name="more" className="h-5 w-5" />
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </SectionCard>
-
-        <SectionCard className="min-w-0">
-          <div className="flex items-center justify-between border-b border-[rgba(51,65,85,0.45)] px-6 py-5">
-            <div className="t-section text-white">Credit Cards</div>
-            <div className="t-meta text-slate-400">3 cards · ₹60,000 due</div>
-          </div>
-          <div className="grid gap-4 px-6 py-6 xl:grid-cols-3">
-            {cards.map((card) => {
-              const toneMapByStatus = {
-                emerald: { border: 'border-emerald-500/60', status: 'bg-emerald-500/15 text-emerald-400', accent: 'text-emerald-400', bar: 'bg-emerald-500' },
-                amber: { border: 'border-amber-500/60', status: 'bg-amber-500/15 text-amber-400', accent: 'text-amber-400', bar: 'bg-amber-500' },
-                rose: { border: 'border-rose-500/60', status: 'bg-rose-500/15 text-rose-400', accent: 'text-rose-400', bar: 'bg-rose-500' },
-              }
-              const toneMap = toneMapByStatus[card.tone as keyof typeof toneMapByStatus]
-
-              return (
-                <div key={card.name} className={['rounded-[6px] border bg-[#131c31] p-5', toneMap.border].join(' ')}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="t-nav text-white">{card.name}</div>
-                      <div className="t-meta">{card.bank}</div>
-                    </div>
-                    <span className={['rounded-[999px] px-3 py-1 t-badge', toneMap.status].join(' ')}>{card.status}</span>
-                  </div>
-
-                  <div className="mt-5">
-                    <div className="flex items-center justify-between t-meta">
-                      <span>Used ₹{formatINRShort(card.used).replace('₹', '')}</span>
-                      <span>{card.percent}%</span>
-                    </div>
-                    <div className="mt-2 h-2 rounded-full bg-slate-800">
-                      <div className={['h-2 rounded-full', toneMap.bar].join(' ')} style={{ width: `${card.percent}%` }} />
-                    </div>
-                    <div className="mt-3 flex items-center justify-between t-meta">
-                      <span>Avail. ₹{formatINRShort(card.limit - card.used).replace('₹', '')} of ₹{formatINRShort(card.limit).replace('₹', '')}</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 grid grid-cols-2 gap-4">
-                    <div>
-                      <div className="t-micro text-slate-400">Bill amount</div>
-                      <div className={['mt-1 t-amount', toneMap.accent].join(' ')}>{formatINR(card.bill)}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="t-micro text-slate-400">Due date</div>
-                      <div className="mt-1 t-nav text-white">{card.dueDate}</div>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </SectionCard>
-
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <SectionCard>
-            <div className="flex items-center justify-between border-b border-[rgba(51,65,85,0.45)] px-6 py-5">
-              <div className="t-section text-white">Upcoming Payments</div>
-              <Icon name="calendar" className="h-5 w-5 text-slate-400" />
-            </div>
-            <div className="px-6 py-4">
-              <div className="space-y-3">
-                {upcoming.map((item) => {
-                  const tone = item.tone === 'emerald'
-                    ? 'text-emerald-400 bg-emerald-500/15'
-                    : item.tone === 'rose'
-                      ? 'text-rose-400 bg-rose-500/15'
-                      : item.tone === 'amber'
-                        ? 'text-amber-400 bg-amber-500/15'
-                        : 'text-slate-400 bg-slate-800'
-                  return (
-                    <div key={item.label} className="flex items-center justify-between rounded-[6px] p-3 hover:bg-white/5">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="grid h-10 w-10 place-items-center rounded-[6px] bg-[#18233d] text-accent-400">
-                          <Icon name="cards" className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="t-nav truncate text-white">{item.label}</div>
-                          <div className="t-meta truncate">{item.type}</div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="t-num text-white">{formatINR(item.amount)}</div>
-                        <div className={['mt-1 inline-flex rounded-[999px] px-2 py-1 t-badge', tone].join(' ')}>{item.status}</div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </SectionCard>
-
-          <SectionCard>
-            <div className="flex items-center justify-between border-b border-[rgba(51,65,85,0.45)] px-6 py-5">
-              <div className="flex items-center gap-3 t-section text-white">
-                <Icon name="ai" className="h-5 w-5 text-accent-400" />
-                AI Insights
-              </div>
-              <span className="t-badge rounded-[999px] bg-slate-800 px-2 py-1 text-slate-400">Beta</span>
-            </div>
-            <div className="space-y-4 px-6 py-5">
-              {insights.map((item) => {
-                const tone = item.tone === 'emerald'
-                  ? 'text-emerald-400 bg-emerald-500/15'
-                  : item.tone === 'rose'
-                    ? 'text-rose-400 bg-rose-500/15'
-                    : item.tone === 'amber'
-                      ? 'text-amber-400 bg-amber-500/15'
-                      : 'text-slate-400 bg-slate-800'
-                return (
-                  <div key={item.text} className="flex gap-3">
-                    <div className={['mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px]', tone].join(' ')}>
-                      <Icon
-                        name={item.tone === 'emerald' ? 'analytics' : item.tone === 'rose' || item.tone === 'amber' ? 'warning' : 'refresh'}
-                        className="h-4 w-4"
-                      />
-                    </div>
-                    <p className="t-insight text-slate-300">{item.text}</p>
-                  </div>
-                )
-              })}
-
-              <button
-                type="button"
-                className="mt-4 h-12 w-full rounded-[6px] border border-[var(--border-soft)] bg-transparent t-nav text-slate-200 transition-colors hover:bg-white/5"
-              >
-                Ask WealthPilot AI
-              </button>
-            </div>
-          </SectionCard>
-        </div>
       </div>
     </div>
   )
