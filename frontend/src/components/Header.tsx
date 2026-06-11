@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { apiFetch } from '../lib/api'
 import { getTrendClass } from '../lib/format'
+import { useTheme } from '../context/ThemeContext'
 import { Icon } from './Icon'
 
 type MarketOverviewItem = {
@@ -128,15 +129,12 @@ export default function Header({
   className = '',
   title = 'Dashboard',
   subtitle = '',
-  isDark = true,
-  onToggleTheme,
 }: {
   className?: string
   title?: string
   subtitle?: string
-  isDark?: boolean
-  onToggleTheme?: () => void
 }) {
+  const { isDark, toggleTheme } = useTheme()
   const [markets, setMarkets] = useState<MarketChipData[]>(FALLBACK_MARKETS)
   const [isLoadingMarkets, setIsLoadingMarkets] = useState(true)
   const [isStale, setIsStale] = useState(false)
@@ -224,7 +222,7 @@ export default function Header({
           {/* Theme toggle */}
           <button
             type="button"
-            onClick={onToggleTheme}
+            onClick={toggleTheme}
             className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 shadow-sm transition-all duration-150 hover:border-slate-300 dark:hover:border-slate-600 hover:text-slate-900 dark:hover:text-white active:scale-95"
             aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
           >

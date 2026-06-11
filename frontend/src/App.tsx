@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import Dashboard from './components/Dashboard'
@@ -6,27 +6,7 @@ import StocksPage from './components/StocksPage'
 import CreditCardsPage from './components/CreditCardsPage'
 import BanksPage from './components/BanksPage'
 
-function useDarkMode(): [boolean, () => void] {
-  const [isDark, setIsDark] = useState<boolean>(() => {
-    const saved = localStorage.getItem('wealthpilot-theme')
-    return saved ? saved === 'dark' : true
-  })
-
-  useEffect(() => {
-    const root = document.documentElement
-    if (isDark) {
-      root.classList.add('dark')
-    } else {
-      root.classList.remove('dark')
-    }
-    localStorage.setItem('wealthpilot-theme', isDark ? 'dark' : 'light')
-  }, [isDark])
-
-  return [isDark, () => setIsDark((v) => !v)]
-}
-
 export default function App() {
-  const [isDark, toggleTheme] = useDarkMode()
   const [activePage, setActivePage] = useState<'dashboard' | 'stocks' | 'banks' | 'cards'>('dashboard')
 
   const pageConfig = {
@@ -65,8 +45,6 @@ export default function App() {
           className="sticky top-0 z-40 shrink-0"
           title={pageConfig.title}
           subtitle={pageConfig.subtitle}
-          isDark={isDark}
-          onToggleTheme={toggleTheme}
         />
 
         <main className="flex-1 overflow-y-auto overflow-x-hidden bg-slate-50 dark:bg-transparent">
