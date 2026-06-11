@@ -104,12 +104,12 @@ function SectionCard({
   return (
     <div
       className={[
-        'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm transition-all duration-200 hover:shadow-md motion-reduce:transition-none',
+        'bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-sm',
         className,
       ].join(' ')}
     >
       {title ? (
-        <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4 text-sm font-semibold text-slate-900 dark:text-slate-100">
+        <div className="border-b border-slate-200 dark:border-slate-700/50 px-6 py-4 text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">
           {title}
         </div>
       ) : null}
@@ -381,7 +381,7 @@ export default function BanksPage() {
         {statusMessage ? (
           <div
             className={[
-              'rounded-lg border px-4 py-3 text-sm',
+              'rounded-xl border px-4 py-3 text-sm flex items-center justify-between gap-3',
               statusTone === 'emerald'
                 ? 'border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
                 : statusTone === 'amber'
@@ -391,21 +391,32 @@ export default function BanksPage() {
                     : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300',
             ].join(' ')}
           >
-            {statusMessage}
+            <span>{statusMessage}</span>
+            <button type="button" onClick={() => setStatusMessage(null)} className="shrink-0 opacity-60 hover:opacity-100">
+              <Icon name="close" className="h-4 w-4" />
+            </button>
           </div>
         ) : null}
 
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <div className="text-base font-semibold text-slate-900 dark:text-white">Bank Accounts</div>
-            <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">Manual cash accounts tracked in the database.</div>
+        {/* Info bar */}
+        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 px-5 py-3 shadow-sm">
+          <Icon name="banks" className="h-4 w-4 shrink-0 text-slate-400" />
+          <span className="text-sm text-slate-500 dark:text-slate-400">Bank Accounts</span>
+          <span className="text-sm text-slate-400 dark:text-slate-600">·</span>
+          <span className="text-sm text-slate-500 dark:text-slate-400">Manual cash accounts tracked in the database</span>
+          <div className="ml-auto flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            <span className="text-xs font-medium text-emerald-500 dark:text-emerald-400">Live</span>
           </div>
+        </div>
+        {/* Action row */}
+        <div className="flex items-center justify-end">
           <button
             type="button"
             onClick={openCreateModal}
             className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg bg-accent-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-accent-700 active:bg-accent-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <Icon name="add" className="h-4 w-4 text-white" />
+            <Icon name="add" className="h-4 w-4" />
             Add Bank Account
           </button>
         </div>
@@ -414,27 +425,23 @@ export default function BanksPage() {
           {summaryCards.map((card) => (
             <div
               key={card.label}
-              className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md motion-reduce:transition-none"
+              className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm"
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{card.label}</div>
-                  <div className="mt-4 text-2xl font-bold tracking-[-0.03em] text-slate-900 dark:text-white">{card.value}</div>
-                  <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">{card.meta}</div>
-                </div>
-                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
-                  <Icon name={card.icon} className="h-5 w-5" />
-                </div>
+              <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">{card.label}</div>
+              <div className="mt-2.5 font-mono text-lg font-bold tabular-nums text-slate-900 dark:text-white">{card.value}</div>
+              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{card.meta}</div>
+              <div className="mt-4 grid h-7 w-7 place-items-center rounded-lg bg-slate-100 dark:bg-slate-800">
+                <Icon name={card.icon} className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
               </div>
             </div>
           ))}
         </section>
 
         <SectionCard>
-          <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4">
+          <div className="border-b border-slate-200 dark:border-slate-700/50 px-6 py-4">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Accounts</div>
+                <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Accounts</div>
                 <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Each balance below is now coming from the backend.</div>
               </div>
             </div>
@@ -477,12 +484,12 @@ export default function BanksPage() {
               {accounts.map((account) => (
                 <article
                   key={account.id}
-                  className="flex flex-col justify-between gap-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm transition-all duration-200 hover:shadow-md lg:flex-row lg:items-center"
+                  className="flex flex-col rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-5 shadow-sm justify-between gap-5 lg:flex-row lg:items-center"
                 >
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="truncate text-lg font-semibold tracking-[-0.02em] text-slate-900 dark:text-white">{account.bank_name}</div>
-                      <span className="inline-flex rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300 ring-1 ring-inset ring-slate-500/15">
+                      <span className="inline-flex rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300 ring-1 ring-inset ring-slate-500/15">
                         {accountTypeLabel(account.account_type)}
                       </span>
                     </div>

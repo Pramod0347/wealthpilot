@@ -1,459 +1,298 @@
-
 # WealthPilot — Design System & Implementation Guide
 
 ## Overview
-WealthPilot is a premium fintech dashboard for personal wealth management. Built with React + TypeScript + Tailwind CSS. Dark-first design with teal accent color. Responsive across all devices.
-
----
+WealthPilot is a premium fintech dashboard for personal wealth management. Built with React + TypeScript + Tailwind CSS v4. Dark-first design (defaults to dark mode, persisted in localStorage). Teal (#0d9488) as primary accent color.
 
 ## Typography
 
 ### Font Stack
-- **UI (Sans)**: Plus Jakarta Sans (geometric, modern)
-  - Weights: 400, 500, 600, 700, 800
-- **Data (Mono)**: JetBrains Mono (tabular numerals enabled)
-  - Weights: 400, 500, 600, 700
-  - CSS: `font-feature-settings: "tnum" 1` for all `.font-mono` elements
+- **UI (Sans)**: Plus Jakarta Sans — weights 400, 500, 600, 700, 800
+- **Data (Mono)**: JetBrains Mono — tabular numerals (`font-feature-settings: "tnum" 1`), weights 400, 500, 600, 700
 
 ### Type Scale
-
-| Usage | Size | Weight | Line Height | Letter Spacing |
-|-------|------|--------|-------------|-----------------|
-| Page Title (h1) | 28px | 700 | 1.2 | -0.5px |
-| Section Title (h2) | 20px | 700 | 1.3 | -0.25px |
-| Card Title (h3) | 14px | 600 | 1.4 | 0 |
-| Body (p) | 14px | 400 | 1.6 | 0 |
-| Small (caption) | 12px | 500 | 1.5 | 0.3px |
-| Tiny (label) | 11px | 600 | 1.4 | 0.5px |
-| Mono (data) | 13px | 500 | 1.5 | 0 |
+| Usage | Class | Size | Weight |
+|-------|-------|------|--------|
+| Hero metric (₹ values) | `font-mono text-2xl font-bold tabular-nums` | 24px | 700 |
+| Card metric | `font-mono text-lg font-bold tabular-nums` | 18px | 700 |
+| Section label | `text-[10px] font-semibold uppercase tracking-widest` | 10px | 600 |
+| Body text | `text-sm` | 14px | 400 |
+| Caption / meta | `text-xs` | 12px | 400–500 |
+| Badge / pill | `text-[10px] font-semibold` | 10px | 600 |
+| Table header | `text-[11px] font-semibold uppercase tracking-[0.5px]` | 11px | 600 |
 
 ---
 
 ## Color System
 
 ### Accent (Teal)
-Primary brand color used for buttons, active states, highlights.
-
-```css
+```
 accent-50:   #f0fdfa
 accent-100:  #ccfbf1
 accent-200:  #99f6e4
 accent-300:  #5eead4
 accent-400:  #2dd4bf
-accent-500:  #14b8a6  /* hover state */
-accent-600:  #0d9488  /* primary */
-accent-700:  #0f766e  /* active/dark */
+accent-500:  #14b8a6   ← hover state
+accent-600:  #0d9488   ← primary brand color
+accent-700:  #0f766e   ← active/dark state
 accent-800:  #115e59
 accent-900:  #134e4a
 ```
 
 ### Semantic Colors
-- **Success (Green)**: #10b981 (emerald-600)
-- **Warning (Amber)**: #f59e0b
-- **Error (Red)**: #f43f5e / #ef4444
-- **Info (Blue)**: #0ea5e9 (sky-500)
-- **Neutral (Slate)**: #64748b (slate-500)
+- **Positive (gain)**: `text-emerald-400` dark / `text-emerald-600` light
+- **Negative (loss)**: `text-rose-400` dark / `text-rose-600` light
+- **Warning**: `text-amber-400` dark / `text-amber-600` light
+- **Info / neutral**: `text-slate-400` dark / `text-slate-500` light
 
-### Background
-- **Light Mode**: #ffffff (white), #f8fafc (slate-50)
-- **Dark Mode**: #0f172a (slate-950), #1e293b (slate-800)
-- **Card**: #ffffff (light), #1e293b (dark)
-- **Hover**: #f1f5f9 (light), #334155 (dark)
+### Page Backgrounds
+- **Light page**: `bg-slate-50` (`#f8fafc`)
+- **Dark page**: `bg-slate-950` with radial teal glow + gradient to `#0a1628`
+- **Dark body CSS**: `background: radial-gradient(circle at top, rgba(13,148,136,0.08), transparent 30%), linear-gradient(180deg, #0f172a 0%, #0a1628 100%)`
+
+### Cards
+| Context | Light | Dark |
+|---------|-------|------|
+| Background | `bg-white` | `dark:bg-slate-900/80` |
+| Border | `border-slate-200` | `dark:border-slate-700/50` |
+| Inner / nested | `bg-slate-50` | `dark:bg-slate-800/50` |
 
 ### Text
-- **Primary**: #0f172a (light), #f1f5f9 (dark)
-- **Secondary**: #475569 (slate-600, light), #cbd5e1 (slate-300, dark)
-- **Tertiary**: #94a3b8 (slate-400, light), #64748b (slate-500, dark)
-- **Disabled**: #cbd5e1 (slate-300, light), #475569 (slate-600, dark)
+| Role | Light | Dark |
+|------|-------|------|
+| Primary | `text-slate-900` | `dark:text-white` |
+| Secondary | `text-slate-600` | `dark:text-slate-300` |
+| Tertiary / label | `text-slate-500` | `dark:text-slate-500` |
+| Disabled | `text-slate-400` | `dark:text-slate-600` |
 
 ---
 
-## Spacing & Layout
+## Spacing
 
-### Spacing Scale
-```
-4px   → gap-1
-8px   → gap-2
-12px  → gap-3
-16px  → gap-4
-20px  → gap-5
-24px  → gap-6
-28px  → gap-7
-32px  → gap-8
-40px  → gap-10
-48px  → gap-12
-```
-
-### Padding (px/py/p)
-- **Compact**: 8px (p-2)
-- **Standard**: 12px (p-3)
-- **Comfortable**: 16px (p-4)
-- **Generous**: 20px (p-5)
-- **Spacious**: 24px (p-6)
-
-### Margin & Gaps
-- **Between sections**: 20px (gap-5)
-- **Between cards**: 16px (gap-4)
-- **Between grid items**: 16px (gap-4)
-- **Between form fields**: 12px (gap-3)
+- **Between page sections**: `space-y-5` (20px)
+- **Card padding compact**: `p-4` (mini stat cards)
+- **Card padding standard**: `p-5` (list cards)
+- **Card padding generous**: `p-6` (chart/overview cards)
+- **Between form fields**: `gap-4`
 
 ---
 
-## Border & Corner Radius
+## Border Radius
 
-### Border Radius
-| Size | Usage |
-|------|-------|
-| 4px (rounded) | Input fields, small buttons, badges |
-| 8px (rounded-lg) | Cards, modals, medium buttons |
-| 12px (rounded-xl) | Large cards, prominent sections |
-| 16px (rounded-2xl) | Hero sections, empty states |
-| 20px (rounded-3xl) | Large hero panels |
-| 9999px (rounded-full) | Avatars, pills, full-width circles |
-
-### Borders
-- **Default**: 1px solid, slate-200 (light) / slate-800 (dark)
-- **Strong**: 2px solid, accent-600
-- **Subtle**: 0.5px solid, slate-200/60 (light) / slate-800/60 (dark)
-- **Ring (focus)**: 2px ring, accent-500/20
-
----
-
-## Shadows & Elevation
-
-### Shadow Levels
-```css
-/* Shadow (sm) */
-box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
-
-/* Shadow (md) */
-box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.1);
-
-/* Shadow (lg) */
-box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.1);
-
-/* Shadow (xl) */
-box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.1);
-
-/* Shadow (2xl) - modals, dropdowns */
-box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
-```
-
-### Dark Mode Shadows
-- Reduce opacity by 50% and shift color to lighter slate
-- Example: `shadow-sm dark:shadow-none`
+| Token | Usage |
+|-------|-------|
+| `rounded-lg` (8px) | Input fields, small buttons, icon badges |
+| `rounded-xl` (12px) | Drawers, tooltips, pills |
+| `rounded-2xl` (16px) | **All cards and panels** (primary card radius) |
+| `rounded-full` | Status pills, dots, avatars |
 
 ---
 
 ## Components
 
+### Cards (Primary Pattern)
+```
+bg-white dark:bg-slate-900/80
+border border-slate-200 dark:border-slate-700/50
+rounded-2xl shadow-sm
+```
+
+### Section Label (inside cards)
+```
+text-[10px] font-semibold uppercase tracking-widest
+text-slate-500 dark:text-slate-500
+```
+Always appears at the top of a card section, above the value.
+
+### Mini Stat Card (6-column grid)
+```
+rounded-2xl border ... bg-white dark:bg-slate-900/80 p-4 shadow-sm
+├── LABEL (section label, top)
+├── VALUE (font-mono text-lg font-bold, middle)
+├── META (text-xs, below value)
+└── ICON BADGE (h-7 w-7 rounded-lg bg-*-500/15, bottom-left)
+```
+Special variant for Card Dues: `border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10`
+
+### Status Pills
+```
+inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold
+```
+| Tone | Background | Text |
+|------|-----------|------|
+| Rose (Overdue) | `bg-rose-500/15` | `text-rose-400` |
+| Amber (Due Soon) | `bg-amber-500/15` | `text-amber-400` |
+| Emerald (Paid/Good) | `bg-emerald-500/15` | `text-emerald-400` |
+| Slate (Info) | `bg-slate-100 dark:bg-slate-800` | `text-slate-600 dark:text-slate-400` |
+
+Each pill has a colored dot: `h-1.5 w-1.5 rounded-full bg-[tone]-400`
+
+### Prices / Info Bar (page top)
+```
+flex items-center gap-3 rounded-2xl border ... bg-white dark:bg-slate-900/80 px-5 py-3 shadow-sm
+```
+Contains: refresh icon + "Prices last updated" label + datetime value + Live dot (right-aligned)
+
+### Composition Bar (inline in Net Worth card)
+```
+h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800 flex
+```
+Segments: each `style={{ width: X%, backgroundColor: color }}`
+Legend below: `flex flex-wrap gap-x-4 gap-y-1.5`
+
+### Horizontal Composition Bars (Composition panel)
+Each row: `label (w-28) + bar track (flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800) + percentage (w-9 text-right)`
+
+### Performance Chart Card
+- Header: label + large value + signed % badge
+- Time filters: `rounded-xl bg-slate-100 dark:bg-slate-800 p-1` with active = `bg-white dark:bg-slate-700 shadow-sm`
+- Chart: Recharts LineChart, teal line (#0d9488), amber dashed predicted
+- "Save Snapshot" link: `text-sm font-medium text-teal-500 dark:text-teal-400` centered below chart with top border
+
 ### Buttons
 
-#### Primary (CTA)
-```css
-background: #0d9488
-color: white
-padding: 10px 16px (py-2.5 px-4)
-border-radius: 8px
-font-weight: 600
-font-size: 14px
-border: none
-cursor: pointer
-transition: background 200ms
-
-hover: #0f766e
-active: #115e59
-disabled: #cbd5e1 (slate-300)
+#### Primary
+```
+inline-flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-4
+text-sm font-semibold text-white shadow-sm
+hover:bg-accent-700 active:bg-accent-800 disabled:opacity-60
 ```
 
-#### Secondary (Default)
-```css
-background: transparent
-color: #475569 (slate-600)
-border: 1px solid #e2e8f0 (slate-200)
-padding: 10px 16px
-border-radius: 8px
-font-weight: 600
-font-size: 14px
-
-hover: background #f1f5f9 (slate-50)
-dark: color #cbd5e1, border #334155
-dark:hover: background #334155
+#### Secondary / Ghost
+```
+inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700
+bg-white dark:bg-slate-800 px-4 text-sm font-semibold
+text-slate-600 dark:text-slate-300 shadow-sm
+hover:bg-slate-50 dark:hover:bg-slate-700/50
 ```
 
-#### Ghost (Minimal)
-```css
-background: transparent
-color: #475569
-border: none
-padding: 8px 12px
-font-weight: 500
-font-size: 14px
-
-hover: background #f1f5f9
+### Input / Select / Textarea
 ```
-
-### Cards / Panels
-```css
-background: #ffffff (light) / #1e293b (dark)
-border: 1px solid #e2e8f0 (light) / #334155 (dark)
-border-radius: 12px
-padding: 16px-20px
-box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.05)
-transition: all 200ms
+h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700
+bg-white dark:bg-slate-800 px-3 py-2.5 text-sm
+text-slate-900 dark:text-slate-100
+placeholder:text-slate-400 dark:placeholder:text-slate-500
+focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20
 ```
-
-**Card Hover State:**
-- Shift `box-shadow` to `0 4px 6px -1px rgba(15, 23, 42, 0.1)`
-- Lift slightly via `transform: translateY(-2px)`
-
-### Input Fields
-```css
-border: 1px solid #e2e8f0
-border-radius: 8px
-padding: 10px 12px
-font-size: 14px
-font-family: Plus Jakarta Sans
-background: #ffffff
-color: #0f172a
-
-focus: 
-  border-color: #0d9488
-  outline: none
-  ring: 2px #0d9488/20
-  background: #ffffff
-
-dark:
-  background: #1e293b
-  border-color: #334155
-  color: #f1f5f9
-```
-
-### Badges / Pills
-```css
-display: inline-flex
-align-items: center
-gap: 6px
-padding: 4px 10px
-border-radius: 9999px (full)
-font-size: 11px
-font-weight: 600
-ring: 1px inset [color]/20
-```
-
-**Status Badge Colors:**
-- **Paid**: emerald-50 bg, emerald-700 text
-- **Due Soon**: amber-50 bg, amber-700 text
-- **Overdue**: rose-50 bg, rose-700 text
-- **Scheduled**: slate-100 bg, slate-600 text
 
 ### Tables
-```css
-border-collapse: collapse
-width: 100%
-
-thead:
-  background: #f8fafc (light) / #0f172a (dark)
-  border-top: 1px solid #e2e8f0
-  border-bottom: 1px solid #e2e8f0
-
-th:
-  padding: 12px 16px
-  font-size: 11px
-  font-weight: 600
-  text-transform: uppercase
-  letter-spacing: 0.5px
-  color: #64748b (light) / #94a3b8 (dark)
-  text-align: left
-
-td:
-  padding: 12px 16px
-  border-bottom: 1px solid #f1f5f9 (light) / #334155 (dark)
-  font-size: 14px
-
-tbody tr:hover:
-  background: #f8fafc (light) / #334155 (dark)
-  transition: background 150ms
+```
+thead: bg-slate-50 dark:bg-slate-800/50, border-b border-slate-200 dark:border-slate-700/50
+th: text-[11px] font-semibold uppercase tracking-[0.5px] text-slate-500 dark:text-slate-400 px-4 py-3
+tbody row: border-b border-slate-100 dark:border-slate-800/80
+tbody row hover: bg-slate-50 dark:bg-slate-800/40
+td: text-sm px-4 py-3
 ```
 
-### Form Sections
-```css
-margin-bottom: 20px (mb-5)
+### Toast / Alert Banner
+```
+flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm
+```
+Always includes a close (×) button on the right.
+| Tone | bg | border | text |
+|------|----|--------|------|
+| emerald | `bg-emerald-50 dark:bg-emerald-500/10` | `border-emerald-200 dark:border-emerald-500/30` | `text-emerald-800 dark:text-emerald-200` |
+| rose | `bg-rose-50 dark:bg-rose-500/10` | `border-rose-200 dark:border-rose-500/30` | `text-rose-800 dark:text-rose-200` |
+| amber | `bg-amber-50 dark:bg-amber-500/10` | `border-amber-200 dark:border-amber-500/30` | `text-amber-800 dark:text-amber-100` |
 
-label:
-  display: block
-  font-size: 14px
-  font-weight: 600
-  margin-bottom: 8px (mb-2)
-  color: #0f172a
-
-input/select/textarea:
-  width: 100%
-  /* see Input Fields above */
+### Edit Drawer (Side Panel)
+```
+fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm
+Panel: max-w-140 w-full h-full flex-col
+       border-l border-slate-200 dark:border-slate-800
+       bg-white dark:bg-slate-900 shadow-2xl
+       slide-in from right (translate-x-full → translate-x-0)
 ```
 
 ---
 
-## Layout Patterns
+## Layout
 
-### Grid System (Tailwind)
-- **2-column (mobile)**: `grid-cols-1 lg:grid-cols-2`
-- **3-column (tablet+)**: `grid-cols-1 md:grid-cols-2 lg:grid-cols-3`
-- **4-column (desktop)**: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4`
-- **Gap between items**: `gap-4` (16px) or `gap-5` (20px)
-
-### Sidebar + Main Layout
-```css
-display: flex
-min-height: 100vh
-
-aside (sidebar):
-  width: 232px (expanded) / 68px (collapsed)
-  flex-shrink: 0
-  border-right: 1px solid #e2e8f0
-
-main:
-  flex: 1
-  min-width: 0
-  overflow-x: hidden
+### Page Structure
+```
+<div class="flex h-screen overflow-hidden">
+  <aside> Sidebar (sticky) </aside>
+  <div class="flex-1 flex flex-col h-screen">
+    <header> Header (sticky, h-16) </header>
+    <main class="flex-1 overflow-y-auto">
+      <div class="p-5 xl:p-8"> page content </div>
+    </main>
+  </div>
+</div>
 ```
 
-### Header (Sticky)
-```css
-position: sticky
-top: 0
-z-index: 30
-height: 64px (h-16)
-display: flex
-align-items: center
-border-bottom: 1px solid #e2e8f0
-background: rgba(255, 255, 255, 0.8)
-backdrop-filter: blur(12px)
+### Sidebar
+- Expanded: `w-65` (260px), `px-4 py-5`
+- Collapsed: `w-[68px]`, `px-2 py-4`
+- Background: `bg-white dark:bg-slate-900`
+- Border: `border-r border-slate-200 dark:border-slate-700/30`
+- Nav item height: `h-12.5` (50px)
+- Nav text: `text-[15px] font-medium`
+- Active item: `bg-teal-50 dark:bg-teal-500/15 text-teal-700 dark:text-teal-300`
+- Active dot: `h-2 w-2 rounded-full bg-teal-400`
+- Logo: `h-13 w-13 rounded-2xl bg-linear-to-br from-accent-400 to-accent-700`
+
+### Header
+- Height: `h-16` (64px), sticky top-0 z-40
+- Background: `bg-white/80 dark:bg-slate-950/95 backdrop-blur-md`
+- Border: `border-b border-slate-200 dark:border-slate-800`
+- Contains: page title (left), market chips + live indicator + theme toggle (right)
+
+### Dashboard Grid Layouts
+```
+Row 1: grid xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]    → Net Worth | Action Center
+Row 2: grid xl:grid-cols-6                                     → 6 mini stat cards
+Row 3: grid xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]    → Performance | Composition
+Row 4: grid xl:grid-cols-3                                     → Accounts | Upcoming | Insights
 ```
 
 ---
 
 ## Dark Mode
 
-### Implementation
-- **Class-based**: `dark:` prefix in Tailwind
-- **Toggle**: Store in localStorage, apply `document.documentElement.classList.toggle('dark')`
-- **Persistence**: Read on page load from localStorage
-
-### Dark Mode Adjustments
-| Light | Dark |
-|-------|------|
-| #ffffff | #1e293b |
-| #f8fafc | #0f172a |
-| #e2e8f0 | #334155 |
-| #0f172a | #f1f5f9 |
-| #475569 | #cbd5e1 |
+- **Implementation**: `darkMode: 'class'` in Tailwind, `document.documentElement.classList.toggle('dark')`
+- **Persistence**: `localStorage.getItem('wealthpilot-theme')`, defaults to `'dark'`
+- **Toggle**: Sun/Moon icon button in header
 
 ---
 
 ## Icons
-
-### Icon System
-- **Library**: Lucide React (or custom SVG paths)
-- **Size**: 16px (h-4 w-4) for inline, 20px (h-5 w-5) for buttons, 24px (h-6 w-6) for large areas
-- **Stroke Width**: 1.5 (default), 2 (active), 2.5 (bold)
-- **Color**: Inherit from parent (currentColor)
-
-### Common Icons Used
-- grid, briefcase, trending, card, swap, bars, file, settings
-- search, bell, sun, moon, plus, chevronLeft, chevronDown, chevronUp
-- arrowUp, arrowDown, calendar, check, wallet, logout, filter, download
-- inbox, dots, menu, x, refresh, trash, cart, eye, alert, clock, sparkles
+- **Library**: Lucide React via `Icon` component wrapper
+- **Available names**: `dashboard`, `portfolio`, `stocks`, `banks`, `pfepf`, `cards`, `transactions`, `analytics`, `reports`, `settings`, `search`, `bell`, `calendar`, `refresh`, `sun`, `moon`, `menu`, `close`, `collapse`, `chevronDown`, `chevronUp`, `up`, `down`, `netWorth`, `ai`, `warning`, `due`, `paid`, `more`, `buy`, `alert`, `view`, `remove`, `empty`, `add`, `download`, `edit`
+- **Sizes**: `h-3.5 w-3.5` (icon badge), `h-4 w-4` (inline), `h-5 w-5` (buttons/nav)
+- **Stroke**: 1.75 default, 2 active, 2.5 bold
 
 ---
 
-## Responsive Design
-
-### Breakpoints (Tailwind)
-- **sm**: 640px (tablets)
-- **md**: 768px (small laptops)
-- **lg**: 1024px (desktops)
-- **xl**: 1280px (large desktops)
-- **2xl**: 1536px (ultra-wide)
-
-### Mobile-First Strategy
-1. Default (mobile) styles
-2. Add `sm:`, `md:`, `lg:` prefixes for larger screens
-3. Hide elements with `hidden` + `lg:flex` (show on desktop)
-4. Use flex/grid for responsive wrapping
-
-### Mobile Optimizations
-- **Touch targets**: min 44px × 44px
-- **Sidebar**: Hidden by default, drawer on mobile
-- **Cards**: Full-width on mobile, multi-column on desktop
-- **Tables**: Horizontal scroll or collapse on mobile
-
----
-
-## Animation & Transitions
-
-### Transition Defaults
-```css
-transition: all 150ms ease-in-out
-transition: background 200ms cubic-bezier(0.4, 0, 0.2, 1)
-```
-
-### Common Animations
-- **Hover**: `hover:bg-slate-50 hover:scale-105 transition`
-- **Focus**: Ring effect (2px solid accent-500/20)
-- **Loading**: `animate-pulse` (opacity 0.5→1)
-- **Entrance**: `opacity-0 → opacity-100` over 200ms
-- **Menu**: Slide from `translateX(-100%)` to `translateX(0)`
-
-### Avoid
-- Animations on scroll
-- Decorative infinite loops (unless explicitly marked)
-- `transform` + `box-shadow` combo (performance)
+## Asset Type Color Palette
+| Type | Label | Color |
+|------|-------|-------|
+| Indian Stocks / stock_in | Indian Stocks | `#0d9488` (teal) |
+| stock_us | US Stocks | `#38bdf8` (sky) |
+| mutual_fund | Mutual Funds | `#a78bfa` (violet) |
+| banks | Banks | `#f97316` (orange) |
+| etf | ETFs | `#0ea5e9` (sky) |
+| cash | Cash | `#f59e0b` (amber) |
+| other | Other | `#64748b` (slate) |
 
 ---
 
 ## Data Formatting
-
-### Currency (INR)
 ```javascript
-const formatter = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
-
-function formatINR(n) {
-  return "₹" + formatter.format(n);
-}
-
-function formatINRShort(n) {
-  if (n >= 1e7) return "₹" + (n / 1e7).toFixed(2) + " Cr";
-  if (n >= 1e5) return "₹" + (n / 1e5).toFixed(2) + " L";
-  return formatINR(n);
-}
+// Currency
+formatINR(n)       → "₹1,23,456"
+formatINRShort(n)  → "₹1.23 L" (≥1L) / "₹12.34 Cr" (≥1Cr)
+formatPct(n)       → "12.34%"
+formatSignedPct(n) → "+12.34%" / "-5.67%"
+getTrendClass(n)   → "text-emerald-400" / "text-rose-400" / "text-slate-400"
 ```
-
-### Percentages
-```javascript
-function formatPct(n, withSign = true) {
-  const s = withSign && n > 0 ? "+" : "";
-  return s + n.toFixed(2) + "%";
-}
-```
-
-### Color Coding
-- **Positive (gain/profit)**: #10b981 (emerald-600)
-- **Negative (loss)**: #f43f5e (rose-600)
-- **Neutral (0%)**: #64748b (slate-500)
-
 
 ---
-## Tailwind Config
 
+## Tailwind Config (actual)
 ```typescript
-import type { Config } from "tailwindcss";
-
 export default {
   darkMode: "class",
-  content: [
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: ["./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
       fontFamily: {
@@ -467,38 +306,38 @@ export default {
           800: "#115e59", 900: "#134e4a",
         },
       },
-      spacing: {
-        "safe-top": "max(env(safe-area-inset-top), 0px)",
-      },
     },
   },
-  plugins: [],
-} satisfies Config;
+}
 ```
 
 ---
 
 ## Quick Reference
 
-| Element | Light BG | Light Border | Dark BG | Dark Border | Accent |
-|---------|----------|--------------|---------|-------------|--------|
-| Page | #ffffff | — | #0f172a | — | — |
-| Card | #ffffff | #e2e8f0 | #1e293b | #334155 | #0d9488 |
-| Button | #0d9488 | — | #0d9488 | — | white text |
-| Input | #ffffff | #e2e8f0 | #1e293b | #334155 | #0d9488 on focus |
-| Text (primary) | #0f172a | — | #f1f5f9 | — | — |
-| Text (secondary) | #475569 | — | #cbd5e1 | — | — |
+| Element | Light | Dark | Radius |
+|---------|-------|------|--------|
+| Page bg | `bg-slate-50` | `bg-slate-950` + gradient | — |
+| Card bg | `bg-white` | `dark:bg-slate-900/80` | `rounded-2xl` |
+| Card border | `border-slate-200` | `dark:border-slate-700/50` | — |
+| Inner card | `bg-slate-50` | `dark:bg-slate-800/50` | `rounded-xl` |
+| Primary btn | `bg-accent-600 text-white` | same | `rounded-lg` |
+| Input | `bg-white border-slate-200` | `dark:bg-slate-800 dark:border-slate-700` | `rounded-lg` |
+| Text primary | `text-slate-900` | `dark:text-white` | — |
+| Text muted | `text-slate-500` | `dark:text-slate-400` | — |
+| Section label | `text-slate-500` | `dark:text-slate-500` | — |
 
 ---
 
-## Notes for Implementation
+## Implementation Rules
 
-1. **Never use** hardcoded color hex values — always use Tailwind classes or CSS custom properties
-2. **Spacing**: Use gap/p/m classes, never inline styles
-3. **Fonts**: Ensure Plus Jakarta Sans + JetBrains Mono are imported via Google Fonts
-4. **Dark mode**: Test every component in both light and dark modes
-5. **Responsive**: Mobile-first approach; test on 375px, 768px, 1024px viewports
-6. **Accessibility**: Min contrast ratio 4.5:1 for text; focus states on all interactive elements
-7. **Performance**: Lazy-load heavy components; use `next/image` or optimization
-8. **Icons**: Use Lucide React or custom SVG with `currentColor` for theme support
-
+1. **Never** hardcode color hex values — use Tailwind classes or CSS custom properties
+2. **Cards always** use `rounded-2xl border border-slate-200 dark:border-slate-700/50`
+3. **Card backgrounds**: `bg-white dark:bg-slate-900/80` (not `dark:bg-slate-800`)
+4. **Section labels**: `text-[10px] font-semibold uppercase tracking-widest text-slate-500`
+5. **Metrics/numbers**: always `font-mono tabular-nums`
+6. **Status pills**: always dot + label, `rounded-full`, color from tone (rose/amber/emerald/slate)
+7. **Toast/alerts**: always include a close button
+8. **Dark mode**: Test every component in dark mode (default mode)
+9. **Responsive**: Mobile-first, content stacks on mobile, multi-column on `xl:`
+10. **Fonts**: Plus Jakarta Sans (UI) + JetBrains Mono (numbers) loaded from Google Fonts

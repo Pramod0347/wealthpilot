@@ -93,8 +93,8 @@ function SectionCard({
   className?: string
 }) {
   return (
-    <div className={['bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm transition-all duration-200 hover:shadow-md motion-reduce:transition-none', className].join(' ')}>
-      {title ? <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4 text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</div> : null}
+    <div className={['bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-sm', className].join(' ')}>
+      {title ? <div className="border-b border-slate-200 dark:border-slate-700/50 px-6 py-4 text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">{title}</div> : null}
       {children}
     </div>
   )
@@ -143,18 +143,18 @@ function buildSummaryCards(summary: ApiDashboardSummary | null, loading: boolean
   if (loading) {
     return [
       { label: 'Total Dues', value: 'Loading...', meta: 'Fetching from backend', iconBg: 'bg-amber-50 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400' },
-      { label: 'Card Limit', value: 'Loading...', meta: 'Fetching from backend', iconBg: 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400' },
-      { label: 'Used Amount', value: 'Loading...', meta: 'Fetching from backend', iconBg: 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400' },
-      { label: 'Utilization', value: 'Loading...', meta: 'Fetching from backend', iconBg: 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400' },
+      { label: 'Card Limit', value: 'Loading...', meta: 'Fetching from backend', iconBg: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400' },
+      { label: 'Used Amount', value: 'Loading...', meta: 'Fetching from backend', iconBg: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400' },
+      { label: 'Utilization', value: 'Loading...', meta: 'Fetching from backend', iconBg: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400' },
     ]
   }
 
   if (error || summary === null) {
     return [
       { label: 'Total Dues', value: '—', meta: error ?? 'No data available', iconBg: 'bg-amber-50 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400' },
-      { label: 'Card Limit', value: '—', meta: error ?? 'No data available', iconBg: 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400' },
-      { label: 'Used Amount', value: '—', meta: error ?? 'No data available', iconBg: 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400' },
-      { label: 'Utilization', value: '—', meta: error ?? 'No data available', iconBg: 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400' },
+      { label: 'Card Limit', value: '—', meta: error ?? 'No data available', iconBg: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400' },
+      { label: 'Used Amount', value: '—', meta: error ?? 'No data available', iconBg: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400' },
+      { label: 'Utilization', value: '—', meta: error ?? 'No data available', iconBg: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400' },
     ]
   }
 
@@ -175,19 +175,19 @@ function buildSummaryCards(summary: ApiDashboardSummary | null, loading: boolean
       label: 'Card Limit',
       value: formatINR(totalCardLimit),
       meta: 'Across all cards',
-      iconBg: 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400',
+      iconBg: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400',
     },
     {
       label: 'Used Amount',
       value: formatINR(totalCardUsed),
       meta: 'Current spending',
-      iconBg: 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400',
+      iconBg: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400',
     },
     {
       label: 'Utilization',
       value: `${utilization.toFixed(2)}%`,
       meta: 'Overall utilization',
-      iconBg: 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400',
+      iconBg: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400',
       valueClass: utilization >= 80 ? 'text-rose-600 dark:text-rose-400' : utilization >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400',
     },
   ]
@@ -438,7 +438,7 @@ export default function CreditCardsPage() {
         {statusMessage ? (
           <div
             className={[
-              'rounded-lg border px-4 py-3 text-sm',
+              'rounded-xl border px-4 py-3 text-sm flex items-center justify-between gap-3',
               statusTone === 'emerald'
                 ? 'border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
                 : statusTone === 'amber'
@@ -448,15 +448,26 @@ export default function CreditCardsPage() {
                     : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300',
             ].join(' ')}
           >
-            {statusMessage}
+            <span>{statusMessage}</span>
+            <button type="button" onClick={() => setStatusMessage(null)} className="shrink-0 opacity-60 hover:opacity-100">
+              <Icon name="close" className="h-4 w-4" />
+            </button>
           </div>
         ) : null}
 
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <div className="text-lg font-semibold text-slate-900 dark:text-white">Credit Cards</div>
-            <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">Track limits, dues, utilization, and bill cycles.</div>
+        {/* Info bar */}
+        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 px-5 py-3 shadow-sm">
+          <Icon name="cards" className="h-4 w-4 shrink-0 text-slate-400" />
+          <span className="text-sm text-slate-500 dark:text-slate-400">Credit Cards</span>
+          <span className="text-sm text-slate-400 dark:text-slate-600">·</span>
+          <span className="text-sm text-slate-500 dark:text-slate-400">Track limits, dues, utilization, and bill cycles</span>
+          <div className="ml-auto flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            <span className="text-xs font-medium text-emerald-500 dark:text-emerald-400">Live</span>
           </div>
+        </div>
+        {/* Action row */}
+        <div className="flex items-center justify-end">
           <button
             type="button"
             onClick={openCreateModal}
@@ -469,25 +480,24 @@ export default function CreditCardsPage() {
 
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {summaryCards.map((card) => (
-            <div key={card.label} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md motion-reduce:transition-none">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{card.label}</div>
-                  <div className={['t-metric mt-4 text-slate-900 dark:text-white', card.valueClass].filter(Boolean).join(' ')}>{card.value}</div>
-                  <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">{card.meta}</div>
-                </div>
-                <div className={['grid h-11 w-11 shrink-0 place-items-center rounded-xl', card.iconBg].join(' ')}>
-                  <Icon name="cards" className="h-5 w-5" />
-                </div>
+            <div
+              key={card.label}
+              className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm"
+            >
+              <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">{card.label}</div>
+              <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', card.valueClass ?? 'text-slate-900 dark:text-white'].join(' ')}>{card.value}</div>
+              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{card.meta}</div>
+              <div className={['mt-4 grid h-7 w-7 place-items-center rounded-lg', card.iconBg].join(' ')}>
+                <Icon name="cards" className="h-3.5 w-3.5" />
               </div>
             </div>
           ))}
         </section>
 
         <SectionCard>
-          <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4">
+          <div className="border-b border-slate-200 dark:border-slate-700/50 px-6 py-4">
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-              <label className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 shadow-sm focus-within:border-accent-500 focus-within:ring-2 focus-within:ring-accent-500/15">
+              <label className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800 px-3 shadow-sm focus-within:border-accent-500 focus-within:ring-2 focus-within:ring-accent-500/15">
                 <Icon name="search" className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
                 <input
                   value={searchTerm}
@@ -500,7 +510,7 @@ export default function CreditCardsPage() {
               <select
                 value={statusFilter}
                 onChange={(event) => setStatusFilter(event.target.value as 'all' | ApiCreditCard['status'])}
-                className="h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-sm text-slate-700 dark:text-slate-200 shadow-sm focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/15"
+                className="h-10 rounded-lg border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800 px-3 text-sm text-slate-700 dark:text-slate-200 shadow-sm focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/15"
               >
                 <option value="all">All statuses</option>
                 <option value="paid">Paid</option>
@@ -527,7 +537,7 @@ export default function CreditCardsPage() {
           ) : filteredCards.length === 0 ? (
             <div className="px-6 py-10">
               <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-10 text-center">
-                <div className="mx-auto grid h-11 w-11 place-items-center rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
+                <div className="mx-auto grid h-11 w-11 place-items-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
                   <Icon name="cards" className="h-5 w-5" />
                 </div>
                 <div className="mt-4 text-base font-semibold text-slate-900 dark:text-white">No cards match the filters</div>
@@ -540,7 +550,7 @@ export default function CreditCardsPage() {
                 const tone = buildStatusTone(card.status)
 
                 return (
-                  <div key={card.id} className={['rounded-xl border bg-white dark:bg-slate-800 p-5 shadow-sm transition-all duration-200 hover:shadow-md', tone.border].join(' ')}>
+                  <div key={card.id} className={['rounded-2xl border bg-white dark:bg-slate-900/80 p-5 shadow-sm', tone.border].join(' ')}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="text-sm font-semibold truncate text-slate-900 dark:text-white">{card.card_name}</div>
@@ -554,7 +564,7 @@ export default function CreditCardsPage() {
                         <span>Used {formatINRShort(toNumber(card.used_amount))}</span>
                         <span>{toNumber(card.utilization_pct).toFixed(1)}%</span>
                       </div>
-                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                         <div className={['h-2 rounded-full', tone.bar].join(' ')} style={{ width: `${Math.min(toNumber(card.utilization_pct), 100)}%` }} />
                       </div>
                       <div className="mt-3 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Icon } from './Icon'
 import { ApiError, apiFetch } from '../lib/api'
 import { formatINR, formatINRShort, formatPct, formatSignedPct, getTrendClass } from '../lib/format'
@@ -397,7 +397,7 @@ const timeFilters: Array<{ label: string; value: '1M' | '3M' | '6M' | '1Y' | 'AL
 
 function SectionCard({ title, children, className = '' }: { title?: string; children: ReactNode; className?: string }) {
   return (
-    <div className={['bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm transition-all duration-200 hover:shadow-md motion-reduce:transition-none', className].join(' ')}>
+    <div className={['bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-sm', className].join(' ')}>
       {title ? <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4 text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</div> : null}
       {children}
     </div>
@@ -418,18 +418,14 @@ function MetricCardView({
   valueClass?: string
 }) {
   return (
-    <SectionCard className="px-6 py-5">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</div>
-          <div className={['t-metric mt-5', valueClass].join(' ')}>{value}</div>
-          <div className="mt-4 t-meta text-slate-500 dark:text-slate-400">{meta}</div>
-        </div>
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300">
-          <Icon name={icon} className="h-5 w-5" />
-        </div>
+    <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm">
+      <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">{label}</div>
+      <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', valueClass].join(' ')}>{value}</div>
+      <div className="mt-1 text-xs text-slate-500 dark:text-slate-500">{meta}</div>
+      <div className="mt-4 grid h-7 w-7 place-items-center rounded-lg bg-slate-100 dark:bg-slate-800">
+        <Icon name={icon} className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
       </div>
-    </SectionCard>
+    </div>
   )
 }
 
@@ -665,7 +661,6 @@ export default function StocksPage() {
   const latestSnapshot = portfolioPerformance?.actual.at(-1) ?? null
   const latestSnapshotValue = toNumber(latestSnapshot?.current_value)
   const latestSnapshotReturn = toNumber(latestSnapshot?.total_return_pct)
-  const performanceMessage = portfolioPerformance?.message
   const latestUpdate = useMemo(() => {
     const timestamps = holdings
       .flatMap((holding) => [holding.updated_at, holding.last_price_refreshed_at])
@@ -920,52 +915,57 @@ export default function StocksPage() {
         {statusMessage ? (
           <div
             className={[
+              'flex items-center justify-between gap-3',
               statusTone === 'emerald'
-                ? 'rounded-lg border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-200'
+                ? 'rounded-xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-200'
                 : statusTone === 'amber'
-                  ? 'rounded-lg border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-100'
+                  ? 'rounded-xl border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-100'
                   : statusTone === 'rose'
-                    ? 'rounded-lg border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-4 py-3 text-sm text-rose-800 dark:text-rose-200'
-                    : 'rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-3 text-sm text-slate-700 dark:text-slate-300',
+                    ? 'rounded-xl border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-4 py-3 text-sm text-rose-800 dark:text-rose-200'
+                    : 'rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-3 text-sm text-slate-700 dark:text-slate-300',
             ].join(' ')}
           >
             {statusMessage}
+            <button type="button" onClick={() => setStatusMessage(null)} className="shrink-0 opacity-60 hover:opacity-100">
+              <Icon name="close" className="h-4 w-4" />
+            </button>
           </div>
         ) : null}
 
-        <div className="flex flex-col gap-2">
-          <div className="t-title text-slate-900 dark:text-white">Stocks &amp; Investments</div>
-          <div className="t-body text-slate-600 dark:text-slate-300">Indian stocks, US stocks, ETFs, gold, and mutual funds</div>
+        {/* Prices bar */}
+        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 px-5 py-3 shadow-sm">
+          <Icon name="refresh" className="h-4 w-4 shrink-0 text-slate-400" />
+          <span className="text-sm text-slate-500 dark:text-slate-400">Prices last updated</span>
+          {latestUpdate ? (
+            <span className="text-sm font-semibold text-slate-900 dark:text-white">{formatDisplayDate(latestUpdate.toISOString())}</span>
+          ) : (
+            <span className="text-sm text-slate-400">Not available</span>
+          )}
+          <div className="ml-auto flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            <span className="text-xs font-medium text-emerald-500 dark:text-emerald-400">Live</span>
+          </div>
         </div>
 
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
-          <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-            <Icon name="refresh" className="h-4 w-4" />
-            <span className="whitespace-nowrap">
-              Prices last updated {latestUpdate ? formatDisplayDate(latestUpdate.toISOString()) : 'Awaiting backend data'}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={handleRefreshAllPrices}
-              disabled={isRefreshingAllPrices}
-              className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-600 dark:text-slate-300 shadow-sm transition-all duration-150 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Icon name="refresh" className={['h-4 w-4', isRefreshingAllPrices ? 'animate-spin' : ''].join(' ')} />
-              {isRefreshingAllPrices ? 'Refreshing...' : 'Refresh Prices'}
-            </button>
-
-            <button
-              type="button"
-              onClick={openCreateModal}
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-accent-700 active:bg-accent-800 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Icon name="add" className="h-4 w-4 text-white" />
-              Add Investment
-            </button>
-          </div>
+        {/* Actions toolbar */}
+        <div className="flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={handleRefreshAllPrices}
+            disabled={isRefreshingAllPrices}
+            className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-600 dark:text-slate-300 shadow-sm transition-all duration-150 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Icon name="refresh" className={['h-4 w-4', isRefreshingAllPrices ? 'animate-spin' : ''].join(' ')} />
+            {isRefreshingAllPrices ? 'Refreshing...' : 'Refresh Prices'}
+          </button>
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-accent-700 active:bg-accent-800"
+          >
+            <Icon name="add" className="h-4 w-4" />
+            Add Investment
+          </button>
         </div>
 
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -995,8 +995,8 @@ export default function StocksPage() {
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <SectionCard className="px-6 py-6">
-            <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Investment Breakdown</div>
-            <div className="mt-1 t-body text-slate-600 dark:text-slate-300">Asset mix by current value</div>
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Investment Breakdown</div>
+            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Asset mix by current value</div>
             {allocationData.length > 0 ? (
               <div className="mt-6">
                 <div className="flex h-3 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
@@ -1030,8 +1030,8 @@ export default function StocksPage() {
           <SectionCard className="px-6 py-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Performance</div>
-                <div className="mt-1 t-body text-slate-600 dark:text-slate-300">Portfolio snapshot trend</div>
+                <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Performance</div>
+                <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Portfolio snapshot trend</div>
               </div>
               <div className="flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-700 p-1 text-[11px]">
                 {timeFilters.map((filter) => (
@@ -1126,17 +1126,15 @@ export default function StocksPage() {
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="mt-5 flex items-center justify-between gap-3">
+                <div className="mt-5 flex justify-center border-t border-slate-100 dark:border-slate-800 pt-4">
                   <button
                     type="button"
                     onClick={handleSaveSnapshot}
                     disabled={savingSnapshot}
-                    className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-600 dark:text-slate-300 shadow-sm transition-all duration-150 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="text-sm font-medium text-teal-500 dark:text-teal-400 transition-colors hover:text-teal-600 dark:hover:text-teal-300 disabled:opacity-50"
                   >
-                    {savingSnapshot ? <Icon name="refresh" className="h-4 w-4 animate-spin" /> : <Icon name="add" className="h-4 w-4" />}
-                    Save Snapshot
+                    {savingSnapshot ? 'Saving…' : 'Save Snapshot'}
                   </button>
-                  {performanceMessage ? <div className="t-meta text-slate-500 dark:text-slate-400">{performanceMessage}</div> : null}
                 </div>
               </>
             )}
@@ -1223,7 +1221,7 @@ export default function StocksPage() {
             <div className="overflow-x-auto">
               <table className="min-w-275 w-full border-separate border-spacing-0">
                 <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
+                  <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700/50">
                     {['Asset', 'Class', 'Country', 'Qty / Units', 'Avg Buy', 'Current Price', 'Invested', 'Current Value', 'P&L', 'Return %', 'Actions'].map((head) => (
                       <th key={head} className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.5px] text-slate-500 dark:text-slate-400 text-left whitespace-nowrap">
                         {head}
@@ -1245,7 +1243,7 @@ export default function StocksPage() {
                     const refreshSupported = getRefreshSupported(row)
 
                     return (
-                      <tr key={row.id} className="border-b border-slate-100 dark:border-slate-700/60 transition-colors duration-100 hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                      <tr key={row.id} className="border-b border-slate-100 dark:border-slate-800/80 transition-colors duration-100 hover:bg-slate-50 dark:hover:bg-slate-800/40">
                         <td className="px-4 py-3 text-sm">
                           <div className="font-semibold text-slate-900 dark:text-white">{row.symbol}</div>
                           <div className="t-meta truncate text-slate-500 dark:text-slate-400">{row.company_name}</div>
