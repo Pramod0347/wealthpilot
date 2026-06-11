@@ -3,38 +3,68 @@ from datetime import datetime, timezone
 
 from app.models.holding import Holding
 from app.schemas.holding import HoldingRead
+from app.services.calculations import (
+    calculate_native_current_value,
+    calculate_native_invested_amount,
+    calculate_native_pnl,
+    calculate_pnl,
+    calculate_return_pct,
+    convert_to_inr,
+    normalize_fx_rate,
+)
 
 
-def calculate_invested_amount(quantity: Decimal, avg_buy_price: Decimal) -> Decimal:
-    return quantity * avg_buy_price
+def _normalized_fx_rate(holding: Holding) -> Decimal:
+    return normalize_fx_rate(getattr(holding, "fx_rate_to_inr", None))
 
 
-def calculate_current_value(quantity: Decimal, current_price: Decimal) -> Decimal:
-    return quantity * current_price
+def normalize_holding_location_fields(holding: Holding) -> None:
+    country = (holding.country or "IN").upper()
+    holding.country = country
+    holding.exchange_symbol = holding.exchange_symbol.strip().upper() if holding.exchange_symbol else None
+    holding.exchange = holding.exchange.strip().upper() if holding.exchange else None
+
+    if country == "US":
+        holding.currency = "USD"
+        if not holding.exchange:
+            holding.exchange = "NASDAQ"
+    else:
+        holding.currency = "INR"
+        if not holding.exchange:
+            holding.exchange = "NSE"
+        holding.fx_rate_to_inr = Decimal("1")
+
+    if holding.fx_rate_to_inr is None:
+        holding.fx_rate_to_inr = Decimal("1")
 
 
-def calculate_pnl(current_value: Decimal, invested_amount: Decimal) -> Decimal:
-    return current_value - invested_amount
+def resolve_refresh_symbol(holding: Holding) -> str:
+    if holding.country == "US":
+        return (holding.exchange_symbol or holding.symbol).strip().upper()
 
-
-def calculate_return_pct(pnl: Decimal, invested_amount: Decimal) -> Decimal:
-    if invested_amount == 0:
-        return Decimal("0")
-    return (pnl / invested_amount) * Decimal("100")
+    return (holding.exchange_symbol or f"{holding.symbol}.NS").strip().upper()
 
 
 def serialize_holding(holding: Holding) -> HoldingRead:
-    invested_amount = calculate_invested_amount(holding.quantity, holding.avg_buy_price)
-    current_value = calculate_current_value(holding.quantity, holding.current_price)
+    fx_rate = _normalized_fx_rate(holding)
+    native_invested_amount = calculate_native_invested_amount(holding.quantity, holding.avg_buy_price)
+    native_current_value = calculate_native_current_value(holding.quantity, holding.current_price)
+    native_pnl = calculate_native_pnl(native_current_value, native_invested_amount)
+    invested_amount = convert_to_inr(native_invested_amount, fx_rate)
+    current_value = convert_to_inr(native_current_value, fx_rate)
     pnl = calculate_pnl(current_value, invested_amount)
-    return_pct = calculate_return_pct(pnl, invested_amount)
+    return_pct = calculate_return_pct(native_pnl, native_invested_amount)
 
     return HoldingRead(
         id=holding.id,
         symbol=holding.symbol,
         company_name=holding.company_name,
         asset_type=holding.asset_type,
+        country=holding.country,
+        currency=holding.currency,
+        exchange=holding.exchange,
         exchange_symbol=holding.exchange_symbol,
+        fx_rate_to_inr=fx_rate,
         quantity=holding.quantity,
         avg_buy_price=holding.avg_buy_price,
         current_price=holding.current_price,
@@ -45,6 +75,10 @@ def serialize_holding(holding: Holding) -> HoldingRead:
         as_of_date=holding.as_of_date,
         created_at=holding.created_at,
         updated_at=holding.updated_at,
+        native_invested_amount=native_invested_amount,
+        native_current_value=native_current_value,
+        native_pnl=native_pnl,
+        native_currency=holding.currency,
         invested_amount=invested_amount,
         current_value=current_value,
         pnl=pnl,
@@ -53,10 +87,12 @@ def serialize_holding(holding: Holding) -> HoldingRead:
 
 
 def mark_holding_priced_manually(holding: Holding) -> None:
+    normalize_holding_location_fields(holding)
     holding.price_source = "manual"
     holding.last_price_refreshed_at = None
 
 
 def mark_holding_refreshed(holding: Holding) -> None:
+    normalize_holding_location_fields(holding)
     holding.price_source = "yfinance"
     holding.last_price_refreshed_at = datetime.now(timezone.utc)

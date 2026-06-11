@@ -2,6 +2,37 @@ const DEFAULT_API_BASE_URL = 'http://localhost:8000'
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
 
+export type BankAccount = {
+  id: number
+  bank_name: string
+  account_name: string | null
+  account_type: 'savings' | 'current' | 'salary' | 'fd' | 'other'
+  account_number_last4: string | null
+  balance: string | number
+  currency: string
+  notes: string | null
+  as_of_date: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type BankAccountsSummary = {
+  total_cash: string | number
+  accounts_count: number
+  currency: string
+}
+
+export type BankAccountPayload = {
+  bank_name: string
+  account_name: string | null
+  account_type: 'savings' | 'current' | 'salary' | 'fd' | 'other'
+  account_number_last4: string | null
+  balance: string
+  currency: string
+  notes: string | null
+  as_of_date: string | null
+}
+
 export type ApiValidationError = {
   path: string
   message: string
@@ -111,4 +142,32 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
   }
 
   return text as T
+}
+
+export function getBankAccounts(signal?: AbortSignal) {
+  return apiFetch<BankAccount[]>('/api/bank-accounts', { signal })
+}
+
+export function getBankAccountsSummary(signal?: AbortSignal) {
+  return apiFetch<BankAccountsSummary>('/api/bank-accounts/summary', { signal })
+}
+
+export function createBankAccount(payload: BankAccountPayload) {
+  return apiFetch<BankAccount>('/api/bank-accounts', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateBankAccount(accountId: number, payload: BankAccountPayload) {
+  return apiFetch<BankAccount>(`/api/bank-accounts/${accountId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteBankAccount(accountId: number) {
+  return apiFetch<void>(`/api/bank-accounts/${accountId}`, {
+    method: 'DELETE',
+  })
 }

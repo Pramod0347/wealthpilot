@@ -6,13 +6,16 @@ type NavItem = {
   key: string
   label: string
   icon: IconName
+  navigable?: boolean
 }
 
 const navItems: NavItem[] = [
-  { key: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
+  { key: 'dashboard', label: 'Dashboard', icon: 'dashboard', navigable: true },
   { key: 'portfolio', label: 'Portfolio', icon: 'portfolio' },
-  { key: 'stocks', label: 'Stocks', icon: 'stocks' },
-  { key: 'cards', label: 'Credit Cards', icon: 'cards' },
+  { key: 'stocks', label: 'Stocks', icon: 'stocks', navigable: true },
+  { key: 'banks', label: 'Banks', icon: 'banks', navigable: true },
+  { key: 'pfepf', label: 'PF / EPF', icon: 'pfepf' },
+  { key: 'cards', label: 'Credit Cards', icon: 'cards', navigable: true },
   { key: 'transactions', label: 'Transactions', icon: 'transactions' },
   { key: 'analytics', label: 'Analytics', icon: 'analytics' },
   { key: 'reports', label: 'Reports', icon: 'reports' },
@@ -25,20 +28,20 @@ export default function Sidebar({
   onNavigate,
 }: {
   className?: string
-  activePage: 'dashboard' | 'stocks' | 'cards'
-  onNavigate: (page: 'dashboard' | 'stocks' | 'cards') => void
+  activePage: 'dashboard' | 'stocks' | 'banks' | 'cards'
+  onNavigate: (page: 'dashboard' | 'stocks' | 'banks' | 'cards') => void
 }) {
   const [collapsed, setCollapsed] = useState(false)
 
   return (
     <aside
       className={[
-        'sticky left-0 top-0 relative flex shrink-0 flex-col overflow-hidden border-r border-[var(--border)] bg-[var(--surface-strong)] text-slate-200 transition-[width] duration-300 ease-in-out motion-reduce:transition-none',
+        'sticky left-0 top-0 relative flex h-screen shrink-0 flex-col overflow-y-auto overflow-x-hidden border-r border-[var(--border)] bg-[#0b1224] text-slate-200 transition-[width] duration-300 ease-in-out motion-reduce:transition-none no-scrollbar',
         collapsed ? 'w-[72px] px-3 py-4' : 'w-[260px] px-5 py-5',
         className,
       ].join(' ')}
     >
-      <div className={collapsed ? 'flex items-center justify-center' : 'flex items-center gap-3'}>
+      <div className={collapsed ? 'flex items-center justify-center' : 'flex items-center gap-4'}>
         <Logo />
         <div
           className={[
@@ -55,10 +58,10 @@ export default function Sidebar({
         </div>
       </div>
 
-      <nav className={['mt-6 flex min-w-0 flex-1 flex-col', collapsed ? 'items-center gap-2' : 'gap-2'].join(' ')}>
+      <nav className={['mt-8 flex min-w-0 flex-1 flex-col', collapsed ? 'items-center gap-2' : 'gap-2'].join(' ')}>
         {navItems.map((item) => {
           const isActive = item.key === activePage
-          const isNavigable = item.key === 'dashboard' || item.key === 'stocks' || item.key === 'cards'
+          const isNavigable = item.navigable ?? false
           return (
             <button
               key={item.label}
@@ -66,26 +69,30 @@ export default function Sidebar({
               title={item.label}
               aria-label={item.label}
               aria-current={isActive ? 'page' : undefined}
-              onClick={isNavigable ? () => onNavigate(item.key as 'dashboard' | 'stocks' | 'cards') : undefined}
+              onClick={isNavigable ? () => onNavigate(item.key as 'dashboard' | 'stocks' | 'banks' | 'cards') : undefined}
               className={[
                 'group flex min-w-0 items-center rounded-[6px] text-left transition-all duration-300 ease-in-out motion-reduce:transition-none focus-visible:outline-none active:scale-[0.98]',
                 collapsed ? 'h-11 w-11 justify-center' : 'h-[52px] w-full gap-4 px-4',
                 isActive
-                  ? 'bg-[#15313d] text-[var(--accent-400)]'
-                  : isNavigable
-                    ? 'text-[var(--text-muted)] hover:bg-white/5 hover:text-slate-100'
-                    : 'cursor-not-allowed text-slate-500 opacity-70',
+                  ? 'bg-[#163443] text-[var(--accent-400)]'
+                  : 'text-slate-400 hover:bg-white/5 hover:text-slate-200',
               ].join(' ')}
               disabled={!isNavigable}
             >
-              <Icon name={item.icon} className={collapsed ? 'h-5 w-5 shrink-0' : 'h-[18px] w-[18px] shrink-0'} />
+              <Icon
+                name={item.icon}
+                className={[
+                  collapsed ? 'h-5 w-5 shrink-0' : 'h-[18px] w-[18px] shrink-0',
+                  isActive ? 'text-[var(--accent-400)]' : 'text-current',
+                ].join(' ')}
+              />
               <span
                 className={[
                   'overflow-hidden whitespace-nowrap text-left transition-all duration-300 ease-in-out motion-reduce:transition-none',
                   collapsed ? 'max-w-0 opacity-0 -translate-x-2 pointer-events-none' : 'ml-0 max-w-[140px] opacity-100 translate-x-0',
                 ].join(' ')}
               >
-                <span className="t-nav truncate">{item.label}</span>
+                <span className={['t-nav truncate', isActive ? 'text-[var(--accent-400)]' : 'text-current'].join(' ')}>{item.label}</span>
               </span>
               <span
                 className={[

@@ -13,7 +13,14 @@ from app.schemas.holding import (
     HoldingUpdate,
 )
 from app.services.holdings_analytics_service import build_holdings_analytics
-from app.services.holdings_service import mark_holding_priced_manually, mark_holding_refreshed, serialize_holding
+from app.services.holdings_service import (
+    mark_holding_priced_manually,
+    mark_holding_refreshed,
+    normalize_holding_location_fields,
+    resolve_refresh_symbol,
+    serialize_holding,
+)
+from app.services.portfolio_snapshot_service import upsert_today_snapshot
 from app.services.market_price_service import fetch_latest_market_price, MarketPriceUnavailableError
 
 router = APIRouter(prefix="/holdings", tags=["holdings"])
@@ -45,6 +52,10 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db)) -> Hol
     db.add(holding)
     db.commit()
     db.refresh(holding)
+    try:
+        upsert_today_snapshot(db)
+    except Exception:
+        pass
     return serialize_holding(holding)
 
 
@@ -58,11 +69,16 @@ def update_holding(holding_id: int, payload: HoldingUpdate, db: Session = Depend
     for field, value in updates.items():
         setattr(holding, field, value)
 
+    normalize_holding_location_fields(holding)
     if "current_price" in updates:
         mark_holding_priced_manually(holding)
 
     db.commit()
     db.refresh(holding)
+    try:
+        upsert_today_snapshot(db)
+    except Exception:
+        pass
     return serialize_holding(holding)
 
 
@@ -74,6 +90,10 @@ def delete_holding(holding_id: int, db: Session = Depends(get_db)) -> None:
 
     db.delete(holding)
     db.commit()
+    try:
+        upsert_today_snapshot(db)
+    except Exception:
+        pass
 
 
 @router.post("/{holding_id}/refresh-price", response_model=HoldingRead)
@@ -81,8 +101,10 @@ def refresh_price(holding_id: int, db: Session = Depends(get_db)) -> HoldingRead
     holding = db.get(Holding, holding_id)
     if holding is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Holding not found")
+    if holding.asset_type == "mutual_fund" or holding.price_source != "yfinance":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This holding is manual-only")
 
-    exchange_symbol = holding.exchange_symbol or f"{holding.symbol}.NS"
+    exchange_symbol = resolve_refresh_symbol(holding)
     try:
         latest_price = fetch_latest_market_price(exchange_symbol)
     except HTTPException as exc:
@@ -96,6 +118,10 @@ def refresh_price(holding_id: int, db: Session = Depends(get_db)) -> HoldingRead
     mark_holding_refreshed(holding)
     db.commit()
     db.refresh(holding)
+    try:
+        upsert_today_snapshot(db)
+    except Exception:
+        pass
     return serialize_holding(holding)
 
 
@@ -106,7 +132,9 @@ def refresh_prices(db: Session = Depends(get_db)) -> BulkPriceRefreshResponse:
     failures: list[BulkPriceRefreshFailure] = []
 
     for holding in holdings:
-        exchange_symbol = holding.exchange_symbol or f"{holding.symbol}.NS"
+        if holding.asset_type == "mutual_fund" or holding.price_source != "yfinance":
+            continue
+        exchange_symbol = resolve_refresh_symbol(holding)
         try:
             latest_price = fetch_latest_market_price(exchange_symbol)
         except HTTPException as exc:
@@ -133,6 +161,10 @@ def refresh_prices(db: Session = Depends(get_db)) -> BulkPriceRefreshResponse:
         updated_count += 1
 
     db.commit()
+    try:
+        upsert_today_snapshot(db)
+    except Exception:
+        pass
 
     return BulkPriceRefreshResponse(
         updated_count=updated_count,

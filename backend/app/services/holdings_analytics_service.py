@@ -1,14 +1,16 @@
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.holding import Holding
 from app.schemas.holding import AllocationItem, HoldingAnalyticsItem, HoldingsAnalyticsResponse
 from app.services.holdings_service import serialize_holding
 
+
 ASSET_TYPE_LABELS = {
-    "stock": "Stocks",
+    "stock_in": "Indian Stocks",
+    "stock_us": "US Stocks",
     "etf": "ETFs",
     "mutual_fund": "Mutual Funds",
     "cash": "Cash",
@@ -23,7 +25,7 @@ def _to_decimal(value: object) -> Decimal:
 def _build_allocation(rows: list[tuple[str | None, Decimal]], total: Decimal) -> list[AllocationItem]:
     allocations: list[AllocationItem] = []
     for key, amount in rows:
-        normalized_key = key or "uncategorized"
+        normalized_key = key or "other"
         amount_decimal = _to_decimal(amount)
         percentage = Decimal("0")
         if total != 0:
@@ -41,6 +43,16 @@ def _build_allocation(rows: list[tuple[str | None, Decimal]], total: Decimal) ->
     return allocations
 
 
+def _asset_type_key(holding: Holding) -> str:
+    if holding.country == "US":
+        return "stock_us"
+    if holding.asset_type == "stock":
+        return "stock_in"
+    if holding.asset_type in {"etf", "mutual_fund", "cash"}:
+        return holding.asset_type
+    return "other"
+
+
 def _build_holding_item(holding: Holding) -> HoldingAnalyticsItem:
     serialized = serialize_holding(holding)
     return HoldingAnalyticsItem(
@@ -48,7 +60,11 @@ def _build_holding_item(holding: Holding) -> HoldingAnalyticsItem:
         symbol=serialized.symbol,
         company_name=serialized.company_name,
         asset_type=serialized.asset_type,
+        country=serialized.country,
+        currency=serialized.currency,
         sector=serialized.sector,
+        native_current_value=serialized.native_current_value,
+        native_pnl=serialized.native_pnl,
         current_value=serialized.current_value,
         pnl=serialized.pnl,
         return_pct=serialized.return_pct,
@@ -56,29 +72,28 @@ def _build_holding_item(holding: Holding) -> HoldingAnalyticsItem:
 
 
 def build_holdings_analytics(db: Session) -> HoldingsAnalyticsResponse:
-    aggregated = db.query(
-        func.coalesce(func.sum(Holding.quantity * Holding.avg_buy_price), 0),
-        func.coalesce(func.sum(Holding.quantity * Holding.current_price), 0),
-    ).one()
+    holdings = db.scalars(select(Holding).order_by(Holding.created_at.desc())).all()
+    serialized_holdings = [serialize_holding(holding) for holding in holdings]
 
-    total_invested = _to_decimal(aggregated[0])
-    current_value = _to_decimal(aggregated[1])
+    total_invested = sum((item.invested_amount for item in serialized_holdings), Decimal("0"))
+    current_value = sum((item.current_value for item in serialized_holdings), Decimal("0"))
     total_pnl = current_value - total_invested
     total_return_pct = Decimal("0")
     if total_invested != 0:
         total_return_pct = (total_pnl / total_invested) * Decimal("100")
 
-    asset_type_rows = db.query(
-        Holding.asset_type,
-        func.coalesce(func.sum(Holding.quantity * Holding.current_price), 0),
-    ).group_by(Holding.asset_type).all()
+    asset_type_totals: dict[str, Decimal] = {}
+    sector_totals: dict[str, Decimal] = {}
 
-    sector_rows = db.query(
-        Holding.sector,
-        func.coalesce(func.sum(Holding.quantity * Holding.current_price), 0),
-    ).group_by(Holding.sector).all()
+    for holding, serialized in zip(holdings, serialized_holdings, strict=False):
+        asset_key = _asset_type_key(holding)
+        asset_type_totals[asset_key] = asset_type_totals.get(asset_key, Decimal("0")) + serialized.current_value
+        sector_key = holding.sector or "Uncategorized"
+        sector_totals[sector_key] = sector_totals.get(sector_key, Decimal("0")) + serialized.current_value
 
-    holdings = db.scalars(select(Holding).order_by(Holding.created_at.desc())).all()
+    asset_type_rows = [(key, amount) for key, amount in asset_type_totals.items()]
+    sector_rows = [(key, amount) for key, amount in sector_totals.items()]
+
     holding_items = [_build_holding_item(holding) for holding in holdings]
     top_gainers = sorted(holding_items, key=lambda item: item.pnl, reverse=True)[:5]
     top_losers = sorted(holding_items, key=lambda item: item.pnl)[:5]

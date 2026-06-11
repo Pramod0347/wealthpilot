@@ -13,6 +13,11 @@ class AssetAllocationItem(BaseModel):
 class DashboardSummary(BaseModel):
     total_invested: Decimal = Decimal("0")
     current_value: Decimal = Decimal("0")
+    total_bank_cash: Decimal = Decimal("0")
+    bank_accounts_count: int = 0
+    total_assets: Decimal = Decimal("0")
+    total_liabilities: Decimal = Decimal("0")
+    net_worth: Decimal = Decimal("0")
     total_pnl: Decimal = Decimal("0")
     total_return_pct: Decimal = Decimal("0")
     holdings_count: int = 0

@@ -4,9 +4,10 @@ import Header from './components/Header'
 import Dashboard from './components/Dashboard'
 import StocksPage from './components/StocksPage'
 import CreditCardsPage from './components/CreditCardsPage'
+import BanksPage from './components/BanksPage'
 
 export default function App() {
-  const [activePage, setActivePage] = useState<'dashboard' | 'stocks' | 'cards'>('dashboard')
+  const [activePage, setActivePage] = useState<'dashboard' | 'stocks' | 'banks' | 'cards'>('dashboard')
   const pageConfig = {
     dashboard: {
       title: 'Dashboard',
@@ -14,9 +15,14 @@ export default function App() {
       content: <Dashboard onOpenStocks={() => setActivePage('stocks')} onOpenCards={() => setActivePage('cards')} />,
     },
     stocks: {
-      title: 'Stocks / Holdings',
-      subtitle: 'Personal finance dashboard • Updated 10 Jun 2026, 3:30 PM IST',
+      title: 'Stocks & Investments',
+      subtitle: 'Indian stocks, US stocks, ETFs, gold, and mutual funds',
       content: <StocksPage />,
+    },
+    banks: {
+      title: 'Banks',
+      subtitle: 'Cash accounts and balances across your banks',
+      content: <BanksPage />,
     },
     cards: {
       title: 'Credit Cards',

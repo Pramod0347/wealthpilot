@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { apiFetch } from '../lib/api'
+import { getTrendClass } from '../lib/format'
 import { Icon } from './Icon'
 
 type MarketOverviewItem = {
@@ -77,14 +78,15 @@ function MarketChip({
   symbol: string
 }) {
   const numericChangePct = typeof change_pct === 'number' ? change_pct : Number(change_pct)
-  const positive = Number.isFinite(numericChangePct) ? numericChangePct >= 0 : true
+  const toneClass = Number.isFinite(numericChangePct) ? getTrendClass(numericChangePct) : 'text-slate-300'
+  const arrow = Number.isFinite(numericChangePct) ? (numericChangePct > 0 ? '↑' : numericChangePct < 0 ? '↓' : '•') : '•'
 
   return (
     <div className="flex h-12 min-w-[150px] shrink-0 flex-col justify-center rounded-xl border border-slate-700/70 bg-slate-900/70 px-4 py-2">
       <div className="flex items-center justify-between gap-3 text-[13px] leading-none">
         <span className="truncate font-medium text-slate-300">{name}</span>
-        <span className={['font-medium', positive ? 'text-emerald-400' : 'text-rose-400'].join(' ')}>
-          {positive ? '↑' : '↓'} {formatChangePct(change_pct)}
+        <span className={['font-medium', toneClass].join(' ')}>
+          {arrow} {formatChangePct(change_pct)}
         </span>
       </div>
       <div className="mt-2 text-[17px] font-semibold leading-none text-white">{formatMarketValue(price, currency, symbol)}</div>

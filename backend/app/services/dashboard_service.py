@@ -1,57 +1,81 @@
 from decimal import Decimal
 
-from sqlalchemy import case, func
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
+from app.models.bank_account import BankAccount
 from app.models.credit_card import CreditCard
 from app.models.holding import Holding
 from app.schemas.dashboard import AssetAllocationItem, DashboardSummary
+from app.services.holdings_service import serialize_holding
 
-ASSET_TYPE_LABELS = {
-    "stock": "Stocks",
-    "etf": "ETFs",
-    "mutual_fund": "Mutual Funds",
-    "cash": "Cash",
-    "other": "Other Assets",
-}
+
+def _allocation_entry(key: str, label: str, amount: Decimal, total: Decimal) -> AssetAllocationItem:
+    percentage = Decimal("0")
+    if total != 0:
+        percentage = (amount / total) * Decimal("100")
+    return AssetAllocationItem(asset_type=key, label=label, amount=amount, percentage=percentage)
 
 
 def build_dashboard_summary(db: Session) -> DashboardSummary:
-    aggregated = db.query(
-        func.coalesce(func.sum(Holding.quantity * Holding.avg_buy_price), 0),
-        func.coalesce(func.sum(Holding.quantity * Holding.current_price), 0),
-        func.count(Holding.id),
-    ).one()
+    holdings = db.scalars(select(Holding).order_by(Holding.created_at.desc())).all()
+    serialized_holdings = [serialize_holding(holding) for holding in holdings]
 
-    total_invested = Decimal(aggregated[0])
-    current_value = Decimal(aggregated[1])
-    holdings_count = int(aggregated[2])
+    total_invested = sum((holding.invested_amount for holding in serialized_holdings), Decimal("0"))
+    current_value = sum((holding.current_value for holding in serialized_holdings), Decimal("0"))
+    holdings_count = len(serialized_holdings)
     total_pnl = current_value - total_invested
     total_return_pct = Decimal("0")
     if total_invested != 0:
         total_return_pct = (total_pnl / total_invested) * Decimal("100")
 
-    allocation_rows = db.query(
-        Holding.asset_type,
-        func.coalesce(func.sum(Holding.quantity * Holding.current_price), 0),
-    ).group_by(Holding.asset_type).all()
+    indian_stocks = sum(
+        (holding.current_value for holding in serialized_holdings if holding.asset_type == "stock" and holding.country == "IN"),
+        Decimal("0"),
+    )
+    us_stocks = sum(
+        (holding.current_value for holding in serialized_holdings if holding.country == "US"),
+        Decimal("0"),
+    )
+    etfs = sum((holding.current_value for holding in serialized_holdings if holding.asset_type == "etf"), Decimal("0"))
+    mutual_funds = sum((holding.current_value for holding in serialized_holdings if holding.asset_type == "mutual_fund"), Decimal("0"))
+    cash = sum((holding.current_value for holding in serialized_holdings if holding.asset_type == "cash"), Decimal("0"))
+    other = sum(
+        (
+            holding.current_value
+            for holding in serialized_holdings
+            if holding.asset_type not in {"stock", "etf", "mutual_fund", "cash"} and holding.country != "US"
+        ),
+        Decimal("0"),
+    )
 
-    allocations = []
-    for asset_type, amount in allocation_rows:
-        allocated_amount = Decimal(amount)
-        percentage = Decimal("0")
-        if current_value != 0:
-            percentage = (allocated_amount / current_value) * Decimal("100")
-        allocations.append(
-            AssetAllocationItem(
-                asset_type=asset_type or "stock",
-                label=ASSET_TYPE_LABELS.get(asset_type or "stock", "Other Assets"),
-                amount=allocated_amount,
-                percentage=percentage,
-            )
+    bank_stats = db.execute(
+        select(
+            func.coalesce(func.sum(BankAccount.balance), 0),
+            func.count(BankAccount.id),
         )
+    ).one()
+    total_bank_cash = Decimal(bank_stats[0])
+    bank_accounts_count = int(bank_stats[1])
 
-    allocations.sort(key=lambda item: item.amount, reverse=True)
+    total_assets = current_value + total_bank_cash
+
+    allocation_entries = [
+        ("stock_in", "Indian Stocks", indian_stocks),
+        ("stock_us", "US Stocks", us_stocks),
+        ("etf", "ETFs", etfs),
+        ("mutual_fund", "Mutual Funds", mutual_funds),
+        ("cash", "Cash", cash),
+        ("other", "Other Assets", other),
+    ]
+    if total_bank_cash > 0:
+        allocation_entries.append(("banks", "Banks", total_bank_cash))
+
+    allocations = [
+        _allocation_entry(key, label, amount, total_assets)
+        for key, label, amount in allocation_entries
+        if amount != 0
+    ]
 
     card_stats = db.query(
         func.coalesce(func.sum(CreditCard.current_bill_amount), 0),
@@ -69,10 +93,17 @@ def build_dashboard_summary(db: Session) -> DashboardSummary:
     overall_card_utilization = Decimal("0")
     if total_card_limit != 0:
         overall_card_utilization = (total_card_used / total_card_limit) * Decimal("100")
+    total_liabilities = total_credit_card_dues
+    net_worth = total_assets - total_liabilities
 
     return DashboardSummary(
         total_invested=total_invested,
         current_value=current_value,
+        total_bank_cash=total_bank_cash,
+        bank_accounts_count=bank_accounts_count,
+        total_assets=total_assets,
+        total_liabilities=total_liabilities,
+        net_worth=net_worth,
         total_pnl=total_pnl,
         total_return_pct=total_return_pct,
         holdings_count=holdings_count,

@@ -31,3 +31,21 @@ export function formatINRShort(value: number) {
 export function formatPct(value: number) {
   return `${pctFormatter.format(Math.abs(value))}%`
 }
+
+export function formatSignedPct(value: number) {
+  const sign = value > 0 ? '+' : value < 0 ? '-' : ''
+  return `${sign}${pctFormatter.format(Math.abs(value))}%`
+}
+
+export function getTrendTone(value: number) {
+  if (value > 0) return 'positive'
+  if (value < 0) return 'negative'
+  return 'neutral'
+}
+
+export function getTrendClass(value: number, positiveClass = 'text-emerald-400', negativeClass = 'text-rose-400', neutralClass = 'text-slate-300') {
+  const tone = getTrendTone(value)
+  if (tone === 'positive') return positiveClass
+  if (tone === 'negative') return negativeClass
+  return neutralClass
+}
