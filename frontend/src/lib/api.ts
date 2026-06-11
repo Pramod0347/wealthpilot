@@ -24,48 +24,91 @@ type FetchOptions = RequestInit & {
 }
 
 export async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers ?? {}),
-    },
-    ...options,
-  })
+  const { headers: optionHeaders, ...requestOptions } = options
+  const url = `${API_BASE_URL}${path}`
+  const method = (requestOptions.method ?? 'GET').toUpperCase()
+  const hasBody = requestOptions.body !== undefined && requestOptions.body !== null
+
+  let response: Response
+  try {
+    response = await fetch(url, {
+      ...requestOptions,
+      headers: {
+        Accept: 'application/json',
+        ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+        ...(optionHeaders ?? {}),
+      },
+    })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw error
+    }
+
+    const message = error instanceof Error ? error.message : 'Network request failed'
+    if (message.includes('Failed to fetch')) {
+      throw new ApiError('Network/preflight failed. Check backend terminal for OPTIONS/PATCH logs.', 0)
+    }
+    throw new ApiError(`${method} ${url} failed: ${message}`, 0)
+  }
+
+  if (response.status === 204) {
+    return undefined as T
+  }
 
   if (!response.ok) {
     const contentType = response.headers.get('content-type') ?? ''
-    if (contentType.includes('application/json')) {
-      const payload = await response.json().catch(() => null)
-      if (payload && typeof payload === 'object' && 'detail' in payload) {
-        const detail = payload.detail
-        if (Array.isArray(detail)) {
-          const validationErrors = detail
-            .map((item) => {
-              if (!item || typeof item !== 'object') {
-                return null
-              }
-              const path = Array.isArray((item as { loc?: unknown }).loc)
-                ? (item as { loc?: Array<string | number> }).loc?.slice(1).join('.')
-                : ''
-              const message = typeof (item as { msg?: unknown }).msg === 'string' ? (item as { msg: string }).msg : 'Invalid value'
-              return {
-                path,
-                message,
-              }
-            })
-            .filter((item): item is ApiValidationError => item !== null)
+    const text = await response.text()
 
-          throw new ApiError('Validation failed', response.status, validationErrors)
+    if (contentType.includes('application/json') && text) {
+      try {
+        const payload = JSON.parse(text) as unknown
+        if (payload && typeof payload === 'object' && 'detail' in payload) {
+          const detail = (payload as { detail: unknown }).detail
+          if (Array.isArray(detail)) {
+            const validationErrors = detail
+              .map((item) => {
+                if (!item || typeof item !== 'object') {
+                  return null
+                }
+                const path = Array.isArray((item as { loc?: unknown }).loc)
+                  ? (item as { loc?: Array<string | number> }).loc?.slice(1).join('.')
+                  : ''
+                const message = typeof (item as { msg?: unknown }).msg === 'string' ? (item as { msg: string }).msg : 'Invalid value'
+                return {
+                  path,
+                  message,
+                }
+              })
+              .filter((item): item is ApiValidationError => item !== null)
+
+            throw new ApiError('Validation failed', response.status, validationErrors)
+          }
+
+          if (typeof detail === 'string') {
+            throw new ApiError(detail, response.status)
+          }
         }
-
-        const message = typeof detail === 'string' ? detail : 'Request failed'
-        throw new ApiError(message, response.status)
+        throw new ApiError(JSON.stringify(payload, null, 2), response.status)
+      } catch (parseError) {
+        if (parseError instanceof ApiError) {
+          throw parseError
+        }
+        throw new ApiError(text, response.status)
       }
     }
 
-    const message = await response.text()
-    throw new ApiError(message || `Request failed with status ${response.status}`, response.status)
+    throw new ApiError(text || `Request failed with status ${response.status}`, response.status)
   }
 
-  return response.json() as Promise<T>
+  const text = await response.text()
+  if (!text) {
+    return undefined as T
+  }
+
+  const contentType = response.headers.get('content-type') ?? ''
+  if (contentType.includes('application/json')) {
+    return JSON.parse(text) as T
+  }
+
+  return text as T
 }

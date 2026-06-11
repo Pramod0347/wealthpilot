@@ -1,8 +1,9 @@
 from decimal import Decimal
 
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
+from app.models.credit_card import CreditCard
 from app.models.holding import Holding
 from app.schemas.dashboard import AssetAllocationItem, DashboardSummary
 
@@ -52,6 +53,23 @@ def build_dashboard_summary(db: Session) -> DashboardSummary:
 
     allocations.sort(key=lambda item: item.amount, reverse=True)
 
+    card_stats = db.query(
+        func.coalesce(func.sum(CreditCard.current_bill_amount), 0),
+        func.coalesce(func.sum(CreditCard.total_limit), 0),
+        func.coalesce(func.sum(CreditCard.used_amount), 0),
+        func.coalesce(func.sum(case((CreditCard.status == "due_soon", 1), else_=0)), 0),
+        func.coalesce(func.sum(case((CreditCard.status == "overdue", 1), else_=0)), 0),
+    ).one()
+
+    total_credit_card_dues = Decimal(card_stats[0])
+    total_card_limit = Decimal(card_stats[1])
+    total_card_used = Decimal(card_stats[2])
+    due_soon_count = int(card_stats[3])
+    overdue_count = int(card_stats[4])
+    overall_card_utilization = Decimal("0")
+    if total_card_limit != 0:
+        overall_card_utilization = (total_card_used / total_card_limit) * Decimal("100")
+
     return DashboardSummary(
         total_invested=total_invested,
         current_value=current_value,
@@ -59,4 +77,10 @@ def build_dashboard_summary(db: Session) -> DashboardSummary:
         total_return_pct=total_return_pct,
         holdings_count=holdings_count,
         allocations=allocations,
+        total_credit_card_dues=total_credit_card_dues,
+        total_card_limit=total_card_limit,
+        total_card_used=total_card_used,
+        overall_card_utilization=overall_card_utilization,
+        due_soon_count=due_soon_count,
+        overdue_count=overdue_count,
     )

@@ -127,10 +127,17 @@ function formatRefreshTimestamp(value: string | null | undefined) {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
-  return new Intl.DateTimeFormat('en-IN', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date)
+  const day = new Intl.DateTimeFormat('en-IN', { day: 'numeric' }).format(date)
+  const month = new Intl.DateTimeFormat('en-IN', { month: 'short' }).format(date)
+  const time = new Intl.DateTimeFormat('en-IN', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+    .format(date)
+    .replace(/\s?(am|pm)$/i, (match) => match.toUpperCase())
+
+  return `Refreshed ${day} ${month}, ${time}`
 }
 
 function formatApiError(error: unknown) {
@@ -174,7 +181,7 @@ function SectionCard({
   className?: string
 }) {
   return (
-    <div className={['rounded-[6px] border border-[rgba(51,65,85,0.5)] bg-[#11192d] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)]', className].join(' ')}>
+    <div className={['rounded-[6px] border border-[rgba(51,65,85,0.5)] bg-[#11192d] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] transition-colors duration-200 ease-out hover:border-slate-600/60 motion-reduce:transition-none', className].join(' ')}>
       {title ? <div className="border-b border-[rgba(51,65,85,0.45)] px-6 py-5 t-section text-white">{title}</div> : null}
       {children}
     </div>
@@ -210,6 +217,8 @@ export default function StocksPage() {
   const [assetTypeFilter, setAssetTypeFilter] = useState('all')
   const [sectorFilter, setSectorFilter] = useState('all')
   const [isHoldingModalOpen, setIsHoldingModalOpen] = useState(false)
+  const [isHoldingDrawerMounted, setIsHoldingDrawerMounted] = useState(false)
+  const [isHoldingDrawerVisible, setIsHoldingDrawerVisible] = useState(false)
   const [holdingForm, setHoldingForm] = useState<HoldingFormState>(defaultHoldingForm)
   const [formErrors, setFormErrors] = useState<FormErrors>({})
   const [formErrorMessage, setFormErrorMessage] = useState<string | null>(null)
@@ -260,6 +269,31 @@ export default function StocksPage() {
     })
     return () => controller.abort()
   }, [])
+
+  useEffect(() => {
+    if (isHoldingModalOpen) {
+      setIsHoldingDrawerMounted(true)
+      const frame = window.requestAnimationFrame(() => setIsHoldingDrawerVisible(true))
+      return () => window.cancelAnimationFrame(frame)
+    }
+
+    setIsHoldingDrawerVisible(false)
+    const timeout = window.setTimeout(() => setIsHoldingDrawerMounted(false), 250)
+    return () => window.clearTimeout(timeout)
+  }, [isHoldingModalOpen])
+
+  useEffect(() => {
+    if (!isHoldingDrawerMounted) return undefined
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsHoldingModalOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [isHoldingDrawerMounted])
 
   const summaryCards = useMemo(() => {
     if (analyticsLoading) {
@@ -396,14 +430,27 @@ export default function StocksPage() {
         as_of_date: asOfDate || null,
       }
 
+      const method = editingHoldingId === null ? 'POST' : 'PATCH'
+      const url =
+        editingHoldingId === null
+          ? '/api/holdings'
+          : `/api/holdings/${editingHoldingId}`
+
+      if (method === 'PATCH') {
+        console.log('PATCH holding', {
+          url: `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}${url}`,
+          payload,
+        })
+      }
+
       if (editingHoldingId === null) {
         await apiFetch('/api/holdings', {
-          method: 'POST',
+          method,
           body: JSON.stringify(payload),
         })
       } else {
-        await apiFetch(`/api/holdings/${editingHoldingId}`, {
-          method: 'PATCH',
+        await apiFetch(url, {
+          method,
           body: JSON.stringify(payload),
         })
       }
@@ -543,7 +590,7 @@ export default function StocksPage() {
               type="button"
               onClick={handleRefreshAllPrices}
               disabled={isRefreshingAllPrices}
-              className="flex h-12 items-center gap-3 rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body font-semibold text-slate-200 transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-70"
+              className="flex h-12 items-center gap-3 rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body font-semibold text-slate-200 transition-all duration-200 ease-out hover:bg-white/5 hover:border-slate-500/70 hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 motion-reduce:transition-none"
             >
               <Icon name="refresh" className={['h-4 w-4', isRefreshingAllPrices ? 'animate-spin' : ''].join(' ')} />
               {isRefreshingAllPrices ? 'Refreshing...' : 'Refresh All Prices'}
@@ -552,7 +599,7 @@ export default function StocksPage() {
             <button
               type="button"
               onClick={openCreateModal}
-              className="flex h-12 items-center gap-3 rounded-[6px] bg-[var(--accent-600)] px-4 t-body font-semibold text-white transition-colors hover:bg-[var(--accent-700)]"
+              className="flex h-12 items-center gap-3 rounded-[6px] bg-[var(--accent-600)] px-4 t-body font-semibold text-white transition-all duration-200 ease-out hover:bg-[var(--accent-700)] hover:brightness-105 active:scale-[0.98] motion-reduce:transition-none"
             >
               <Icon name="add" className="h-4 w-4 text-white" />
               Add Holding
@@ -739,7 +786,7 @@ export default function StocksPage() {
                 <thead>
                   <tr className="text-left">
                     {['Stock', 'Asset Type', 'Qty', 'Avg Buy', 'LTP', 'Invested', 'Cur. Value', 'P&L', 'Return %', ''].map((head) => (
-                      <th key={head} className="px-6 py-4 t-th">
+                      <th key={head} className="px-5 py-4 t-th">
                         {head}
                       </th>
                     ))}
@@ -755,8 +802,8 @@ export default function StocksPage() {
                     const refreshDisabled = row.asset_type === 'mutual_fund'
 
                     return (
-                      <tr key={row.id} className="border-t border-[rgba(51,65,85,0.35)]">
-                        <td className="px-6 py-5">
+                      <tr key={row.id} className="border-t border-[rgba(51,65,85,0.35)] transition-colors duration-150 hover:bg-[rgba(30,41,59,0.3)]">
+                        <td className="px-5 py-3">
                           <div className="t-nav text-white">{row.symbol}</div>
                           <div className="t-meta">{row.company_name}</div>
                           <div className="mt-2 inline-flex rounded-[999px] px-2 py-1 t-badge text-slate-300">
@@ -764,46 +811,52 @@ export default function StocksPage() {
                           </div>
                           <div className="mt-1 t-meta">
                             {row.price_source === 'yfinance' ? 'Live price · yfinance' : 'Manual price'}
-                            {row.last_price_refreshed_at ? ` · Refreshed ${formatRefreshTimestamp(row.last_price_refreshed_at)}` : ''}
+                            {row.last_price_refreshed_at ? ` · ${formatRefreshTimestamp(row.last_price_refreshed_at)}` : ''}
                           </div>
                         </td>
-                        <td className="px-6 py-5">
+                        <td className="px-5 py-3">
                           <div className={['inline-flex rounded-[999px] px-2 py-1 t-badge', getAssetTypeBadgeClass(row.asset_type)].join(' ')}>
                             {getAssetTypeMeta(row.asset_type).label}
                           </div>
                         </td>
-                        <td className="px-6 py-5 t-num text-slate-200">{toNumber(row.quantity)}</td>
-                        <td className="px-6 py-5 t-num text-slate-200">{formatINR(toNumber(row.avg_buy_price))}</td>
-                        <td className="px-6 py-5 t-num text-slate-200">{formatINR(toNumber(row.current_price))}</td>
-                        <td className="px-6 py-5 t-num text-slate-200">{formatINR(invested)}</td>
-                        <td className="px-6 py-5 t-num text-white">{formatINR(currentValue)}</td>
-                        <td className={['px-6 py-5 t-num', positive ? 'text-emerald-400' : 'text-rose-400'].join(' ')}>
+                        <td className="px-5 py-3 t-num text-slate-200">{toNumber(row.quantity)}</td>
+                        <td className="px-5 py-3 t-num text-slate-200">{formatINR(toNumber(row.avg_buy_price))}</td>
+                        <td className="px-5 py-3 t-num text-slate-200">{formatINR(toNumber(row.current_price))}</td>
+                        <td className="px-5 py-3 t-num text-slate-200">{formatINR(invested)}</td>
+                        <td className="px-5 py-3 t-num text-white">{formatINR(currentValue)}</td>
+                        <td className={['px-5 py-3 t-num', positive ? 'text-emerald-400' : 'text-rose-400'].join(' ')}>
                           {positive ? '+' : '-'}
                           {formatINR(Math.abs(pnl)).replace('₹', '')}
                         </td>
-                        <td className={['px-6 py-5 t-badge', positive ? 'text-emerald-400' : 'text-rose-400'].join(' ')}>
+                        <td className={['px-5 py-3 t-badge', positive ? 'text-emerald-400' : 'text-rose-400'].join(' ')}>
                           {positive ? '↑' : '↓'} {formatPct(pct)}
                         </td>
-                        <td className="px-6 py-5 text-right text-slate-400">
-                          <button
-                            type="button"
-                            onClick={() => handleRefreshHolding(row)}
-                            disabled={refreshDisabled || refreshingHoldingId === row.id || isRefreshingAllPrices}
-                            title={refreshDisabled ? 'Refresh disabled for mutual funds' : 'Refresh market price'}
-                            className="mr-2 rounded-[6px] px-3 py-2 t-badge text-accent-400 transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            <span className="inline-flex items-center gap-2">
-                              <Icon
-                                name="refresh"
-                                className={['h-4 w-4', refreshingHoldingId === row.id ? 'animate-spin' : ''].join(' ')}
-                              />
-                              {refreshDisabled ? 'Manual only' : refreshingHoldingId === row.id ? 'Refreshing' : 'Refresh'}
+                        <td className="px-5 py-3 text-right text-slate-400">
+                          {refreshDisabled ? (
+                            <span className="mr-2 inline-flex rounded-[6px] border border-[rgba(51,65,85,0.45)] bg-[rgba(15,23,42,0.72)] px-2.5 py-1.5 t-badge text-slate-400 transition-colors duration-200 ease-out">
+                              Manual only
                             </span>
-                          </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleRefreshHolding(row)}
+                              disabled={refreshingHoldingId === row.id || isRefreshingAllPrices}
+                              title="Refresh market price"
+                              className="mr-2 rounded-[6px] px-2.5 py-1.5 t-badge text-accent-400 transition-all duration-200 ease-out hover:bg-white/5 active:scale-[0.95] disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+                            >
+                              <span className="inline-flex items-center gap-2">
+                                <Icon
+                                  name="refresh"
+                                  className={['h-4 w-4', refreshingHoldingId === row.id ? 'animate-spin' : ''].join(' ')}
+                                />
+                                {refreshingHoldingId === row.id ? 'Refreshing' : 'Refresh'}
+                              </span>
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => openEditModal(row)}
-                            className="mr-2 rounded-[6px] px-2 py-1 hover:bg-white/5"
+                            className="mr-2 rounded-[6px] px-2 py-1 transition-all duration-200 ease-out hover:bg-white/5 active:scale-[0.95] motion-reduce:transition-none"
                             aria-label={`Edit ${row.symbol}`}
                           >
                             <Icon name="edit" className="h-5 w-5" />
@@ -811,7 +864,7 @@ export default function StocksPage() {
                           <button
                             type="button"
                             onClick={() => handleDeleteHolding(row)}
-                            className="rounded-[6px] px-2 py-1 hover:bg-white/5"
+                            className="rounded-[6px] px-2 py-1 transition-all duration-200 ease-out hover:bg-white/5 active:scale-[0.95] motion-reduce:transition-none"
                             aria-label={`Delete ${row.symbol}`}
                           >
                             <Icon name="remove" className="h-5 w-5" />
@@ -827,11 +880,22 @@ export default function StocksPage() {
         </SectionCard>
       </div>
 
-      {isHoldingModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-stretch justify-end bg-slate-950/70 backdrop-blur-sm">
-          <button type="button" className="absolute inset-0 cursor-default" aria-label="Close holding dialog" onClick={() => setIsHoldingModalOpen(false)} />
-
-          <section className="relative z-10 flex h-full w-full max-w-[560px] flex-col border-l border-[var(--border)] bg-[#0f172a] shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+      {isHoldingDrawerMounted ? (
+        <div
+          className={[
+            'fixed inset-0 z-50 flex items-stretch justify-end bg-slate-950/70 backdrop-blur-sm transition-opacity duration-200 ease-out motion-reduce:transition-none',
+            isHoldingDrawerVisible ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
+          ].join(' ')}
+          onClick={() => setIsHoldingModalOpen(false)}
+          aria-hidden={!isHoldingDrawerVisible}
+        >
+          <section
+            className={[
+              'relative z-10 flex h-full w-full max-w-[560px] flex-col border-l border-[var(--border)] bg-[#0f172a] shadow-[0_24px_80px_rgba(0,0,0,0.45)] transition-all duration-300 ease-out motion-reduce:transition-none',
+              isHoldingDrawerVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0',
+            ].join(' ')}
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-[rgba(51,65,85,0.45)] px-6 py-5">
               <div>
                 <div className="t-section text-white">{editingHoldingId === null ? 'Add Holding' : 'Edit Holding'}</div>
@@ -840,7 +904,7 @@ export default function StocksPage() {
               <button
                 type="button"
                 onClick={() => setIsHoldingModalOpen(false)}
-                className="grid h-10 w-10 place-items-center rounded-[6px] text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
+                className="grid h-10 w-10 place-items-center rounded-[6px] text-slate-400 transition-all duration-200 ease-out hover:bg-white/5 hover:text-white active:scale-[0.95] motion-reduce:transition-none"
                 aria-label="Close"
               >
                 <Icon name="close" className="h-5 w-5" />
@@ -879,7 +943,14 @@ export default function StocksPage() {
                   <FormField label="Asset Type" error={formErrors.asset_type}>
                     <select
                       value={holdingForm.asset_type}
-                      onChange={(event) => setHoldingForm((current) => ({ ...current, asset_type: event.target.value }))}
+                      onChange={(event) => {
+                        const nextType = event.target.value
+                        setHoldingForm((current) => ({
+                          ...current,
+                          asset_type: nextType,
+                          exchange_symbol: nextType === 'mutual_fund' ? '' : current.exchange_symbol,
+                        }))
+                      }}
                       className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none focus:border-[var(--accent-600)]"
                     >
                       {assetTypeOptions.map((option) => (
@@ -890,15 +961,17 @@ export default function StocksPage() {
                     </select>
                   </FormField>
 
-                  <FormField label="Exchange Symbol" error={formErrors.exchange_symbol}>
-                    <input
-                      value={holdingForm.exchange_symbol}
-                      onChange={(event) => setHoldingForm((current) => ({ ...current, exchange_symbol: event.target.value.toUpperCase() }))}
-                      placeholder="RELIANCE.NS"
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
-                      autoComplete="off"
-                    />
-                  </FormField>
+                  {holdingForm.asset_type !== 'mutual_fund' ? (
+                    <FormField label="Exchange Symbol" error={formErrors.exchange_symbol}>
+                      <input
+                        value={holdingForm.exchange_symbol}
+                        onChange={(event) => setHoldingForm((current) => ({ ...current, exchange_symbol: event.target.value.toUpperCase() }))}
+                        placeholder="RELIANCE.NS"
+                        className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                        autoComplete="off"
+                      />
+                    </FormField>
+                  ) : null}
 
                   <FormField label="Quantity" error={formErrors.quantity}>
                     <input
@@ -974,7 +1047,7 @@ export default function StocksPage() {
                   <button
                     type="button"
                     onClick={() => setIsHoldingModalOpen(false)}
-                    className="h-11 rounded-[6px] border border-[var(--border-soft)] px-5 t-nav text-slate-200 transition-colors hover:bg-white/5"
+                    className="h-11 rounded-[6px] border border-[var(--border-soft)] px-5 t-nav text-slate-200 transition-all duration-200 ease-out hover:bg-white/5 active:scale-[0.98] motion-reduce:transition-none"
                     disabled={isSavingHolding}
                   >
                     Cancel
@@ -982,7 +1055,7 @@ export default function StocksPage() {
                   <button
                     type="submit"
                     disabled={isSavingHolding}
-                    className="flex h-11 items-center gap-3 rounded-[6px] bg-[var(--accent-600)] px-5 t-nav font-semibold text-white transition-colors hover:bg-[var(--accent-700)] disabled:cursor-not-allowed disabled:opacity-70"
+                    className="flex h-11 items-center gap-3 rounded-[6px] bg-[var(--accent-600)] px-5 t-nav font-semibold text-white transition-all duration-200 ease-out hover:bg-[var(--accent-700)] hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 motion-reduce:transition-none"
                   >
                     {isSavingHolding ? <Icon name="refresh" className="h-4 w-4 animate-spin" /> : <Icon name="add" className="h-4 w-4" />}
                     {isSavingHolding ? 'Saving...' : editingHoldingId === null ? 'Create Holding' : 'Save Changes'}

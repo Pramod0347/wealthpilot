@@ -21,6 +21,12 @@ type ApiDashboardSummary = {
   total_pnl: string | number
   total_return_pct: string | number
   holdings_count: number
+  total_credit_card_dues: string | number
+  total_card_limit: string | number
+  total_card_used: string | number
+  overall_card_utilization: string | number
+  due_soon_count: number
+  overdue_count: number
   allocations?: Array<{
     asset_type: string
     label: string
@@ -51,11 +57,31 @@ type ApiHolding = {
   return_pct: string | number
 }
 
+type ApiCreditCard = {
+  id: number
+  card_name: string
+  bank_name: string
+  last4: string
+  total_limit: string | number
+  used_amount: string | number
+  current_bill_amount: string | number
+  billing_cycle_start: string
+  billing_cycle_end: string
+  due_date: string
+  status: 'paid' | 'due_soon' | 'overdue'
+  notes: string | null
+  created_at: string
+  updated_at: string
+  available_limit: string | number
+  utilization_pct: string | number
+  days_until_due: number
+}
+
 type SummaryCard = {
   label: string
   value: string
   meta: string
-  icon: 'netWorth' | 'up' | 'analytics' | 'portfolio'
+  icon: 'netWorth' | 'up' | 'analytics' | 'portfolio' | 'cards'
   iconBg: string
   valueClass?: string
   metaClass?: string
@@ -266,6 +292,64 @@ function buildSummaryCards(summary: ApiDashboardSummary | null, loading: boolean
   ]
 }
 
+function buildCreditCardSummaryCards(summary: ApiDashboardSummary | null, loading: boolean, error: string | null): SummaryCard[] {
+  if (loading) {
+    return [
+      { label: 'Total Dues', value: 'Loading...', meta: 'Fetching from backend', icon: 'cards', iconBg: 'bg-amber-500/20 text-amber-400' },
+      { label: 'Card Limit', value: 'Loading...', meta: 'Fetching from backend', icon: 'cards', iconBg: 'bg-slate-800 text-slate-300' },
+      { label: 'Used Amount', value: 'Loading...', meta: 'Fetching from backend', icon: 'cards', iconBg: 'bg-slate-800 text-slate-300' },
+      { label: 'Utilization', value: 'Loading...', meta: 'Fetching from backend', icon: 'cards', iconBg: 'bg-slate-800 text-slate-300' },
+    ]
+  }
+
+  if (error || summary === null) {
+    return [
+      { label: 'Total Dues', value: '—', meta: error ?? 'No data available', icon: 'cards', iconBg: 'bg-amber-500/20 text-amber-400' },
+      { label: 'Card Limit', value: '—', meta: error ?? 'No data available', icon: 'cards', iconBg: 'bg-slate-800 text-slate-300' },
+      { label: 'Used Amount', value: '—', meta: error ?? 'No data available', icon: 'cards', iconBg: 'bg-slate-800 text-slate-300' },
+      { label: 'Utilization', value: '—', meta: error ?? 'No data available', icon: 'cards', iconBg: 'bg-slate-800 text-slate-300' },
+    ]
+  }
+
+  const totalDues = toNumber(summary.total_credit_card_dues)
+  const totalCardLimit = toNumber(summary.total_card_limit)
+  const totalCardUsed = toNumber(summary.total_card_used)
+  const utilization = toNumber(summary.overall_card_utilization)
+
+  return [
+    {
+      label: 'Total Dues',
+      value: formatINR(totalDues),
+      meta: `${summary.overdue_count} overdue · ${summary.due_soon_count} due soon`,
+      icon: 'cards',
+      iconBg: 'bg-amber-500/20 text-amber-400',
+      valueClass: totalDues > 0 ? 'text-amber-300' : 'text-white',
+    },
+    {
+      label: 'Card Limit',
+      value: formatINR(totalCardLimit),
+      meta: 'Across all credit cards',
+      icon: 'cards',
+      iconBg: 'bg-slate-800 text-slate-300',
+    },
+    {
+      label: 'Used Amount',
+      value: formatINR(totalCardUsed),
+      meta: 'Current swipes and dues',
+      icon: 'cards',
+      iconBg: 'bg-slate-800 text-slate-300',
+    },
+    {
+      label: 'Utilization',
+      value: `${utilization.toFixed(2)}%`,
+      meta: 'Overall card utilization',
+      icon: 'cards',
+      iconBg: 'bg-slate-800 text-slate-300',
+      valueClass: utilization >= 80 ? 'text-rose-400' : utilization >= 50 ? 'text-amber-400' : 'text-emerald-400',
+    },
+  ]
+}
+
 function SectionCard({
   title,
   children,
@@ -276,7 +360,7 @@ function SectionCard({
   className?: string
 }) {
   return (
-    <div className={['rounded-[6px] border border-[rgba(51,65,85,0.5)] bg-[#11192d] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)]', className].join(' ')}>
+    <div className={['rounded-[6px] border border-[rgba(51,65,85,0.5)] bg-[#11192d] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] transition-colors duration-200 ease-out hover:border-slate-600/60 motion-reduce:transition-none', className].join(' ')}>
       {title ? <div className="border-b border-[rgba(51,65,85,0.45)] px-6 py-5 t-section text-white">{title}</div> : null}
       {children}
     </div>
@@ -301,14 +385,23 @@ function FormField({
   )
 }
 
-export default function Dashboard({ onOpenStocks }: { onOpenStocks?: () => void } = {}) {
+export default function Dashboard({
+  onOpenStocks,
+  onOpenCards,
+}: {
+  onOpenStocks?: () => void
+  onOpenCards?: () => void
+} = {}) {
   const [activeFilter, setActiveFilter] = useState('6M')
   const [summary, setSummary] = useState<ApiDashboardSummary | null>(null)
   const [holdings, setHoldings] = useState<ApiHolding[]>([])
+  const [creditCards, setCreditCards] = useState<ApiCreditCard[]>([])
   const [summaryLoading, setSummaryLoading] = useState(true)
   const [holdingsLoading, setHoldingsLoading] = useState(true)
+  const [cardsLoading, setCardsLoading] = useState(true)
   const [summaryError, setSummaryError] = useState<string | null>(null)
   const [holdingsError, setHoldingsError] = useState<string | null>(null)
+  const [cardsError, setCardsError] = useState<string | null>(null)
   const [isHoldingModalOpen, setIsHoldingModalOpen] = useState(false)
   const [holdingForm, setHoldingForm] = useState<HoldingFormState>(defaultHoldingForm)
   const [formErrors, setFormErrors] = useState<FormErrors>({})
@@ -322,12 +415,15 @@ export default function Dashboard({ onOpenStocks }: { onOpenStocks?: () => void 
   const loadDashboardData = async (signal?: AbortSignal) => {
     setSummaryLoading(true)
     setHoldingsLoading(true)
+    setCardsLoading(true)
     setSummaryError(null)
     setHoldingsError(null)
+    setCardsError(null)
 
-    const [summaryResult, holdingsResult] = await Promise.allSettled([
+    const [summaryResult, holdingsResult, cardsResult] = await Promise.allSettled([
       apiFetch<ApiDashboardSummary>('/api/dashboard/summary', { signal }),
       apiFetch<ApiHolding[]>('/api/holdings', { signal }),
+      apiFetch<ApiCreditCard[]>('/api/credit-cards', { signal }),
     ])
 
     if (summaryResult.status === 'fulfilled') {
@@ -345,6 +441,14 @@ export default function Dashboard({ onOpenStocks }: { onOpenStocks?: () => void 
       setHoldings([])
     }
     setHoldingsLoading(false)
+
+    if (cardsResult.status === 'fulfilled') {
+      setCreditCards(cardsResult.value)
+    } else if (cardsResult.reason?.name !== 'AbortError') {
+      setCardsError(formatApiError(cardsResult.reason))
+      setCreditCards([])
+    }
+    setCardsLoading(false)
   }
 
   useEffect(() => {
@@ -357,8 +461,10 @@ export default function Dashboard({ onOpenStocks }: { onOpenStocks?: () => void 
       const message = formatApiError(error)
       setSummaryError(message)
       setHoldingsError(message)
+      setCardsError(message)
       setSummaryLoading(false)
       setHoldingsLoading(false)
+      setCardsLoading(false)
     })
 
     return () => controller.abort()
@@ -383,25 +489,42 @@ export default function Dashboard({ onOpenStocks }: { onOpenStocks?: () => void 
       })
     }
 
-    const totals = holdings.reduce<Record<string, number>>((accumulator, holding) => {
-      const meta = getAssetTypeMeta(holding.asset_type)
-      accumulator[meta.label] = (accumulator[meta.label] ?? 0) + toNumber(holding.current_value)
-      return accumulator
-    }, {})
+    const totals = holdings.reduce<Record<string, { name: string; value: number; color: string }>>(
+      (accumulator, holding) => {
+        const key = (holding.asset_type || 'other').toLowerCase()
+        const meta = getAssetTypeMeta(key)
+        accumulator[key] = {
+          name: meta.label,
+          value: (accumulator[key]?.value ?? 0) + toNumber(holding.current_value),
+          color: meta.color,
+        }
+        return accumulator
+      },
+      {},
+    )
 
-    const totalValue = Object.values(totals).reduce((accumulator, value) => accumulator + value, 0)
+    const totalValue = Object.values(totals).reduce((accumulator, item) => accumulator + item.value, 0)
 
-    return Object.entries(totals).map(([name, amount]) => {
-      const paletteEntry = Object.values(assetTypePalette).find((item) => item.label === name) ?? assetTypePalette.other
+    return Object.entries(totals).map(([key, item]) => {
       return {
-        key: name,
-        name,
-        value: amount,
-        percentage: totalValue > 0 ? (amount / totalValue) * 100 : 0,
-        color: paletteEntry.color,
+        key,
+        name: item.name,
+        value: item.value,
+        percentage: totalValue > 0 ? (item.value / totalValue) * 100 : 0,
+        color: item.color,
       }
     })
   }, [holdings, summary])
+
+  const equityExposurePct = useMemo(() => {
+    if (allocationData.length === 0) {
+      return 0
+    }
+
+    return allocationData.reduce((accumulator, entry) => {
+      return entry.key === 'stock' || entry.key === 'etf' ? accumulator + entry.percentage : accumulator
+    }, 0)
+  }, [allocationData])
 
   async function handleCreateHolding(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -552,7 +675,7 @@ export default function Dashboard({ onOpenStocks }: { onOpenStocks?: () => void 
           <button
             type="button"
             onClick={onOpenStocks}
-            className="flex h-14 shrink-0 items-center gap-3 rounded-[6px] bg-[var(--accent-600)] px-5 t-body font-semibold text-white transition-colors hover:bg-[var(--accent-700)]"
+            className="flex h-14 shrink-0 items-center gap-3 rounded-[6px] bg-[var(--accent-600)] px-5 t-body font-semibold text-white transition-all duration-200 ease-out hover:bg-[var(--accent-700)] hover:brightness-105 active:scale-[0.98] motion-reduce:transition-none"
           >
             <Icon name="stocks" className="h-5 w-5 text-white" />
             Open Stocks
@@ -576,15 +699,34 @@ export default function Dashboard({ onOpenStocks }: { onOpenStocks?: () => void 
           ))}
         </section>
 
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {buildCreditCardSummaryCards(summary, cardsLoading, cardsError).map((card) => (
+            <SectionCard key={card.label} className="px-6 py-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="t-label text-slate-400">{card.label}</div>
+                  <div className={['t-metric mt-6 text-white', card.valueClass].filter(Boolean).join(' ')}>{card.value}</div>
+                  <div className="t-meta mt-4 text-slate-400">{card.meta}</div>
+                </div>
+                <div className={['grid h-12 w-12 shrink-0 place-items-center rounded-[6px]', card.iconBg].join(' ')}>
+                  <Icon name={card.icon} className="h-5 w-5" />
+                </div>
+              </div>
+            </SectionCard>
+          ))}
+        </section>
+
         <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
           <SectionCard className="min-w-0 px-6 py-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="t-section text-white">Portfolio Performance</div>
                 <div className="mt-4 flex items-center gap-3">
-                  <div className="t-metric-hero text-white">₹5.39 L</div>
+                  <div className="t-metric-hero text-white">
+                    {summary ? formatINRShort(toNumber(summary.current_value)) : 'Portfolio snapshot pending'}
+                  </div>
                   <div className="rounded-[6px] bg-emerald-500/15 px-3 py-1 t-badge text-emerald-400">↑ +24.70%</div>
-                  <div className="t-body text-slate-400">in 6M</div>
+                  <div className="t-body text-slate-400">{summary ? 'from holdings' : 'waiting for snapshots'}</div>
                 </div>
               </div>
               <div className="flex items-center rounded-[6px] bg-[#2b364e] p-1">
@@ -594,8 +736,8 @@ export default function Dashboard({ onOpenStocks }: { onOpenStocks?: () => void 
                     type="button"
                     onClick={() => setActiveFilter(filter)}
                     className={[
-                      'h-9 rounded-[6px] px-4 t-nav transition-colors',
-                      activeFilter === filter ? 'bg-[#404d68] text-white' : 'text-slate-400 hover:text-slate-200',
+                      'h-9 rounded-[6px] px-4 t-nav transition-all duration-200 ease-out active:scale-[0.98] motion-reduce:transition-none',
+                      activeFilter === filter ? 'bg-[#404d68] text-white' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200',
                     ].join(' ')}
                   >
                     {filter}
@@ -687,7 +829,7 @@ export default function Dashboard({ onOpenStocks }: { onOpenStocks?: () => void 
             <div className="mt-6 flex items-center justify-between border-t border-[rgba(51,65,85,0.45)] pt-4">
               <div>
                 <div className="t-meta uppercase text-slate-400">Equity exposure</div>
-                <div className="mt-1 t-nav text-white">42.5%</div>
+                <div className="mt-1 t-nav text-white">{formatPct(equityExposurePct)}</div>
               </div>
               <div>
                 <div className="t-meta uppercase text-slate-400">Diversification</div>
@@ -696,6 +838,93 @@ export default function Dashboard({ onOpenStocks }: { onOpenStocks?: () => void 
             </div>
           </SectionCard>
         </div>
+
+        <SectionCard className="min-w-0">
+          <div className="flex items-center justify-between border-b border-[rgba(51,65,85,0.45)] px-6 py-5">
+            <div>
+              <div className="t-section text-white">Credit Cards</div>
+              <div className="mt-1 t-meta">
+                {cardsLoading ? 'Loading cards from backend...' : cardsError ? 'Unable to load cards' : `${creditCards.length} cards`}
+              </div>
+            </div>
+            <button type="button" onClick={onOpenCards} className="t-body font-semibold text-accent-400 hover:text-accent-300">
+              View all →
+            </button>
+          </div>
+
+          {cardsLoading ? (
+            <div className="px-6 py-10">
+              <div className="rounded-[6px] border border-dashed border-[rgba(51,65,85,0.6)] bg-[#0f172a] p-8 text-center">
+                <div className="t-section text-white">Loading cards...</div>
+                <div className="mt-2 t-body text-slate-400">Fetching credit card positions from the backend.</div>
+              </div>
+            </div>
+          ) : cardsError ? (
+            <div className="px-6 py-10">
+              <div className="rounded-[6px] border border-rose-500/40 bg-rose-500/10 p-8 text-center">
+                <div className="t-section text-rose-300">Unable to load cards</div>
+                <div className="mt-2 t-body text-rose-200/80">{cardsError}</div>
+              </div>
+            </div>
+          ) : creditCards.length === 0 ? (
+            <div className="px-6 py-10">
+              <div className="rounded-[6px] border border-dashed border-[rgba(51,65,85,0.6)] bg-[#0f172a] p-10 text-center">
+                <div className="mx-auto grid h-12 w-12 place-items-center rounded-[6px] bg-[#18233d] text-accent-400">
+                  <Icon name="cards" className="h-5 w-5" />
+                </div>
+                <div className="mt-4 t-section text-white">No credit cards yet</div>
+                <div className="mt-2 t-body text-slate-400">Add your first card on the Credit Cards page.</div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-4 px-6 py-6 xl:grid-cols-3">
+              {creditCards.slice(0, 3).map((card) => {
+                const toneMapByStatus = {
+                  paid: { border: 'border-emerald-500/60', status: 'bg-emerald-500/15 text-emerald-400', accent: 'text-emerald-400', bar: 'bg-emerald-500' },
+                  due_soon: { border: 'border-amber-500/60', status: 'bg-amber-500/15 text-amber-400', accent: 'text-amber-400', bar: 'bg-amber-500' },
+                  overdue: { border: 'border-rose-500/60', status: 'bg-rose-500/15 text-rose-400', accent: 'text-rose-400', bar: 'bg-rose-500' },
+                }
+                const toneMap = toneMapByStatus[card.status]
+
+                return (
+                  <div key={card.id} className={['rounded-[6px] border bg-[#131c31] p-5', toneMap.border].join(' ')}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="t-nav text-white">{card.card_name}</div>
+                        <div className="t-meta">{card.bank_name} ••{card.last4}</div>
+                      </div>
+                      <span className={['rounded-[999px] px-3 py-1 t-badge', toneMap.status].join(' ')}>{card.status.replace('_', ' ')}</span>
+                    </div>
+
+                    <div className="mt-5">
+                      <div className="flex items-center justify-between t-meta">
+                        <span>Used {formatINRShort(toNumber(card.used_amount))}</span>
+                        <span>{toNumber(card.utilization_pct).toFixed(1)}%</span>
+                      </div>
+                      <div className="mt-2 h-2 rounded-full bg-slate-800">
+                        <div className={['h-2 rounded-full', toneMap.bar].join(' ')} style={{ width: `${Math.min(toNumber(card.utilization_pct), 100)}%` }} />
+                      </div>
+                      <div className="mt-3 flex items-center justify-between t-meta">
+                        <span>Avail. {formatINRShort(toNumber(card.available_limit))} of {formatINRShort(toNumber(card.total_limit))}</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="t-micro text-slate-400">Bill amount</div>
+                        <div className={['mt-1 t-amount', toneMap.accent].join(' ')}>{formatINR(toNumber(card.current_bill_amount))}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="t-micro text-slate-400">Due date</div>
+                        <div className="mt-1 t-nav text-white">{card.due_date}</div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </SectionCard>
 
       </div>
     </div>

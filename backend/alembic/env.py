@@ -13,6 +13,7 @@ if str(BASE_DIR) not in sys.path:
 
 from app.core.config import normalize_database_url, settings
 from app.core.database import Base
+from app.models.credit_card import CreditCard  # noqa: F401
 from app.models.holding import Holding  # noqa: F401
 
 config = context.config

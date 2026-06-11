@@ -1,0 +1,777 @@
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { Icon } from './Icon'
+import { ApiError, apiFetch } from '../lib/api'
+import { formatINR, formatINRShort, formatPct } from '../lib/format'
+
+type ApiDashboardSummary = {
+  total_credit_card_dues: string | number
+  total_card_limit: string | number
+  total_card_used: string | number
+  overall_card_utilization: string | number
+  due_soon_count: number
+  overdue_count: number
+}
+
+type ApiCreditCard = {
+  id: number
+  card_name: string
+  bank_name: string
+  last4: string
+  total_limit: string | number
+  used_amount: string | number
+  current_bill_amount: string | number
+  billing_cycle_start: string
+  billing_cycle_end: string
+  due_date: string
+  status: 'paid' | 'due_soon' | 'overdue'
+  notes: string | null
+  created_at: string
+  updated_at: string
+  available_limit: string | number
+  utilization_pct: string | number
+  days_until_due: number
+}
+
+type CreditCardFormState = {
+  card_name: string
+  bank_name: string
+  last4: string
+  total_limit: string
+  used_amount: string
+  current_bill_amount: string
+  billing_cycle_start: string
+  billing_cycle_end: string
+  due_date: string
+  status: 'paid' | 'due_soon' | 'overdue'
+  notes: string
+}
+
+type FormErrors = Partial<Record<keyof CreditCardFormState, string>>
+
+const defaultCreditCardForm: CreditCardFormState = {
+  card_name: '',
+  bank_name: '',
+  last4: '',
+  total_limit: '',
+  used_amount: '',
+  current_bill_amount: '',
+  billing_cycle_start: '',
+  billing_cycle_end: '',
+  due_date: '',
+  status: 'due_soon',
+  notes: '',
+}
+
+function toNumber(value: string | number | null | undefined) {
+  return Number(value ?? 0)
+}
+
+function formatApiError(error: unknown) {
+  if (error instanceof ApiError) {
+    if (error.validationErrors.length > 0) {
+      return error.validationErrors
+        .map((item) => `${item.path ? `${item.path}: ` : ''}${item.message}`)
+        .join('\n')
+    }
+    return error.message || 'Request failed'
+  }
+
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  return 'Request failed'
+}
+
+function SectionCard({
+  title,
+  children,
+  className = '',
+}: {
+  title?: string
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div className={['rounded-[6px] border border-[rgba(51,65,85,0.5)] bg-[#11192d] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] transition-colors duration-200 ease-out hover:border-slate-600/60 motion-reduce:transition-none', className].join(' ')}>
+      {title ? <div className="border-b border-[rgba(51,65,85,0.45)] px-6 py-5 t-section text-white">{title}</div> : null}
+      {children}
+    </div>
+  )
+}
+
+function FormField({
+  label,
+  error,
+  children,
+}: {
+  label: string
+  error?: string
+  children: ReactNode
+}) {
+  return (
+    <label className="block">
+      <div className="mb-2 t-label text-slate-300">{label}</div>
+      {children}
+      {error ? <div className="mt-2 t-meta text-rose-400">{error}</div> : null}
+    </label>
+  )
+}
+
+function buildStatusTone(status: ApiCreditCard['status']) {
+  if (status === 'paid') {
+    return { border: 'border-emerald-500/60', badge: 'bg-emerald-500/15 text-emerald-400', accent: 'text-emerald-400', bar: 'bg-emerald-500' }
+  }
+  if (status === 'due_soon') {
+    return { border: 'border-amber-500/60', badge: 'bg-amber-500/15 text-amber-400', accent: 'text-amber-400', bar: 'bg-amber-500' }
+  }
+  return { border: 'border-rose-500/60', badge: 'bg-rose-500/15 text-rose-400', accent: 'text-rose-400', bar: 'bg-rose-500' }
+}
+
+function buildSummaryCards(summary: ApiDashboardSummary | null, loading: boolean, error: string | null) {
+  if (loading) {
+    return [
+      { label: 'Total Dues', value: 'Loading...', meta: 'Fetching from backend', iconBg: 'bg-amber-500/20 text-amber-400' },
+      { label: 'Card Limit', value: 'Loading...', meta: 'Fetching from backend', iconBg: 'bg-slate-800 text-slate-300' },
+      { label: 'Used Amount', value: 'Loading...', meta: 'Fetching from backend', iconBg: 'bg-slate-800 text-slate-300' },
+      { label: 'Utilization', value: 'Loading...', meta: 'Fetching from backend', iconBg: 'bg-slate-800 text-slate-300' },
+    ]
+  }
+
+  if (error || summary === null) {
+    return [
+      { label: 'Total Dues', value: '—', meta: error ?? 'No data available', iconBg: 'bg-amber-500/20 text-amber-400' },
+      { label: 'Card Limit', value: '—', meta: error ?? 'No data available', iconBg: 'bg-slate-800 text-slate-300' },
+      { label: 'Used Amount', value: '—', meta: error ?? 'No data available', iconBg: 'bg-slate-800 text-slate-300' },
+      { label: 'Utilization', value: '—', meta: error ?? 'No data available', iconBg: 'bg-slate-800 text-slate-300' },
+    ]
+  }
+
+  const totalDues = toNumber(summary.total_credit_card_dues)
+  const totalCardLimit = toNumber(summary.total_card_limit)
+  const totalCardUsed = toNumber(summary.total_card_used)
+  const utilization = toNumber(summary.overall_card_utilization)
+
+  return [
+    {
+      label: 'Total Dues',
+      value: formatINR(totalDues),
+      meta: `${summary.overdue_count} overdue · ${summary.due_soon_count} due soon`,
+      iconBg: 'bg-amber-500/20 text-amber-400',
+      valueClass: totalDues > 0 ? 'text-amber-300' : 'text-white',
+    },
+    {
+      label: 'Card Limit',
+      value: formatINR(totalCardLimit),
+      meta: 'Across all cards',
+      iconBg: 'bg-slate-800 text-slate-300',
+    },
+    {
+      label: 'Used Amount',
+      value: formatINR(totalCardUsed),
+      meta: 'Current spending',
+      iconBg: 'bg-slate-800 text-slate-300',
+    },
+    {
+      label: 'Utilization',
+      value: `${utilization.toFixed(2)}%`,
+      meta: 'Overall utilization',
+      iconBg: 'bg-slate-800 text-slate-300',
+      valueClass: utilization >= 80 ? 'text-rose-400' : utilization >= 50 ? 'text-amber-400' : 'text-emerald-400',
+    },
+  ]
+}
+
+export default function CreditCardsPage() {
+  const [summary, setSummary] = useState<ApiDashboardSummary | null>(null)
+  const [cards, setCards] = useState<ApiCreditCard[]>([])
+  const [summaryLoading, setSummaryLoading] = useState(true)
+  const [cardsLoading, setCardsLoading] = useState(true)
+  const [summaryError, setSummaryError] = useState<string | null>(null)
+  const [cardsError, setCardsError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | ApiCreditCard['status']>('all')
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isDrawerMounted, setIsDrawerMounted] = useState(false)
+  const [isDrawerVisible, setIsDrawerVisible] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [form, setForm] = useState<CreditCardFormState>(defaultCreditCardForm)
+  const [formErrors, setFormErrors] = useState<FormErrors>({})
+  const [formErrorMessage, setFormErrorMessage] = useState<string | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  const [statusTone, setStatusTone] = useState<'emerald' | 'rose' | 'amber' | 'slate'>('emerald')
+
+  const loadData = async (signal?: AbortSignal) => {
+    setSummaryLoading(true)
+    setCardsLoading(true)
+    setSummaryError(null)
+    setCardsError(null)
+
+    const [summaryResult, cardsResult] = await Promise.allSettled([
+      apiFetch<ApiDashboardSummary>('/api/dashboard/summary', { signal }),
+      apiFetch<ApiCreditCard[]>('/api/credit-cards', { signal }),
+    ])
+
+    if (summaryResult.status === 'fulfilled') {
+      setSummary(summaryResult.value)
+    } else if (summaryResult.reason?.name !== 'AbortError') {
+      setSummaryError(formatApiError(summaryResult.reason))
+      setSummary(null)
+    }
+    setSummaryLoading(false)
+
+    if (cardsResult.status === 'fulfilled') {
+      setCards(cardsResult.value)
+    } else if (cardsResult.reason?.name !== 'AbortError') {
+      setCardsError(formatApiError(cardsResult.reason))
+      setCards([])
+    }
+    setCardsLoading(false)
+  }
+
+  useEffect(() => {
+    const controller = new AbortController()
+    loadData(controller.signal).catch((error) => {
+      if (error instanceof DOMException && error.name === 'AbortError') return
+      const message = formatApiError(error)
+      setSummaryError(message)
+      setCardsError(message)
+      setSummaryLoading(false)
+      setCardsLoading(false)
+    })
+    return () => controller.abort()
+  }, [])
+
+  useEffect(() => {
+    if (isModalOpen) {
+      setIsDrawerMounted(true)
+      const frame = window.requestAnimationFrame(() => setIsDrawerVisible(true))
+      return () => window.cancelAnimationFrame(frame)
+    }
+
+    setIsDrawerVisible(false)
+    const timeout = window.setTimeout(() => setIsDrawerMounted(false), 250)
+    return () => window.clearTimeout(timeout)
+  }, [isModalOpen])
+
+  useEffect(() => {
+    if (!isDrawerMounted) return undefined
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsModalOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [isDrawerMounted])
+
+  const summaryCards = useMemo(() => buildSummaryCards(summary, summaryLoading, summaryError), [summary, summaryLoading, summaryError])
+
+  const filteredCards = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase()
+    return cards.filter((card) => {
+      const matchesQuery =
+        !query ||
+        card.card_name.toLowerCase().includes(query) ||
+        card.bank_name.toLowerCase().includes(query) ||
+        card.last4.toLowerCase().includes(query)
+      const matchesStatus = statusFilter === 'all' || card.status === statusFilter
+      return matchesQuery && matchesStatus
+    })
+  }, [cards, searchTerm, statusFilter])
+
+  function openCreateModal() {
+    setEditingId(null)
+    setForm(defaultCreditCardForm)
+    setFormErrors({})
+    setFormErrorMessage(null)
+    setIsModalOpen(true)
+  }
+
+  function openEditModal(card: ApiCreditCard) {
+    setEditingId(card.id)
+    setForm({
+      card_name: card.card_name,
+      bank_name: card.bank_name,
+      last4: card.last4,
+      total_limit: String(card.total_limit),
+      used_amount: String(card.used_amount),
+      current_bill_amount: String(card.current_bill_amount),
+      billing_cycle_start: card.billing_cycle_start,
+      billing_cycle_end: card.billing_cycle_end,
+      due_date: card.due_date,
+      status: card.status,
+      notes: card.notes ?? '',
+    })
+    setFormErrors({})
+    setFormErrorMessage(null)
+    setIsModalOpen(true)
+  }
+
+  async function refreshData() {
+    await loadData()
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setFormErrors({})
+    setFormErrorMessage(null)
+
+    const nextErrors: FormErrors = {}
+    const cardName = form.card_name.trim()
+    const bankName = form.bank_name.trim()
+    const last4 = form.last4.trim()
+    const totalLimit = form.total_limit.trim()
+    const usedAmount = form.used_amount.trim()
+    const currentBillAmount = form.current_bill_amount.trim()
+    const billingCycleStart = form.billing_cycle_start.trim()
+    const billingCycleEnd = form.billing_cycle_end.trim()
+    const dueDate = form.due_date.trim()
+
+    if (!cardName) nextErrors.card_name = 'Card name is required.'
+    if (!bankName) nextErrors.bank_name = 'Bank name is required.'
+    if (!last4 || last4.length !== 4) nextErrors.last4 = 'Enter the last 4 digits.'
+    if (!totalLimit) nextErrors.total_limit = 'Total limit is required.'
+    if (!usedAmount) nextErrors.used_amount = 'Used amount is required.'
+    if (!currentBillAmount) nextErrors.current_bill_amount = 'Bill amount is required.'
+    if (!billingCycleStart) nextErrors.billing_cycle_start = 'Billing start date is required.'
+    if (!billingCycleEnd) nextErrors.billing_cycle_end = 'Billing end date is required.'
+    if (!dueDate) nextErrors.due_date = 'Due date is required.'
+
+    ;[['total_limit', totalLimit], ['used_amount', usedAmount], ['current_bill_amount', currentBillAmount]].forEach(([field, value]) => {
+      if (value && Number.isNaN(Number(value))) {
+        nextErrors[field as keyof CreditCardFormState] = 'Enter a valid decimal number.'
+      }
+    })
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFormErrors(nextErrors)
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      const payload = {
+        card_name: cardName,
+        bank_name: bankName,
+        last4,
+        total_limit: totalLimit,
+        used_amount: usedAmount,
+        current_bill_amount: currentBillAmount,
+        billing_cycle_start: billingCycleStart,
+        billing_cycle_end: billingCycleEnd,
+        due_date: dueDate,
+        status: form.status,
+        notes: form.notes.trim() || null,
+      }
+
+      if (editingId === null) {
+        await apiFetch('/api/credit-cards', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        })
+      } else {
+        console.log('PATCH credit-card', {
+          url: `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/credit-cards/${editingId}`,
+          payload,
+        })
+        await apiFetch(`/api/credit-cards/${editingId}`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        })
+      }
+
+      setIsModalOpen(false)
+      setEditingId(null)
+      setForm(defaultCreditCardForm)
+      await refreshData()
+    } catch (error) {
+      if (error instanceof ApiError && error.validationErrors.length > 0) {
+        const mappedErrors: FormErrors = {}
+        error.validationErrors.forEach((item) => {
+          if (item.path in defaultCreditCardForm) {
+            mappedErrors[item.path as keyof CreditCardFormState] = item.message
+          }
+        })
+        setFormErrors(mappedErrors)
+        setFormErrorMessage('Please fix the highlighted fields.')
+      } else {
+        setFormErrorMessage(formatApiError(error))
+      }
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  async function handleDelete(card: ApiCreditCard) {
+    const confirmed = window.confirm(`Delete ${card.card_name}? This cannot be undone.`)
+    if (!confirmed) return
+
+    try {
+      await apiFetch(`/api/credit-cards/${card.id}`, { method: 'DELETE' })
+      setStatusTone('emerald')
+      setStatusMessage(`Deleted ${card.card_name}.`)
+      await refreshData()
+    } catch (error) {
+      setStatusTone('rose')
+      setStatusMessage(formatApiError(error))
+    }
+  }
+
+  return (
+    <div className="min-w-0 w-full overflow-x-hidden">
+      <div className="flex min-w-0 flex-col gap-6">
+        {statusMessage ? (
+          <div
+            className={[
+              'rounded-[6px] border px-4 py-3 t-body',
+              statusTone === 'emerald'
+                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+                : statusTone === 'amber'
+                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-100'
+                  : statusTone === 'rose'
+                    ? 'border-rose-500/40 bg-rose-500/10 text-rose-200'
+                    : 'border-slate-700 bg-slate-900 text-slate-200',
+            ].join(' ')}
+          >
+            {statusMessage}
+          </div>
+        ) : null}
+
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <div className="t-section text-white">Credit Cards</div>
+            <div className="mt-1 t-meta text-slate-400">Track limits, dues, utilization, and bill cycles.</div>
+          </div>
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="flex h-12 shrink-0 items-center gap-3 rounded-[6px] bg-[var(--accent-600)] px-4 t-body font-semibold text-white transition-all duration-200 ease-out hover:bg-[var(--accent-700)] hover:brightness-105 active:scale-[0.98] motion-reduce:transition-none"
+          >
+            <Icon name="add" className="h-4 w-4 text-white" />
+            Add Credit Card
+          </button>
+        </div>
+
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {summaryCards.map((card) => (
+            <SectionCard key={card.label} className="px-6 py-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="t-label text-slate-400">{card.label}</div>
+                  <div className={['t-metric mt-6 text-white', card.valueClass].filter(Boolean).join(' ')}>{card.value}</div>
+                  <div className="t-meta mt-4 text-slate-400">{card.meta}</div>
+                </div>
+                      <div className={['grid h-12 w-12 shrink-0 place-items-center rounded-[6px] transition-colors duration-200 ease-out', card.iconBg].join(' ')}>
+                        <Icon name="cards" className="h-5 w-5" />
+                      </div>
+                    </div>
+                  </SectionCard>
+                ))}
+        </section>
+
+        <SectionCard>
+          <div className="border-b border-[rgba(51,65,85,0.45)] px-6 py-5">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+              <label className="flex h-12 items-center gap-3 rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 text-slate-400">
+                <Icon name="search" className="h-4 w-4 shrink-0" />
+                <input
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search card or bank"
+                  className="w-full bg-transparent t-body text-slate-200 outline-none placeholder:text-slate-500"
+                />
+              </label>
+
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value as 'all' | ApiCreditCard['status'])}
+                className="h-12 rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-slate-200 outline-none"
+              >
+                <option value="all">All statuses</option>
+                <option value="paid">Paid</option>
+                <option value="due_soon">Due Soon</option>
+                <option value="overdue">Overdue</option>
+              </select>
+            </div>
+          </div>
+
+          {cardsLoading ? (
+            <div className="px-6 py-10">
+              <div className="rounded-[6px] border border-dashed border-[rgba(51,65,85,0.6)] bg-[#0f172a] p-8 text-center">
+                <div className="t-section text-white">Loading cards...</div>
+                <div className="mt-2 t-body text-slate-400">Fetching positions from the backend.</div>
+              </div>
+            </div>
+          ) : cardsError ? (
+            <div className="px-6 py-10">
+              <div className="rounded-[6px] border border-rose-500/40 bg-rose-500/10 p-8 text-center">
+                <div className="t-section text-rose-300">Unable to load cards</div>
+                <div className="mt-2 t-body text-rose-200/80">{cardsError}</div>
+              </div>
+            </div>
+          ) : filteredCards.length === 0 ? (
+            <div className="px-6 py-10">
+              <div className="rounded-[6px] border border-dashed border-[rgba(51,65,85,0.6)] bg-[#0f172a] p-10 text-center">
+                <div className="mx-auto grid h-12 w-12 place-items-center rounded-[6px] bg-[#18233d] text-accent-400">
+                  <Icon name="cards" className="h-5 w-5" />
+                </div>
+                <div className="mt-4 t-section text-white">No cards match the filters</div>
+                <div className="mt-2 t-body text-slate-400">Try a different status or search term.</div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-4 px-6 py-6 xl:grid-cols-3">
+              {filteredCards.map((card) => {
+                const tone = buildStatusTone(card.status)
+
+                return (
+                  <div key={card.id} className={['rounded-[6px] border bg-[#131c31] p-5 transition-colors duration-200 ease-out hover:border-slate-600/60 motion-reduce:transition-none', tone.border].join(' ')}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="t-nav truncate text-white">{card.card_name}</div>
+                        <div className="t-meta truncate">{card.bank_name} ••{card.last4}</div>
+                      </div>
+                      <span className={['rounded-[999px] px-3 py-1 t-badge', tone.badge].join(' ')}>{card.status.replace('_', ' ')}</span>
+                    </div>
+
+                    <div className="mt-5">
+                      <div className="flex items-center justify-between t-meta">
+                        <span>Used {formatINRShort(toNumber(card.used_amount))}</span>
+                        <span>{toNumber(card.utilization_pct).toFixed(1)}%</span>
+                      </div>
+                      <div className="mt-2 h-2 rounded-full bg-slate-800">
+                        <div className={['h-2 rounded-full', tone.bar].join(' ')} style={{ width: `${Math.min(toNumber(card.utilization_pct), 100)}%` }} />
+                      </div>
+                      <div className="mt-3 flex items-center justify-between t-meta">
+                        <span>Avail. {formatINRShort(toNumber(card.available_limit))} of {formatINRShort(toNumber(card.total_limit))}</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="t-micro text-slate-400">Bill amount</div>
+                        <div className={['mt-1 t-amount', tone.accent].join(' ')}>{formatINR(toNumber(card.current_bill_amount))}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="t-micro text-slate-400">Due date</div>
+                        <div className="mt-1 t-nav text-white">{card.due_date}</div>
+                        <div className={['mt-1 t-meta', card.days_until_due < 0 ? 'text-rose-400' : card.days_until_due <= 7 ? 'text-amber-400' : 'text-slate-400'].join(' ')}>
+                          {card.days_until_due < 0 ? `${Math.abs(card.days_until_due)} days overdue` : `${card.days_until_due} days left`}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(card)}
+                        className="rounded-[6px] border border-[var(--border-soft)] px-3 py-2 t-badge text-slate-200 transition-all duration-200 ease-out hover:bg-white/5 active:scale-[0.95] motion-reduce:transition-none"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(card)}
+                        className="rounded-[6px] border border-[var(--border-soft)] px-3 py-2 t-badge text-rose-300 transition-all duration-200 ease-out hover:bg-white/5 active:scale-[0.95] motion-reduce:transition-none"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </SectionCard>
+      </div>
+
+      {isDrawerMounted ? (
+        <div
+          className={[
+            'fixed inset-0 z-50 flex items-stretch justify-end bg-slate-950/70 backdrop-blur-sm transition-opacity duration-200 ease-out motion-reduce:transition-none',
+            isDrawerVisible ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
+          ].join(' ')}
+          onClick={() => setIsModalOpen(false)}
+          aria-hidden={!isDrawerVisible}
+        >
+          <section
+            className={[
+              'relative z-10 flex h-full w-full max-w-[560px] flex-col border-l border-[var(--border)] bg-[#0f172a] shadow-[0_24px_80px_rgba(0,0,0,0.45)] transition-all duration-300 ease-out motion-reduce:transition-none',
+              isDrawerVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0',
+            ].join(' ')}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-[rgba(51,65,85,0.45)] px-6 py-5">
+              <div>
+                <div className="t-section text-white">{editingId === null ? 'Add Credit Card' : 'Edit Credit Card'}</div>
+                <div className="mt-1 t-meta">Manual entry for one credit card</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="grid h-10 w-10 place-items-center rounded-[6px] text-slate-400 transition-all duration-200 ease-out hover:bg-white/5 hover:text-white active:scale-[0.95] motion-reduce:transition-none"
+                aria-label="Close"
+              >
+                <Icon name="close" className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+                {formErrorMessage ? (
+                  <div className="mb-5 whitespace-pre-wrap rounded-[6px] border border-rose-500/40 bg-rose-500/10 px-4 py-3 t-body text-rose-200">
+                    {formErrorMessage}
+                  </div>
+                ) : null}
+
+                {editingId !== null ? (
+                  <div className="mb-5 rounded-[6px] border border-[rgba(51,65,85,0.45)] bg-[rgba(15,23,42,0.72)] px-4 py-3 t-meta text-slate-300">
+                    Editing existing card details. Update the fields below and click Save Changes.
+                  </div>
+                ) : null}
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <FormField label="Card Name" error={formErrors.card_name}>
+                    <input
+                      value={form.card_name}
+                      onChange={(event) => setForm((current) => ({ ...current, card_name: event.target.value }))}
+                      placeholder="HDFC Regalia"
+                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                    />
+                  </FormField>
+
+                  <FormField label="Bank Name" error={formErrors.bank_name}>
+                    <input
+                      value={form.bank_name}
+                      onChange={(event) => setForm((current) => ({ ...current, bank_name: event.target.value }))}
+                      placeholder="HDFC Bank"
+                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                    />
+                  </FormField>
+
+                  <FormField label="Last 4 Digits" error={formErrors.last4}>
+                    <input
+                      value={form.last4}
+                      onChange={(event) => setForm((current) => ({ ...current, last4: event.target.value.replace(/\D/g, '').slice(0, 4) }))}
+                      placeholder="4821"
+                      inputMode="numeric"
+                      maxLength={4}
+                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                    />
+                  </FormField>
+
+                  <FormField label="Status" error={formErrors.status}>
+                    <select
+                      value={form.status}
+                      onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as CreditCardFormState['status'] }))}
+                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none focus:border-[var(--accent-600)]"
+                    >
+                      <option value="paid">Paid</option>
+                      <option value="due_soon">Due Soon</option>
+                      <option value="overdue">Overdue</option>
+                    </select>
+                  </FormField>
+
+                  <FormField label="Total Limit" error={formErrors.total_limit}>
+                    <input
+                      value={form.total_limit}
+                      onChange={(event) => setForm((current) => ({ ...current, total_limit: event.target.value }))}
+                      placeholder="500000"
+                      inputMode="decimal"
+                      step="any"
+                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                    />
+                  </FormField>
+
+                  <FormField label="Used Amount" error={formErrors.used_amount}>
+                    <input
+                      value={form.used_amount}
+                      onChange={(event) => setForm((current) => ({ ...current, used_amount: event.target.value }))}
+                      placeholder="71420"
+                      inputMode="decimal"
+                      step="any"
+                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                    />
+                  </FormField>
+
+                  <FormField label="Bill Amount" error={formErrors.current_bill_amount}>
+                    <input
+                      value={form.current_bill_amount}
+                      onChange={(event) => setForm((current) => ({ ...current, current_bill_amount: event.target.value }))}
+                      placeholder="38450"
+                      inputMode="decimal"
+                      step="any"
+                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                    />
+                  </FormField>
+
+                  <FormField label="Billing Start" error={formErrors.billing_cycle_start}>
+                    <input
+                      type="date"
+                      value={form.billing_cycle_start}
+                      onChange={(event) => setForm((current) => ({ ...current, billing_cycle_start: event.target.value }))}
+                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none focus:border-[var(--accent-600)]"
+                    />
+                  </FormField>
+
+                  <FormField label="Billing End" error={formErrors.billing_cycle_end}>
+                    <input
+                      type="date"
+                      value={form.billing_cycle_end}
+                      onChange={(event) => setForm((current) => ({ ...current, billing_cycle_end: event.target.value }))}
+                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none focus:border-[var(--accent-600)]"
+                    />
+                  </FormField>
+
+                  <FormField label="Due Date" error={formErrors.due_date}>
+                    <input
+                      type="date"
+                      value={form.due_date}
+                      onChange={(event) => setForm((current) => ({ ...current, due_date: event.target.value }))}
+                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none focus:border-[var(--accent-600)]"
+                    />
+                  </FormField>
+                </div>
+
+                <FormField label="Notes" error={formErrors.notes}>
+                  <textarea
+                    value={form.notes}
+                    onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
+                    rows={4}
+                    placeholder="Optional notes about the card"
+                    className="w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 py-3 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                  />
+                </FormField>
+              </div>
+
+              <div className="border-t border-[rgba(51,65,85,0.45)] px-6 py-4">
+                <div className="flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="h-11 rounded-[6px] border border-[var(--border-soft)] px-5 t-nav text-slate-200 transition-all duration-200 ease-out hover:bg-white/5 active:scale-[0.98] motion-reduce:transition-none"
+                    disabled={isSaving}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="flex h-11 items-center gap-3 rounded-[6px] bg-[var(--accent-600)] px-5 t-nav font-semibold text-white transition-all duration-200 ease-out hover:bg-[var(--accent-700)] hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 motion-reduce:transition-none"
+                  >
+                    {isSaving ? <Icon name="refresh" className="h-4 w-4 animate-spin" /> : <Icon name="add" className="h-4 w-4" />}
+                    {isSaving ? 'Saving...' : editingId === null ? 'Create Credit Card' : 'Save Changes'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </section>
+        </div>
+      ) : null}
+    </div>
+  )
+}

@@ -17,3 +17,9 @@ class DashboardSummary(BaseModel):
     total_return_pct: Decimal = Decimal("0")
     holdings_count: int = 0
     allocations: list[AssetAllocationItem] = Field(default_factory=list)
+    total_credit_card_dues: Decimal = Decimal("0")
+    total_card_limit: Decimal = Decimal("0")
+    total_card_used: Decimal = Decimal("0")
+    overall_card_utilization: Decimal = Decimal("0")
+    due_soon_count: int = 0
+    overdue_count: int = 0

@@ -3,21 +3,25 @@ import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import Dashboard from './components/Dashboard'
 import StocksPage from './components/StocksPage'
+import CreditCardsPage from './components/CreditCardsPage'
 
 export default function App() {
-  const [activePage, setActivePage] = useState<'dashboard' | 'stocks'>('dashboard')
+  const [activePage, setActivePage] = useState<'dashboard' | 'stocks' | 'cards'>('dashboard')
   const pageConfig = {
     dashboard: {
       title: 'Dashboard',
-      subtitle: 'Welcome back, Aarav · Mon, 09 Jun 2026',
-      searchPlaceholder: 'Search stocks, cards...',
-      content: <Dashboard onOpenStocks={() => setActivePage('stocks')} />,
+      subtitle: 'Personal finance dashboard • Updated 10 Jun 2026, 3:30 PM IST',
+      content: <Dashboard onOpenStocks={() => setActivePage('stocks')} onOpenCards={() => setActivePage('cards')} />,
     },
     stocks: {
       title: 'Stocks / Holdings',
-      subtitle: 'Manual-first stock management · INR only',
-      searchPlaceholder: 'Search holdings...',
+      subtitle: 'Personal finance dashboard • Updated 10 Jun 2026, 3:30 PM IST',
       content: <StocksPage />,
+    },
+    cards: {
+      title: 'Credit Cards',
+      subtitle: 'Personal finance dashboard • Updated 10 Jun 2026, 3:30 PM IST',
+      content: <CreditCardsPage />,
     },
   }[activePage]
 
@@ -31,7 +35,6 @@ export default function App() {
             className="sticky top-0 z-40 shrink-0"
             title={pageConfig.title}
             subtitle={pageConfig.subtitle}
-            searchPlaceholder={pageConfig.searchPlaceholder}
           />
 
           <main className="flex-1 overflow-y-auto overflow-x-hidden">
