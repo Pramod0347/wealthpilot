@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import Dashboard from './components/Dashboard'
@@ -6,17 +6,38 @@ import StocksPage from './components/StocksPage'
 import CreditCardsPage from './components/CreditCardsPage'
 import BanksPage from './components/BanksPage'
 
+function useDarkMode(): [boolean, () => void] {
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    const saved = localStorage.getItem('wealthpilot-theme')
+    return saved ? saved === 'dark' : true
+  })
+
+  useEffect(() => {
+    const root = document.documentElement
+    if (isDark) {
+      root.classList.add('dark')
+    } else {
+      root.classList.remove('dark')
+    }
+    localStorage.setItem('wealthpilot-theme', isDark ? 'dark' : 'light')
+  }, [isDark])
+
+  return [isDark, () => setIsDark((v) => !v)]
+}
+
 export default function App() {
+  const [isDark, toggleTheme] = useDarkMode()
   const [activePage, setActivePage] = useState<'dashboard' | 'stocks' | 'banks' | 'cards'>('dashboard')
+
   const pageConfig = {
     dashboard: {
       title: 'Dashboard',
-      subtitle: 'Personal finance dashboard • Updated 10 Jun 2026, 3:30 PM IST',
+      subtitle: 'Personal finance overview',
       content: <Dashboard onOpenStocks={() => setActivePage('stocks')} onOpenCards={() => setActivePage('cards')} />,
     },
     stocks: {
       title: 'Stocks & Investments',
-      subtitle: 'Indian stocks, US stocks, ETFs, gold, and mutual funds',
+      subtitle: 'Indian stocks, ETFs, and mutual funds',
       content: <StocksPage />,
     },
     banks: {
@@ -26,30 +47,34 @@ export default function App() {
     },
     cards: {
       title: 'Credit Cards',
-      subtitle: 'Personal finance dashboard • Updated 10 Jun 2026, 3:30 PM IST',
+      subtitle: 'Bills, limits, and payment tracker',
       content: <CreditCardsPage />,
     },
   }[activePage]
 
   return (
-    <main className="h-screen w-full overflow-hidden bg-slate-950 text-slate-100">
-      <div className="flex h-screen w-full overflow-hidden bg-[#050816]">
-        <Sidebar className="sticky top-0 h-screen shrink-0" activePage={activePage} onNavigate={setActivePage} />
+    <div className="flex h-screen w-full overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+      <Sidebar
+        className="sticky top-0 h-screen shrink-0"
+        activePage={activePage}
+        onNavigate={setActivePage}
+      />
 
-        <div className="flex min-w-0 flex-1 flex-col h-screen">
-          <Header
-            className="sticky top-0 z-40 shrink-0"
-            title={pageConfig.title}
-            subtitle={pageConfig.subtitle}
-          />
+      <div className="flex min-w-0 flex-1 flex-col h-screen">
+        <Header
+          className="sticky top-0 z-40 shrink-0"
+          title={pageConfig.title}
+          subtitle={pageConfig.subtitle}
+          isDark={isDark}
+          onToggleTheme={toggleTheme}
+        />
 
-          <main className="flex-1 overflow-y-auto overflow-x-hidden">
-            <div className="p-6 xl:p-8">
-              {pageConfig.content}
-            </div>
-          </main>
-        </div>
+        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-slate-50 dark:bg-transparent">
+          <div className="p-5 xl:p-8">
+            {pageConfig.content}
+          </div>
+        </main>
       </div>
-    </main>
+    </div>
   )
 }

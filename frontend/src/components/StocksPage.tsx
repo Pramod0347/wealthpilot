@@ -192,13 +192,19 @@ function getAssetTypeMeta(assetType: string | null | undefined) {
 
 function getAssetTypeBadgeClass(assetType: string | null | undefined) {
   const normalized = (assetType || 'other').toLowerCase()
-  if (normalized === 'stock' || normalized === 'stock_in') return 'bg-accent-500/15 text-accent-400'
-  if (normalized === 'stock_us') return 'bg-sky-500/15 text-sky-400'
-  if (normalized === 'etf') return 'bg-sky-500/15 text-sky-400'
-  if (normalized === 'gold') return 'bg-amber-500/15 text-amber-400'
-  if (normalized === 'mutual_fund') return 'bg-violet-500/15 text-violet-400'
-  if (normalized === 'cash') return 'bg-amber-500/15 text-amber-400'
-  return 'bg-slate-700 text-slate-300'
+  if (normalized === 'stock' || normalized === 'stock_in')
+    return 'inline-flex rounded-full bg-teal-50 dark:bg-teal-500/15 px-2.5 py-1 text-[11px] font-semibold text-teal-700 dark:text-teal-400 ring-1 ring-inset ring-teal-500/20'
+  if (normalized === 'stock_us')
+    return 'inline-flex rounded-full bg-sky-50 dark:bg-sky-500/15 px-2.5 py-1 text-[11px] font-semibold text-sky-700 dark:text-sky-400 ring-1 ring-inset ring-sky-500/20'
+  if (normalized === 'etf')
+    return 'inline-flex rounded-full bg-sky-50 dark:bg-sky-500/15 px-2.5 py-1 text-[11px] font-semibold text-sky-700 dark:text-sky-400 ring-1 ring-inset ring-sky-500/20'
+  if (normalized === 'gold')
+    return 'inline-flex rounded-full bg-amber-50 dark:bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400 ring-1 ring-inset ring-amber-500/20'
+  if (normalized === 'mutual_fund')
+    return 'inline-flex rounded-full bg-violet-50 dark:bg-violet-500/15 px-2.5 py-1 text-[11px] font-semibold text-violet-700 dark:text-violet-400 ring-1 ring-inset ring-violet-500/20'
+  if (normalized === 'cash')
+    return 'inline-flex rounded-full bg-amber-50 dark:bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400 ring-1 ring-inset ring-amber-500/20'
+  return 'inline-flex rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:text-slate-400'
 }
 
 function isGoldHolding(holding: ApiHolding) {
@@ -239,12 +245,17 @@ function getInvestmentFilterLabel(value: string) {
 }
 
 function getInvestmentClassBadgeClass(value: string) {
-  if (value === 'indian_stock') return 'bg-accent-500/15 text-accent-400'
-  if (value === 'us_stock') return 'bg-sky-500/15 text-sky-400'
-  if (value === 'etf') return 'bg-sky-500/15 text-sky-400'
-  if (value === 'gold') return 'bg-amber-500/15 text-amber-400'
-  if (value === 'mutual_fund') return 'bg-violet-500/15 text-violet-400'
-  return 'bg-slate-700 text-slate-300'
+  if (value === 'indian_stock')
+    return 'inline-flex rounded-full bg-teal-50 dark:bg-teal-500/15 px-2.5 py-1 text-[11px] font-semibold text-teal-700 dark:text-teal-400 ring-1 ring-inset ring-teal-500/20'
+  if (value === 'us_stock')
+    return 'inline-flex rounded-full bg-sky-50 dark:bg-sky-500/15 px-2.5 py-1 text-[11px] font-semibold text-sky-700 dark:text-sky-400 ring-1 ring-inset ring-sky-500/20'
+  if (value === 'etf')
+    return 'inline-flex rounded-full bg-sky-50 dark:bg-sky-500/15 px-2.5 py-1 text-[11px] font-semibold text-sky-700 dark:text-sky-400 ring-1 ring-inset ring-sky-500/20'
+  if (value === 'gold')
+    return 'inline-flex rounded-full bg-amber-50 dark:bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400 ring-1 ring-inset ring-amber-500/20'
+  if (value === 'mutual_fund')
+    return 'inline-flex rounded-full bg-violet-50 dark:bg-violet-500/15 px-2.5 py-1 text-[11px] font-semibold text-violet-700 dark:text-violet-400 ring-1 ring-inset ring-violet-500/20'
+  return 'inline-flex rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:text-slate-400'
 }
 
 function getHoldingMarketSymbol(holding: ApiHolding) {
@@ -345,7 +356,7 @@ function renderNativeAndInr(nativeValue: number, inrValue: number, currency: str
     return (
       <div className="flex flex-col">
         <span>{formatNativeMoney(nativeValue, currency)}</span>
-        <span className="t-meta text-slate-400">{formatINR(inrValue)}</span>
+        <span className="t-meta text-slate-500 dark:text-slate-400">{formatINR(inrValue)}</span>
       </div>
     )
   }
@@ -384,18 +395,10 @@ const timeFilters: Array<{ label: string; value: '1M' | '3M' | '6M' | '1Y' | 'AL
   { label: 'All', value: 'ALL' },
 ]
 
-function SectionCard({
-  title,
-  children,
-  className = '',
-}: {
-  title?: string
-  children: ReactNode
-  className?: string
-}) {
+function SectionCard({ title, children, className = '' }: { title?: string; children: ReactNode; className?: string }) {
   return (
-    <div className={['rounded-[6px] border border-[rgba(51,65,85,0.5)] bg-[#11192d] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] transition-colors duration-200 ease-out hover:border-slate-600/60 motion-reduce:transition-none', className].join(' ')}>
-      {title ? <div className="border-b border-[rgba(51,65,85,0.45)] px-6 py-5 t-section text-white">{title}</div> : null}
+    <div className={['bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm transition-all duration-200 hover:shadow-md motion-reduce:transition-none', className].join(' ')}>
+      {title ? <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4 text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</div> : null}
       {children}
     </div>
   )
@@ -406,7 +409,7 @@ function MetricCardView({
   value,
   meta,
   icon,
-  valueClass = 'text-white',
+  valueClass = 'text-slate-900 dark:text-white',
 }: {
   label: string
   value: string
@@ -418,11 +421,11 @@ function MetricCardView({
     <SectionCard className="px-6 py-5">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <div className="t-label text-slate-400">{label}</div>
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</div>
           <div className={['t-metric mt-5', valueClass].join(' ')}>{value}</div>
-          <div className="mt-4 t-meta text-slate-400">{meta}</div>
+          <div className="mt-4 t-meta text-slate-500 dark:text-slate-400">{meta}</div>
         </div>
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[6px] bg-slate-800 text-slate-300">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300">
           <Icon name={icon} className="h-5 w-5" />
         </div>
       </div>
@@ -441,9 +444,9 @@ function FormField({
 }) {
   return (
     <label className="block">
-      <div className="mb-2 t-label text-slate-300">{label}</div>
+      <div className="mb-1.5 text-sm font-semibold text-slate-700 dark:text-slate-300">{label}</div>
       {children}
-      {error ? <div className="mt-2 t-meta text-rose-400">{error}</div> : null}
+      {error ? <div className="mt-1.5 text-xs text-rose-600 dark:text-rose-400">{error}</div> : null}
     </label>
   )
 }
@@ -574,27 +577,27 @@ export default function StocksPage() {
   const summaryCards = useMemo(() => {
     if (analyticsLoading) {
       return [
-        { label: 'Total Invested', value: 'Loading...', meta: 'Fetching analytics', color: 'text-white' },
-        { label: 'Current Value', value: 'Loading...', meta: 'Fetching analytics', color: 'text-white' },
-        { label: 'Total P&L', value: 'Loading...', meta: 'Fetching analytics', color: 'text-white' },
-        { label: 'Return %', value: 'Loading...', meta: 'Fetching analytics', color: 'text-white' },
-        { label: 'Indian Equity', value: 'Loading...', meta: 'Fetching analytics', color: 'text-white' },
-        { label: 'US Market', value: 'Loading...', meta: 'Fetching analytics', color: 'text-white' },
-        { label: 'ETFs / Gold', value: 'Loading...', meta: 'Fetching analytics', color: 'text-white' },
-        { label: 'Mutual Funds', value: 'Loading...', meta: 'Fetching analytics', color: 'text-white' },
+        { label: 'Total Invested', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white' },
+        { label: 'Current Value', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white' },
+        { label: 'Total P&L', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white' },
+        { label: 'Return %', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white' },
+        { label: 'Indian Equity', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white' },
+        { label: 'US Market', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white' },
+        { label: 'ETFs / Gold', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white' },
+        { label: 'Mutual Funds', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white' },
       ]
     }
 
     if (analyticsError || !analytics) {
       return [
-        { label: 'Total Invested', value: '—', meta: analyticsError ?? 'No data available', color: 'text-white' },
-        { label: 'Current Value', value: '—', meta: analyticsError ?? 'No data available', color: 'text-white' },
-        { label: 'Total P&L', value: '—', meta: analyticsError ?? 'No data available', color: 'text-white' },
-        { label: 'Return %', value: '—', meta: analyticsError ?? 'No data available', color: 'text-white' },
-        { label: 'Indian Equity', value: '—', meta: analyticsError ?? 'No data available', color: 'text-white' },
-        { label: 'US Market', value: '—', meta: analyticsError ?? 'No data available', color: 'text-white' },
-        { label: 'ETFs / Gold', value: '—', meta: analyticsError ?? 'No data available', color: 'text-white' },
-        { label: 'Mutual Funds', value: '—', meta: analyticsError ?? 'No data available', color: 'text-white' },
+        { label: 'Total Invested', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white' },
+        { label: 'Current Value', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white' },
+        { label: 'Total P&L', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white' },
+        { label: 'Return %', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white' },
+        { label: 'Indian Equity', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white' },
+        { label: 'US Market', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white' },
+        { label: 'ETFs / Gold', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white' },
+        { label: 'Mutual Funds', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white' },
       ]
     }
 
@@ -604,14 +607,14 @@ export default function StocksPage() {
     const returnPct = toNumber(analytics.total_return_pct)
 
     return [
-      { label: 'Total Invested', value: formatINRShort(totalInvested), meta: `${holdings.length} positions`, color: 'text-white' },
-      { label: 'Current Value', value: formatINRShort(currentValue), meta: 'From holdings', color: 'text-white' },
+      { label: 'Total Invested', value: formatINRShort(totalInvested), meta: `${holdings.length} positions`, color: 'text-slate-900 dark:text-white' },
+      { label: 'Current Value', value: formatINRShort(currentValue), meta: 'From holdings', color: 'text-slate-900 dark:text-white' },
       { label: 'Total P&L', value: `${pnl > 0 ? '+' : pnl < 0 ? '-' : ''}${formatINRShort(Math.abs(pnl)).replace('₹', '')}`, meta: 'Overall profit / loss', color: getTrendClass(pnl) },
       { label: 'Return %', value: formatSignedPct(returnPct), meta: 'Based on invested amount', color: getTrendClass(returnPct) },
-      { label: 'Indian Equity', value: formatINRShort(holdingGroups.indianEquity), meta: 'Indian stock positions', color: 'text-white' },
-      { label: 'US Market', value: formatINRShort(holdingGroups.usEquity), meta: 'US stocks and ETFs', color: 'text-white' },
-      { label: 'ETFs / Gold', value: formatINRShort(holdingGroups.etfsGold), meta: 'India ETFs and gold exposure', color: 'text-white' },
-      { label: 'Mutual Funds', value: formatINRShort(holdingGroups.mutualFunds), meta: 'Units valued in INR', color: 'text-white' },
+      { label: 'Indian Equity', value: formatINRShort(holdingGroups.indianEquity), meta: 'Indian stock positions', color: 'text-slate-900 dark:text-white' },
+      { label: 'US Market', value: formatINRShort(holdingGroups.usEquity), meta: 'US stocks and ETFs', color: 'text-slate-900 dark:text-white' },
+      { label: 'ETFs / Gold', value: formatINRShort(holdingGroups.etfsGold), meta: 'India ETFs and gold exposure', color: 'text-slate-900 dark:text-white' },
+      { label: 'Mutual Funds', value: formatINRShort(holdingGroups.mutualFunds), meta: 'Units valued in INR', color: 'text-slate-900 dark:text-white' },
     ]
   }, [analytics, analyticsError, analyticsLoading, holdingGroups.indianEquity, holdingGroups.mutualFunds, holdingGroups.etfsGold, holdingGroups.usEquity, holdings.length])
 
@@ -917,14 +920,13 @@ export default function StocksPage() {
         {statusMessage ? (
           <div
             className={[
-              'rounded-[6px] border px-4 py-3 t-body',
               statusTone === 'emerald'
-                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+                ? 'rounded-lg border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-200'
                 : statusTone === 'amber'
-                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-100'
+                  ? 'rounded-lg border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-100'
                   : statusTone === 'rose'
-                    ? 'border-rose-500/40 bg-rose-500/10 text-rose-200'
-                    : 'border-slate-700 bg-slate-900 text-slate-200',
+                    ? 'rounded-lg border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-4 py-3 text-sm text-rose-800 dark:text-rose-200'
+                    : 'rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-3 text-sm text-slate-700 dark:text-slate-300',
             ].join(' ')}
           >
             {statusMessage}
@@ -932,12 +934,12 @@ export default function StocksPage() {
         ) : null}
 
         <div className="flex flex-col gap-2">
-          <div className="t-title text-white">Stocks &amp; Investments</div>
-          <div className="t-body text-slate-400">Indian stocks, US stocks, ETFs, gold, and mutual funds</div>
+          <div className="t-title text-slate-900 dark:text-white">Stocks &amp; Investments</div>
+          <div className="t-body text-slate-600 dark:text-slate-300">Indian stocks, US stocks, ETFs, gold, and mutual funds</div>
         </div>
 
         <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
-          <div className="flex items-center gap-2 text-[11px] text-slate-500">
+          <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
             <Icon name="refresh" className="h-4 w-4" />
             <span className="whitespace-nowrap">
               Prices last updated {latestUpdate ? formatDisplayDate(latestUpdate.toISOString()) : 'Awaiting backend data'}
@@ -949,7 +951,7 @@ export default function StocksPage() {
               type="button"
               onClick={handleRefreshAllPrices}
               disabled={isRefreshingAllPrices}
-              className="flex h-12 items-center gap-3 rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body font-semibold text-slate-200 transition-all duration-200 ease-out hover:bg-white/5 hover:border-slate-500/70 hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 motion-reduce:transition-none"
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-600 dark:text-slate-300 shadow-sm transition-all duration-150 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Icon name="refresh" className={['h-4 w-4', isRefreshingAllPrices ? 'animate-spin' : ''].join(' ')} />
               {isRefreshingAllPrices ? 'Refreshing...' : 'Refresh Prices'}
@@ -958,7 +960,7 @@ export default function StocksPage() {
             <button
               type="button"
               onClick={openCreateModal}
-              className="flex h-12 items-center gap-3 rounded-[6px] bg-[var(--accent-600)] px-4 t-body font-semibold text-white transition-all duration-200 ease-out hover:bg-[var(--accent-700)] hover:brightness-105 active:scale-[0.98] motion-reduce:transition-none"
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-accent-700 active:bg-accent-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Icon name="add" className="h-4 w-4 text-white" />
               Add Investment
@@ -993,11 +995,11 @@ export default function StocksPage() {
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <SectionCard className="px-6 py-6">
-            <div className="t-section text-white">Investment Breakdown</div>
-            <div className="mt-1 t-body text-slate-400">Asset mix by current value</div>
+            <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Investment Breakdown</div>
+            <div className="mt-1 t-body text-slate-600 dark:text-slate-300">Asset mix by current value</div>
             {allocationData.length > 0 ? (
               <div className="mt-6">
-                <div className="flex h-3 overflow-hidden rounded-full bg-slate-800/80">
+                <div className="flex h-3 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
                   {allocationData.map((entry) => (
                     <div key={entry.key} className="h-full" style={{ width: `${Math.max(entry.percentage, 3)}%`, backgroundColor: entry.color }} />
                   ))}
@@ -1006,21 +1008,21 @@ export default function StocksPage() {
                   {allocationData.map((entry) => (
                     <div key={entry.key} className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
-                        <span className="h-3 w-3 rounded-[3px]" style={{ backgroundColor: entry.color }} />
-                        <span className="t-body text-slate-200">{entry.name}</span>
+                        <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: entry.color }} />
+                        <span className="t-body text-slate-600 dark:text-slate-300">{entry.name}</span>
                       </div>
                       <div className="text-right">
-                        <div className="t-nav text-white">{formatINRShort(entry.value)}</div>
-                        <div className="t-meta">{entry.percentage.toFixed(1)}%</div>
+                        <div className="t-nav text-slate-900 dark:text-white">{formatINRShort(entry.value)}</div>
+                        <div className="t-meta text-slate-500 dark:text-slate-400">{entry.percentage.toFixed(1)}%</div>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
             ) : (
-              <div className="mt-6 rounded-[6px] border border-dashed border-[rgba(51,65,85,0.6)] bg-[#0f172a] p-8 text-center">
-                <div className="t-section text-white">No allocation yet</div>
-                <div className="mt-2 t-body text-slate-400">Add investments to populate the breakdown.</div>
+              <div className="mt-6 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-8 text-center">
+                <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">No allocation yet</div>
+                <div className="mt-2 t-body text-slate-600 dark:text-slate-300">Add investments to populate the breakdown.</div>
               </div>
             )}
           </SectionCard>
@@ -1028,18 +1030,20 @@ export default function StocksPage() {
           <SectionCard className="px-6 py-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="t-section text-white">Performance</div>
-                <div className="mt-1 t-body text-slate-400">Portfolio snapshot trend</div>
+                <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Performance</div>
+                <div className="mt-1 t-body text-slate-600 dark:text-slate-300">Portfolio snapshot trend</div>
               </div>
-              <div className="flex items-center gap-1 rounded-[999px] bg-slate-800/80 p-1 text-[11px]">
+              <div className="flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-700 p-1 text-[11px]">
                 {timeFilters.map((filter) => (
                   <button
                     key={filter.value}
                     type="button"
                     onClick={() => setActiveRange(filter.value)}
                     className={[
-                      'h-8 rounded-[999px] px-3 t-badge transition-all duration-200 ease-out active:scale-[0.98] motion-reduce:transition-none',
-                      activeRange === filter.value ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200',
+                      'h-8 rounded-full px-3 t-badge transition-all duration-200 ease-out active:scale-[0.98] motion-reduce:transition-none',
+                      activeRange === filter.value
+                        ? 'bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200',
                     ].join(' ')}
                   >
                     {filter.label}
@@ -1049,29 +1053,29 @@ export default function StocksPage() {
             </div>
 
             <div className="mt-4 flex items-center gap-3">
-              <div className="t-metric text-white">{portfolioHasSnapshots ? formatINRShort(latestSnapshotValue) : '—'}</div>
+              <div className="t-metric text-slate-900 dark:text-white">{portfolioHasSnapshots ? formatINRShort(latestSnapshotValue) : '—'}</div>
               {portfolioHasSnapshots ? <div className={['t-nav', getTrendClass(latestSnapshotReturn)].join(' ')}>{formatSignedPct(latestSnapshotReturn)}</div> : null}
-              <div className="t-body text-slate-400">{portfolioHasSnapshots ? 'latest snapshot' : 'waiting for snapshots'}</div>
+              <div className="t-body text-slate-600 dark:text-slate-300">{portfolioHasSnapshots ? 'latest snapshot' : 'waiting for snapshots'}</div>
             </div>
 
             {portfolioLoading ? (
-              <div className="mt-8 rounded-[6px] border border-dashed border-[rgba(51,65,85,0.6)] bg-[#0f172a] p-8 text-center">
-                <div className="t-section text-white">Loading portfolio snapshots...</div>
-                <div className="mt-2 t-body text-slate-400">Fetching actual and predicted data from the backend.</div>
+              <div className="mt-8 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-8 text-center">
+                <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Loading portfolio snapshots...</div>
+                <div className="mt-2 t-body text-slate-600 dark:text-slate-300">Fetching actual and predicted data from the backend.</div>
               </div>
             ) : portfolioError ? (
-              <div className="mt-8 rounded-[6px] border border-[rgba(244,63,94,0.35)] bg-[rgba(127,29,29,0.18)] p-4 t-body text-rose-200">
+              <div className="mt-8 rounded-lg border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-4 py-3 text-sm text-rose-800 dark:text-rose-200">
                 {portfolioError}
               </div>
             ) : !portfolioHasSnapshots ? (
-              <div className="mt-8 rounded-[6px] border border-dashed border-[rgba(51,65,85,0.6)] bg-[#0f172a] p-8 text-center">
-                <div className="t-section text-white">No portfolio history yet</div>
-                <div className="mt-2 t-body text-slate-400">Save today&apos;s snapshot to start tracking performance.</div>
+              <div className="mt-8 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-8 text-center">
+                <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">No portfolio history yet</div>
+                <div className="mt-2 t-body text-slate-600 dark:text-slate-300">Save today&apos;s snapshot to start tracking performance.</div>
                 <button
                   type="button"
                   onClick={handleSaveSnapshot}
                   disabled={savingSnapshot}
-                  className="mt-5 inline-flex h-11 items-center gap-2 rounded-[6px] bg-[var(--accent-600)] px-4 t-body font-semibold text-white transition-all duration-200 ease-out hover:bg-[var(--accent-700)] active:scale-[0.98] motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-70"
+                  className="mt-5 inline-flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-accent-700 active:bg-accent-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {savingSnapshot ? <Icon name="refresh" className="h-4 w-4 animate-spin" /> : <Icon name="add" className="h-4 w-4" />}
                   Save Snapshot
@@ -1079,7 +1083,7 @@ export default function StocksPage() {
               </div>
             ) : (
               <>
-                <div className="mt-6 flex items-center gap-4 text-[11px] text-slate-400">
+                <div className="mt-6 flex items-center gap-4 text-[11px] text-slate-500 dark:text-slate-400">
                   <span className="flex items-center gap-2">
                     <span className="h-2.5 w-2.5 rounded-full bg-accent-400" />
                     Actual
@@ -1089,14 +1093,14 @@ export default function StocksPage() {
                     Predicted
                   </span>
                 </div>
-                <div className="mt-4 h-[320px]">
+                <div className="mt-4 h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={portfolioChartData} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
                       <CartesianGrid stroke="rgba(51,65,85,0.45)" strokeDasharray="3 3" vertical={false} />
                       <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
                       <YAxis tickLine={false} axisLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={(value) => formatINRShort(Number(value))} width={70} />
                       <Tooltip
-                        contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#e2e8f0' }}
+                        contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#e2e8f0' }}
                         labelStyle={{ color: '#e2e8f0' }}
                         formatter={(value, name) => [formatINRShort(Number(value)), name === 'actual_value' ? 'Actual' : 'Predicted']}
                       />
@@ -1127,12 +1131,12 @@ export default function StocksPage() {
                     type="button"
                     onClick={handleSaveSnapshot}
                     disabled={savingSnapshot}
-                    className="inline-flex h-11 items-center gap-2 rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body font-semibold text-slate-200 transition-all duration-200 ease-out hover:bg-white/5 active:scale-[0.98] motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-70"
+                    className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-600 dark:text-slate-300 shadow-sm transition-all duration-150 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {savingSnapshot ? <Icon name="refresh" className="h-4 w-4 animate-spin" /> : <Icon name="add" className="h-4 w-4" />}
                     Save Snapshot
                   </button>
-                  {performanceMessage ? <div className="t-meta text-slate-400">{performanceMessage}</div> : null}
+                  {performanceMessage ? <div className="t-meta text-slate-500 dark:text-slate-400">{performanceMessage}</div> : null}
                 </div>
               </>
             )}
@@ -1140,7 +1144,7 @@ export default function StocksPage() {
         </div>
 
         <SectionCard className="overflow-hidden">
-          <div className="border-b border-[rgba(51,65,85,0.45)] px-6 py-5">
+          <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="no-scrollbar flex items-center gap-2 overflow-x-auto">
                 {[
@@ -1156,8 +1160,10 @@ export default function StocksPage() {
                     type="button"
                     onClick={() => setAssetTypeFilter(filter.value)}
                     className={[
-                      'h-9 whitespace-nowrap rounded-[999px] px-4 t-badge transition-all duration-200 ease-out active:scale-[0.98] motion-reduce:transition-none',
-                      assetTypeFilter === filter.value ? 'bg-[var(--accent-600)] text-white' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700/80 hover:text-white',
+                      'h-9 whitespace-nowrap rounded-full px-4 t-badge transition-all duration-200 ease-out active:scale-[0.98] motion-reduce:transition-none',
+                      assetTypeFilter === filter.value
+                        ? 'bg-accent-600 text-white'
+                        : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 hover:text-slate-900 dark:hover:text-white',
                     ].join(' ')}
                   >
                     {filter.label}
@@ -1166,13 +1172,13 @@ export default function StocksPage() {
               </div>
 
               <div className="flex items-center gap-3">
-                <label className="flex h-11 min-w-[260px] items-center gap-3 rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 text-slate-400">
+                <label className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-slate-500 dark:text-slate-400 shadow-sm focus-within:border-accent-500 focus-within:ring-2 focus-within:ring-accent-500/15 min-w-65">
                   <Icon name="search" className="h-4 w-4 shrink-0" />
                   <input
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
                     placeholder="Search by symbol, company, or fund"
-                    className="w-full bg-transparent t-body text-slate-200 outline-none placeholder:text-slate-500"
+                    className="w-full bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none"
                   />
                 </label>
 
@@ -1180,7 +1186,7 @@ export default function StocksPage() {
                   type="button"
                   onClick={handleRefreshAllPrices}
                   disabled={isRefreshingAllPrices}
-                  className="flex h-11 items-center gap-2 rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-nav text-slate-200 transition-all duration-200 ease-out hover:bg-white/5 active:scale-[0.98] motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-70"
+                  className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-600 dark:text-slate-300 shadow-sm transition-all duration-150 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Icon name="refresh" className={['h-4 w-4', isRefreshingAllPrices ? 'animate-spin' : ''].join(' ')} />
                   Refresh Prices
@@ -1191,35 +1197,35 @@ export default function StocksPage() {
 
           {holdingsLoading ? (
             <div className="px-6 py-10">
-              <div className="rounded-[6px] border border-dashed border-[rgba(51,65,85,0.6)] bg-[#0f172a] p-8 text-center">
-                <div className="t-section text-white">Loading investments...</div>
-                <div className="mt-2 t-body text-slate-400">Fetching positions from the backend.</div>
+              <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-8 text-center">
+                <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Loading investments...</div>
+                <div className="mt-2 t-body text-slate-600 dark:text-slate-300">Fetching positions from the backend.</div>
               </div>
             </div>
           ) : holdingsError ? (
             <div className="px-6 py-10">
-              <div className="rounded-[6px] border border-rose-500/40 bg-rose-500/10 p-8 text-center">
-                <div className="t-section text-rose-300">Unable to load investments</div>
-                <div className="mt-2 t-body text-rose-200/80">{holdingsError}</div>
+              <div className="rounded-lg border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 p-8 text-center">
+                <div className="text-sm font-semibold text-rose-800 dark:text-rose-200">Unable to load investments</div>
+                <div className="mt-2 t-body text-rose-700 dark:text-rose-300">{holdingsError}</div>
               </div>
             </div>
           ) : filteredHoldings.length === 0 ? (
             <div className="px-6 py-10">
-              <div className="rounded-[6px] border border-dashed border-[rgba(51,65,85,0.6)] bg-[#0f172a] p-10 text-center">
-                <div className="mx-auto grid h-12 w-12 place-items-center rounded-[6px] bg-[#18233d] text-accent-400">
+              <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-10 text-center">
+                <div className="mx-auto grid h-12 w-12 place-items-center rounded-lg bg-slate-100 dark:bg-slate-700 text-accent-400">
                   <Icon name="empty" className="h-5 w-5" />
                 </div>
-                <div className="mt-4 t-section text-white">No investments match the filters</div>
-                <div className="mt-2 t-body text-slate-400">Try a different class, country, or search term.</div>
+                <div className="mt-4 text-sm font-semibold text-slate-900 dark:text-slate-100">No investments match the filters</div>
+                <div className="mt-2 t-body text-slate-600 dark:text-slate-300">Try a different class, country, or search term.</div>
               </div>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-[1520px] w-full border-separate border-spacing-0">
+              <table className="min-w-275 w-full border-separate border-spacing-0">
                 <thead>
-                  <tr className="text-left">
+                  <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
                     {['Asset', 'Class', 'Country', 'Qty / Units', 'Avg Buy', 'Current Price', 'Invested', 'Current Value', 'P&L', 'Return %', 'Actions'].map((head) => (
-                      <th key={head} className="px-5 py-4 t-th">
+                      <th key={head} className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.5px] text-slate-500 dark:text-slate-400 text-left whitespace-nowrap">
                         {head}
                       </th>
                     ))}
@@ -1239,50 +1245,50 @@ export default function StocksPage() {
                     const refreshSupported = getRefreshSupported(row)
 
                     return (
-                      <tr key={row.id} className="border-t border-[rgba(51,65,85,0.35)] transition-colors duration-150 hover:bg-[rgba(30,41,59,0.3)]">
-                        <td className="px-5 py-3">
-                          <div className="t-nav text-white">{row.symbol}</div>
-                          <div className="t-meta truncate">{row.company_name}</div>
-                          <div className="mt-2 inline-flex rounded-[999px] px-2 py-1 t-badge bg-slate-700/80 text-slate-300">
+                      <tr key={row.id} className="border-b border-slate-100 dark:border-slate-700/60 transition-colors duration-100 hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                        <td className="px-4 py-3 text-sm">
+                          <div className="font-semibold text-slate-900 dark:text-white">{row.symbol}</div>
+                          <div className="t-meta truncate text-slate-500 dark:text-slate-400">{row.company_name}</div>
+                          <div className="mt-2 inline-flex rounded-full px-2 py-1 t-badge bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400">
                             {row.price_source === 'yfinance' ? 'Auto' : 'Manual'}
                           </div>
                         </td>
-                        <td className="px-5 py-3">
-                          <div className={['inline-flex rounded-[999px] px-2 py-1 t-badge', getInvestmentClassBadgeClass(getInvestmentClass(row))].join(' ')}>
+                        <td className="px-4 py-3 text-sm">
+                          <div className={getInvestmentClassBadgeClass(getInvestmentClass(row))}>
                             {getInvestmentClassLabel(row)}
                           </div>
                         </td>
-                        <td className="px-5 py-3 t-body text-slate-200">{row.country === 'US' ? 'US' : 'India'}</td>
-                        <td className="px-5 py-3 t-num text-slate-200">{toNumber(row.quantity)}</td>
-                        <td className="px-5 py-3 t-num text-slate-200">{formatNativeMoney(toNumber(row.avg_buy_price), row.currency)}</td>
-                        <td className="px-5 py-3 t-num text-slate-200">{formatNativeMoney(toNumber(row.current_price), row.currency)}</td>
-                        <td className="px-5 py-3 t-num text-slate-200">{renderNativeAndInr(nativeInvested, invested, row.currency)}</td>
-                        <td className="px-5 py-3 t-num text-white">{renderNativeAndInr(nativeCurrent, currentValue, row.currency)}</td>
-                        <td className={['px-5 py-3 t-num', pnlTone].join(' ')}>{renderNativeAndInr(nativePnl, pnl, row.currency)}</td>
-                        <td className={['px-5 py-3 t-badge', returnTone].join(' ')}>
+                        <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">{row.country === 'US' ? 'US' : 'India'}</td>
+                        <td className="px-4 py-3 text-sm t-num text-slate-600 dark:text-slate-300">{toNumber(row.quantity)}</td>
+                        <td className="px-4 py-3 text-sm t-num text-slate-600 dark:text-slate-300">{formatNativeMoney(toNumber(row.avg_buy_price), row.currency)}</td>
+                        <td className="px-4 py-3 text-sm t-num text-slate-600 dark:text-slate-300">{formatNativeMoney(toNumber(row.current_price), row.currency)}</td>
+                        <td className="px-4 py-3 text-sm t-num text-slate-600 dark:text-slate-300">{renderNativeAndInr(nativeInvested, invested, row.currency)}</td>
+                        <td className="px-4 py-3 text-sm t-num text-slate-900 dark:text-white">{renderNativeAndInr(nativeCurrent, currentValue, row.currency)}</td>
+                        <td className={['px-4 py-3 text-sm t-num', pnlTone].join(' ')}>{renderNativeAndInr(nativePnl, pnl, row.currency)}</td>
+                        <td className={['px-4 py-3 text-sm t-badge', returnTone].join(' ')}>
                           {pct > 0 ? '↑' : pct < 0 ? '↓' : '•'} {formatPct(pct)}
                         </td>
-                        <td className="px-5 py-3 text-right text-slate-400">
+                        <td className="px-4 py-3 text-sm text-right">
                           {refreshSupported ? (
                             <button
                               type="button"
                               onClick={() => handleRefreshHolding(row)}
                               disabled={refreshingHoldingId === row.id || isRefreshingAllPrices}
                               title="Refresh market price"
-                              className="mr-2 inline-flex h-9 items-center gap-2 rounded-[6px] border border-[var(--border-soft)] px-3 t-badge text-slate-200 transition-all duration-200 ease-out hover:bg-white/5 active:scale-[0.95] disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+                              className="mr-2 inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-sm font-semibold text-slate-600 dark:text-slate-300 shadow-sm transition-all duration-150 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               <Icon name="refresh" className={['h-4 w-4', refreshingHoldingId === row.id ? 'animate-spin' : ''].join(' ')} />
                               {refreshingHoldingId === row.id ? 'Refreshing' : 'Refresh'}
                             </button>
                           ) : (
-                            <span className="mr-2 inline-flex h-9 items-center rounded-[6px] border border-[rgba(51,65,85,0.45)] bg-[rgba(15,23,42,0.72)] px-3 t-badge text-slate-400">
+                            <span className="mr-2 inline-flex rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                               Manual only
                             </span>
                           )}
                           <button
                             type="button"
                             onClick={() => openEditModal(row)}
-                            className="mr-2 rounded-[6px] px-2 py-1 transition-all duration-200 ease-out hover:bg-white/5 active:scale-[0.95] motion-reduce:transition-none"
+                            className="mr-2 rounded-lg p-2 text-slate-400 dark:text-slate-500 transition-all duration-150 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-700 dark:hover:text-slate-300 active:scale-95"
                             aria-label={`Edit ${row.symbol}`}
                           >
                             <Icon name="edit" className="h-5 w-5" />
@@ -1290,7 +1296,7 @@ export default function StocksPage() {
                           <button
                             type="button"
                             onClick={() => handleDeleteHolding(row)}
-                            className="rounded-[6px] px-2 py-1 transition-all duration-200 ease-out hover:bg-white/5 active:scale-[0.95] motion-reduce:transition-none"
+                            className="rounded-lg p-2 text-slate-400 dark:text-slate-500 transition-all duration-150 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-700 dark:hover:text-slate-300 active:scale-95"
                             aria-label={`Delete ${row.symbol}`}
                           >
                             <Icon name="remove" className="h-5 w-5" />
@@ -1309,7 +1315,7 @@ export default function StocksPage() {
       {isHoldingDrawerMounted ? (
         <div
           className={[
-            'fixed inset-0 z-50 flex items-stretch justify-end bg-slate-950/70 backdrop-blur-sm transition-opacity duration-200 ease-out motion-reduce:transition-none',
+            'fixed inset-0 z-50 flex items-stretch justify-end bg-slate-950/60 backdrop-blur-sm transition-opacity duration-200 motion-reduce:transition-none',
             isHoldingDrawerVisible ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
           ].join(' ')}
           onClick={() => setIsHoldingModalOpen(false)}
@@ -1317,20 +1323,20 @@ export default function StocksPage() {
         >
           <section
             className={[
-              'relative z-10 flex h-full w-full max-w-[560px] flex-col border-l border-[var(--border)] bg-[#0f172a] shadow-[0_24px_80px_rgba(0,0,0,0.45)] transition-all duration-300 ease-out motion-reduce:transition-none',
+              'relative z-10 flex h-full w-full max-w-140 flex-col border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl transition-all duration-300 ease-out motion-reduce:transition-none',
               isHoldingDrawerVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0',
             ].join(' ')}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-[rgba(51,65,85,0.45)] px-6 py-5">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-5">
               <div>
-                <div className="t-section text-white">{editingHoldingId === null ? 'Add Investment' : 'Edit Investment'}</div>
-                <div className="mt-1 t-meta">Manual entry for one investment position</div>
+                <div className="text-base font-semibold text-slate-900 dark:text-white">{editingHoldingId === null ? 'Add Investment' : 'Edit Investment'}</div>
+                <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Manual entry for one investment position</div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsHoldingModalOpen(false)}
-                className="grid h-10 w-10 place-items-center rounded-[6px] text-slate-400 transition-all duration-200 ease-out hover:bg-white/5 hover:text-white active:scale-[0.95] motion-reduce:transition-none"
+                className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 dark:text-slate-500 transition-all duration-150 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-300 active:scale-95"
                 aria-label="Close"
               >
                 <Icon name="close" className="h-5 w-5" />
@@ -1340,7 +1346,7 @@ export default function StocksPage() {
             <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
                 {formErrorMessage ? (
-                  <div className="mb-5 whitespace-pre-wrap rounded-[6px] border border-rose-500/40 bg-rose-500/10 px-4 py-3 t-body text-rose-200">
+                  <div className="mb-5 rounded-lg border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-4 py-3 text-sm text-rose-800 dark:text-rose-200 whitespace-pre-wrap">
                     {formErrorMessage}
                   </div>
                 ) : null}
@@ -1358,7 +1364,7 @@ export default function StocksPage() {
                           sector: nextType === 'gold' && !current.sector ? 'Gold' : current.sector,
                         }))
                       }}
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-sm text-slate-900 dark:text-slate-100 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     >
                       {assetTypeOptions.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -1372,7 +1378,7 @@ export default function StocksPage() {
                     <select
                       value={holdingForm.country}
                       onChange={(event) => updateCountry(event.target.value)}
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-sm text-slate-900 dark:text-slate-100 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     >
                       <option value="IN">India</option>
                       <option value="US">US</option>
@@ -1384,7 +1390,7 @@ export default function StocksPage() {
                       value={holdingForm.symbol}
                       onChange={(event) => setHoldingForm((current) => ({ ...current, symbol: event.target.value.toUpperCase() }))}
                       placeholder="RELIANCE / AAPL"
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                       autoComplete="off"
                     />
                   </FormField>
@@ -1394,7 +1400,7 @@ export default function StocksPage() {
                       value={holdingForm.company_name}
                       onChange={(event) => setHoldingForm((current) => ({ ...current, company_name: event.target.value }))}
                       placeholder="Reliance Industries / Apple"
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                       autoComplete="off"
                     />
                   </FormField>
@@ -1403,7 +1409,7 @@ export default function StocksPage() {
                     <select
                       value={holdingForm.exchange}
                       onChange={(event) => setHoldingForm((current) => ({ ...current, exchange: event.target.value }))}
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-sm text-slate-900 dark:text-slate-100 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     >
                       {holdingForm.country === 'US' ? (
                         <>
@@ -1426,7 +1432,7 @@ export default function StocksPage() {
                     <select
                       value={holdingForm.currency}
                       onChange={(event) => setHoldingForm((current) => ({ ...current, currency: event.target.value }))}
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-sm text-slate-900 dark:text-slate-100 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     >
                       <option value="INR">INR</option>
                       <option value="USD">USD</option>
@@ -1440,7 +1446,7 @@ export default function StocksPage() {
                       placeholder={holdingForm.country === 'US' ? '83.50' : '1'}
                       inputMode="decimal"
                       step="any"
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     />
                   </FormField>
 
@@ -1451,7 +1457,7 @@ export default function StocksPage() {
                       placeholder={holdingForm.asset_type === 'mutual_fund' ? '450' : '40'}
                       inputMode="decimal"
                       step="any"
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     />
                   </FormField>
 
@@ -1462,7 +1468,7 @@ export default function StocksPage() {
                       placeholder={holdingForm.country === 'US' ? '180.50' : '2380'}
                       inputMode="decimal"
                       step="any"
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     />
                   </FormField>
 
@@ -1473,7 +1479,7 @@ export default function StocksPage() {
                       placeholder={holdingForm.asset_type === 'mutual_fund' ? '89.15' : '2910'}
                       inputMode="decimal"
                       step="any"
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     />
                   </FormField>
 
@@ -1482,7 +1488,7 @@ export default function StocksPage() {
                       value={holdingForm.sector}
                       onChange={(event) => setHoldingForm((current) => ({ ...current, sector: event.target.value }))}
                       placeholder={holdingForm.asset_type === 'gold' ? 'Gold' : 'Technology / FMCG'}
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                       autoComplete="off"
                     />
                   </FormField>
@@ -1493,7 +1499,7 @@ export default function StocksPage() {
                         value={holdingForm.exchange_symbol}
                         onChange={(event) => setHoldingForm((current) => ({ ...current, exchange_symbol: event.target.value.toUpperCase() }))}
                         placeholder={holdingForm.country === 'US' ? 'AAPL' : 'RELIANCE.NS'}
-                        className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                        className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                         autoComplete="off"
                       />
                     </FormField>
@@ -1504,7 +1510,7 @@ export default function StocksPage() {
                       type="date"
                       value={holdingForm.as_of_date}
                       onChange={(event) => setHoldingForm((current) => ({ ...current, as_of_date: event.target.value }))}
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     />
                   </FormField>
                 </div>
@@ -1515,13 +1521,13 @@ export default function StocksPage() {
                     onChange={(event) => setHoldingForm((current) => ({ ...current, notes: event.target.value }))}
                     rows={4}
                     placeholder="Optional notes about the investment"
-                    className="w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 py-3 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                    className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150 resize-none"
                   />
                 </FormField>
 
-                <div className="mt-5 rounded-[6px] border border-[rgba(51,65,85,0.45)] bg-[#0b1224] px-4 py-3">
-                  <div className="t-meta uppercase text-slate-400">Price source</div>
-                  <div className="mt-1 t-body text-slate-200">
+                <div className="mt-5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 px-4 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Price source</div>
+                  <div className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                     {holdingForm.asset_type === 'mutual_fund'
                       ? 'Mutual funds stay manual-only.'
                       : holdingForm.asset_type === 'gold'
@@ -1531,25 +1537,23 @@ export default function StocksPage() {
                 </div>
               </div>
 
-              <div className="border-t border-[rgba(51,65,85,0.45)] px-6 py-4">
-                <div className="flex items-center justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsHoldingModalOpen(false)}
-                    className="h-11 rounded-[6px] border border-[var(--border-soft)] px-5 t-nav text-slate-200 transition-all duration-200 ease-out hover:bg-white/5 active:scale-[0.98] motion-reduce:transition-none"
-                    disabled={isSavingHolding}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSavingHolding}
-                    className="flex h-11 items-center gap-3 rounded-[6px] bg-[var(--accent-600)] px-5 t-nav font-semibold text-white transition-all duration-200 ease-out hover:bg-[var(--accent-700)] hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 motion-reduce:transition-none"
-                  >
-                    {isSavingHolding ? <Icon name="refresh" className="h-4 w-4 animate-spin" /> : <Icon name="add" className="h-4 w-4" />}
-                    {isSavingHolding ? 'Saving...' : editingHoldingId === null ? 'Create Investment' : 'Save Changes'}
-                  </button>
-                </div>
+              <div className="border-t border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsHoldingModalOpen(false)}
+                  className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-600 dark:text-slate-300 shadow-sm transition-all duration-150 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600"
+                  disabled={isSavingHolding}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingHolding}
+                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-accent-700 active:bg-accent-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isSavingHolding ? <Icon name="refresh" className="h-4 w-4 animate-spin" /> : <Icon name="add" className="h-4 w-4" />}
+                  {isSavingHolding ? 'Saving...' : editingHoldingId === null ? 'Create Investment' : 'Save Changes'}
+                </button>
               </div>
             </form>
           </section>

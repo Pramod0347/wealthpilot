@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type SyntheticEvent, type ReactNode } from 'react'
 import {
   ApiError,
   createBankAccount,
@@ -102,15 +102,19 @@ function SectionCard({
   className?: string
 }) {
   return (
-    <section
+    <div
       className={[
-        'rounded-[6px] border border-[rgba(51,65,85,0.5)] bg-[#11192d] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] transition-colors duration-200 ease-out hover:border-slate-600/60 motion-reduce:transition-none',
+        'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm transition-all duration-200 hover:shadow-md motion-reduce:transition-none',
         className,
       ].join(' ')}
     >
-      {title ? <div className="border-b border-[rgba(51,65,85,0.45)] px-6 py-5 t-section text-white">{title}</div> : null}
+      {title ? (
+        <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4 text-sm font-semibold text-slate-900 dark:text-slate-100">
+          {title}
+        </div>
+      ) : null}
       {children}
-    </section>
+    </div>
   )
 }
 
@@ -125,9 +129,9 @@ function FormField({
 }) {
   return (
     <label className="block">
-      <div className="mb-2 t-label text-slate-300">{label}</div>
+      <div className="mb-1.5 text-sm font-semibold text-slate-700 dark:text-slate-300">{label}</div>
       {children}
-      {error ? <div className="mt-2 t-meta text-rose-400">{error}</div> : null}
+      {error ? <div className="mt-1.5 text-xs text-rose-600 dark:text-rose-400">{error}</div> : null}
     </label>
   )
 }
@@ -290,7 +294,7 @@ export default function BanksPage() {
     await loadData()
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault()
     setFormErrors({})
     setFormErrorMessage(null)
@@ -377,14 +381,14 @@ export default function BanksPage() {
         {statusMessage ? (
           <div
             className={[
-              'rounded-[6px] border px-4 py-3 t-body',
+              'rounded-lg border px-4 py-3 text-sm',
               statusTone === 'emerald'
-                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+                ? 'border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
                 : statusTone === 'amber'
-                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-100'
+                  ? 'border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-100'
                   : statusTone === 'rose'
-                    ? 'border-rose-500/40 bg-rose-500/10 text-rose-200'
-                    : 'border-slate-700 bg-slate-900 text-slate-200',
+                    ? 'border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-rose-800 dark:text-rose-200'
+                    : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300',
             ].join(' ')}
           >
             {statusMessage}
@@ -393,13 +397,13 @@ export default function BanksPage() {
 
         <div className="flex items-center justify-between gap-4">
           <div>
-            <div className="t-section text-white">Bank Accounts</div>
-            <div className="mt-1 t-meta text-slate-400">Manual cash accounts tracked in the database.</div>
+            <div className="text-base font-semibold text-slate-900 dark:text-white">Bank Accounts</div>
+            <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">Manual cash accounts tracked in the database.</div>
           </div>
           <button
             type="button"
             onClick={openCreateModal}
-            className="flex h-12 shrink-0 items-center gap-3 rounded-[6px] bg-[var(--accent-600)] px-4 t-body font-semibold text-white transition-all duration-200 ease-out hover:bg-[var(--accent-700)] hover:brightness-105 active:scale-[0.98] motion-reduce:transition-none"
+            className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg bg-accent-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-accent-700 active:bg-accent-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Icon name="add" className="h-4 w-4 text-white" />
             Add Bank Account
@@ -408,57 +412,60 @@ export default function BanksPage() {
 
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {summaryCards.map((card) => (
-            <SectionCard key={card.label} className="px-6 py-6">
+            <div
+              key={card.label}
+              className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md motion-reduce:transition-none"
+            >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <div className="t-label text-slate-400">{card.label}</div>
-                  <div className="mt-6 font-mono text-2xl font-bold tracking-[-0.03em] text-white">{card.value}</div>
-                  <div className="mt-4 t-meta text-slate-400">{card.meta}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{card.label}</div>
+                  <div className="mt-4 text-2xl font-bold tracking-[-0.03em] text-slate-900 dark:text-white">{card.value}</div>
+                  <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">{card.meta}</div>
                 </div>
-                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[6px] bg-slate-800 text-slate-300">
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
                   <Icon name={card.icon} className="h-5 w-5" />
                 </div>
               </div>
-            </SectionCard>
+            </div>
           ))}
         </section>
 
         <SectionCard>
-          <div className="border-b border-[rgba(51,65,85,0.45)] px-6 py-5">
+          <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <div className="t-section text-white">Accounts</div>
-                <div className="mt-1 t-meta text-slate-400">Each balance below is now coming from the backend.</div>
+                <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Accounts</div>
+                <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Each balance below is now coming from the backend.</div>
               </div>
             </div>
           </div>
 
           {accountsLoading ? (
             <div className="px-6 py-10">
-              <div className="rounded-[6px] border border-dashed border-[rgba(51,65,85,0.6)] bg-[#0f172a] p-8 text-center">
-                <div className="t-section text-white">Loading bank accounts...</div>
-                <div className="mt-2 t-body text-slate-400">Fetching account balances from the backend.</div>
+              <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-8 text-center">
+                <div className="text-sm font-semibold text-slate-900 dark:text-white">Loading bank accounts...</div>
+                <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">Fetching account balances from the backend.</div>
               </div>
             </div>
           ) : accountsError ? (
             <div className="px-6 py-10">
-              <div className="rounded-[6px] border border-rose-500/40 bg-rose-500/10 p-8 text-center">
-                <div className="t-section text-rose-300">Unable to load bank accounts</div>
-                <div className="mt-2 t-body whitespace-pre-wrap text-rose-200/80">{accountsError}</div>
+              <div className="rounded-lg border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 p-8 text-center">
+                <div className="text-sm font-semibold text-rose-800 dark:text-rose-200">Unable to load bank accounts</div>
+                <div className="mt-2 text-sm whitespace-pre-wrap text-rose-800 dark:text-rose-200">{accountsError}</div>
               </div>
             </div>
           ) : accounts.length === 0 ? (
             <div className="px-6 py-12">
-              <div className="rounded-[6px] border border-dashed border-[rgba(51,65,85,0.6)] bg-[#0f172a] p-10 text-center">
-                <div className="mx-auto grid h-12 w-12 place-items-center rounded-[6px] bg-[#18233d] text-accent-400">
+              <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-10 text-center">
+                <div className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
                   <Icon name="banks" className="h-5 w-5" />
                 </div>
-                <div className="mt-4 t-section text-white">No bank accounts added yet</div>
-                <div className="mt-2 t-body text-slate-400">Add your first cash account to include bank balances in the dashboard.</div>
+                <div className="mt-4 text-sm font-semibold text-slate-900 dark:text-white">No bank accounts added yet</div>
+                <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">Add your first cash account to include bank balances in the dashboard.</div>
                 <button
                   type="button"
                   onClick={openCreateModal}
-                  className="mt-5 inline-flex h-11 items-center gap-2 rounded-[6px] bg-[var(--accent-600)] px-4 t-body font-semibold text-white transition-all duration-200 ease-out hover:bg-[var(--accent-700)] hover:brightness-105 active:scale-[0.98] motion-reduce:transition-none"
+                  className="mt-5 inline-flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-accent-700 active:bg-accent-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Icon name="add" className="h-4 w-4 text-white" />
                   Add Bank Account
@@ -470,16 +477,16 @@ export default function BanksPage() {
               {accounts.map((account) => (
                 <article
                   key={account.id}
-                  className="flex flex-col justify-between gap-5 rounded-[6px] border border-[rgba(51,65,85,0.45)] bg-[#1a2438] px-6 py-5 lg:flex-row lg:items-center"
+                  className="flex flex-col justify-between gap-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm transition-all duration-200 hover:shadow-md lg:flex-row lg:items-center"
                 >
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <div className="truncate text-lg font-semibold tracking-[-0.02em] text-white">{account.bank_name}</div>
-                      <span className="rounded-[999px] bg-slate-800 px-2.5 py-1 t-badge text-slate-300">
+                      <div className="truncate text-lg font-semibold tracking-[-0.02em] text-slate-900 dark:text-white">{account.bank_name}</div>
+                      <span className="inline-flex rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300 ring-1 ring-inset ring-slate-500/15">
                         {accountTypeLabel(account.account_type)}
                       </span>
                     </div>
-                    <div className="mt-1 t-body text-slate-400">
+                    <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                       {account.account_name ? `${account.account_name} · ` : ''}
                       {account.account_number_last4 ? `••${account.account_number_last4} · ` : ''}
                       {account.as_of_date ? `As of ${formatDate(account.as_of_date)}` : 'No as-of date'}
@@ -488,22 +495,22 @@ export default function BanksPage() {
 
                   <div className="flex items-center gap-6">
                     <div className="text-right">
-                      <div className="font-mono text-2xl font-bold tracking-[-0.03em] text-white">{formatINR(toNumber(account.balance))}</div>
-                      <div className="mt-1 t-meta text-slate-400">Updated {formatDateTime(account.updated_at)}</div>
+                      <div className="font-mono text-2xl font-bold tracking-[-0.03em] text-slate-900 dark:text-white">{formatINR(toNumber(account.balance))}</div>
+                      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Updated {formatDateTime(account.updated_at)}</div>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => openEditModal(account)}
-                        className="rounded-[6px] border border-[var(--border-soft)] px-3 py-2 t-badge text-slate-200 transition-all duration-200 ease-out hover:bg-white/5 active:scale-[0.95] motion-reduce:transition-none"
+                        className="rounded-lg p-2 text-slate-400 dark:text-slate-500 transition-all duration-150 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-700 dark:hover:text-slate-300 active:scale-95"
                       >
                         Edit
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDelete(account)}
-                        className="rounded-[6px] border border-[var(--border-soft)] px-3 py-2 t-badge text-rose-300 transition-all duration-200 ease-out hover:bg-white/5 active:scale-[0.95] motion-reduce:transition-none"
+                        className="rounded-lg p-2 text-slate-400 dark:text-slate-500 transition-all duration-150 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-700 dark:hover:text-slate-300 active:scale-95"
                       >
                         Delete
                       </button>
@@ -519,7 +526,7 @@ export default function BanksPage() {
       {isDrawerMounted ? (
         <div
           className={[
-            'fixed inset-0 z-50 flex items-stretch justify-end bg-slate-950/70 backdrop-blur-sm transition-opacity duration-200 ease-out motion-reduce:transition-none',
+            'fixed inset-0 z-50 flex items-stretch justify-end bg-slate-950/60 backdrop-blur-sm transition-opacity duration-200 motion-reduce:transition-none',
             isDrawerVisible ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
           ].join(' ')}
           onClick={() => setIsModalOpen(false)}
@@ -527,20 +534,20 @@ export default function BanksPage() {
         >
           <section
             className={[
-              'relative z-10 flex h-full w-full max-w-[560px] flex-col border-l border-[var(--border)] bg-[#0f172a] shadow-[0_24px_80px_rgba(0,0,0,0.45)] transition-all duration-300 ease-out motion-reduce:transition-none',
+              'relative z-10 flex h-full w-full max-w-130 flex-col border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl transition-all duration-300 ease-out motion-reduce:transition-none',
               isDrawerVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0',
             ].join(' ')}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-[rgba(51,65,85,0.45)] px-6 py-5">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-5">
               <div>
-                <div className="t-section text-white">{editingId === null ? 'Add Bank Account' : 'Edit Bank Account'}</div>
-                <div className="mt-1 t-meta">Manual entry for one bank account balance</div>
+                <div className="text-base font-semibold text-slate-900 dark:text-white">{editingId === null ? 'Add Bank Account' : 'Edit Bank Account'}</div>
+                <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Manual entry for one bank account balance</div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="grid h-10 w-10 place-items-center rounded-[6px] text-slate-400 transition-all duration-200 ease-out hover:bg-white/5 hover:text-white active:scale-[0.95] motion-reduce:transition-none"
+                className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 dark:text-slate-500 transition-all duration-150 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-300 active:scale-95"
                 aria-label="Close"
               >
                 <Icon name="close" className="h-5 w-5" />
@@ -550,7 +557,7 @@ export default function BanksPage() {
             <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
                 {formErrorMessage ? (
-                  <div className="mb-5 whitespace-pre-wrap rounded-[6px] border border-rose-500/40 bg-rose-500/10 px-4 py-3 t-body text-rose-200">
+                  <div className="mb-5 rounded-lg border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-4 py-3 text-sm text-rose-800 dark:text-rose-200 whitespace-pre-wrap">
                     {formErrorMessage}
                   </div>
                 ) : null}
@@ -561,7 +568,7 @@ export default function BanksPage() {
                       value={form.bank_name}
                       onChange={(event) => setForm((current) => ({ ...current, bank_name: event.target.value }))}
                       placeholder="HDFC Bank"
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     />
                   </FormField>
 
@@ -570,7 +577,7 @@ export default function BanksPage() {
                       value={form.account_name}
                       onChange={(event) => setForm((current) => ({ ...current, account_name: event.target.value }))}
                       placeholder="Family Savings"
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     />
                   </FormField>
 
@@ -578,7 +585,7 @@ export default function BanksPage() {
                     <select
                       value={form.account_type}
                       onChange={(event) => setForm((current) => ({ ...current, account_type: event.target.value as BankAccountFormState['account_type'] }))}
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-sm text-slate-900 dark:text-slate-100 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     >
                       <option value="savings">Savings</option>
                       <option value="current">Current</option>
@@ -595,7 +602,7 @@ export default function BanksPage() {
                       placeholder="4821"
                       inputMode="numeric"
                       maxLength={4}
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     />
                   </FormField>
 
@@ -605,7 +612,7 @@ export default function BanksPage() {
                       onChange={(event) => setForm((current) => ({ ...current, balance: event.target.value }))}
                       placeholder="425000"
                       inputMode="decimal"
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     />
                   </FormField>
 
@@ -614,7 +621,7 @@ export default function BanksPage() {
                       value={form.currency}
                       onChange={(event) => setForm((current) => ({ ...current, currency: event.target.value.toUpperCase() }))}
                       placeholder="INR"
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     />
                   </FormField>
 
@@ -623,7 +630,7 @@ export default function BanksPage() {
                       type="date"
                       value={form.as_of_date}
                       onChange={(event) => setForm((current) => ({ ...current, as_of_date: event.target.value }))}
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     />
                   </FormField>
                 </div>
@@ -635,31 +642,29 @@ export default function BanksPage() {
                       onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
                       rows={4}
                       placeholder="Optional notes about the account"
-                      className="w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 py-3 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                      className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150 resize-none"
                     />
                   </FormField>
                 </div>
               </div>
 
-              <div className="border-t border-[rgba(51,65,85,0.45)] px-6 py-4">
-                <div className="flex items-center justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="h-11 rounded-[6px] border border-[var(--border-soft)] px-5 t-nav text-slate-200 transition-all duration-200 ease-out hover:bg-white/5 active:scale-[0.98] motion-reduce:transition-none"
-                    disabled={isSaving}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex h-11 items-center gap-2 rounded-[6px] bg-[var(--accent-600)] px-5 t-nav text-white transition-all duration-200 ease-out hover:bg-[var(--accent-700)] hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
-                    disabled={isSaving}
-                  >
-                    <Icon name="add" className="h-4 w-4 text-white" />
-                    {isSaving ? 'Saving...' : editingId === null ? 'Add Bank Account' : 'Save Changes'}
-                  </button>
-                </div>
+              <div className="border-t border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-600 dark:text-slate-300 shadow-sm transition-all duration-150 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                  disabled={isSaving}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-accent-700 active:bg-accent-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isSaving}
+                >
+                  <Icon name="add" className="h-4 w-4 text-white" />
+                  {isSaving ? 'Saving...' : editingId === null ? 'Add Bank Account' : 'Save Changes'}
+                </button>
               </div>
             </form>
           </section>

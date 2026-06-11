@@ -23,6 +23,9 @@ export default {
         sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
       },
+      spacing: {
+        'safe-top': 'max(env(safe-area-inset-top), 0px)',
+      },
     },
   },
   plugins: [],

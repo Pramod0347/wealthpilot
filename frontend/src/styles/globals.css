@@ -2,8 +2,8 @@
 @import "tailwindcss";
 
 @layer base {
+  /* Light mode tokens */
   :root {
-    color-scheme: dark;
     --accent-50: #f0fdfa;
     --accent-100: #ccfbf1;
     --accent-200: #99f6e4;
@@ -14,12 +14,30 @@
     --accent-700: #0f766e;
     --accent-800: #115e59;
     --accent-900: #134e4a;
-    --bg: #020617;
-    --surface: #0f172a;
-    --surface-strong: #0b1224;
-    --border: #1e293b;
-    --border-soft: #334155;
-    --text: #ffffff;
+
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --surface-raised: #f1f5f9;
+    --border: #e2e8f0;
+    --border-soft: #f1f5f9;
+    --text: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --text-subtle: #64748b;
+    --profit: #10b981;
+    --loss: #f43f5e;
+    --due-soon: #f59e0b;
+  }
+
+  /* Dark mode tokens */
+  .dark {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface-raised: #0f172a;
+    --border: #334155;
+    --border-soft: #1e293b;
+    --text: #f1f5f9;
+    --text-secondary: #cbd5e1;
     --text-muted: #94a3b8;
     --text-subtle: #64748b;
     --profit: #34d399;
@@ -37,7 +55,6 @@
 
   html {
     font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-    background: var(--bg);
   }
 
   body {
@@ -46,10 +63,17 @@
     box-sizing: border-box;
     font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
-    background:
-      radial-gradient(circle at top, rgba(13, 148, 136, 0.18), transparent 28%),
-      linear-gradient(180deg, #020617 0%, #020b1d 100%);
-    color: #e2e8f0;
+    background-color: #f8fafc;
+    color: #0f172a;
+    transition: background-color 200ms ease-out, color 150ms ease-out;
+  }
+
+  .dark body {
+    background-color: #0f172a;
+    background-image:
+      radial-gradient(circle at top, rgba(13, 148, 136, 0.08), transparent 30%),
+      linear-gradient(180deg, #0f172a 0%, #0a1628 100%);
+    color: #f1f5f9;
   }
 
   .font-mono {
@@ -84,22 +108,90 @@
 }
 
 @layer components {
+  /* === Type Scale (matches PROJECT_SETUP.md exactly) === */
+
+  /* Page Title h1 — 28px 700 ls -0.5px */
+  .t-page-title {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.5px;
+  }
+
+  /* Section Title h2 — 20px 700 ls -0.25px */
+  .t-title {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: -0.25px;
+  }
+
+  /* Card Title h3 — 14px 600 */
+  .t-section {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  /* Body p — 14px 400 lh 1.6 */
+  .t-body {
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.6;
+  }
+
+  /* Nav — 14px 500 */
+  .t-nav {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.3;
+  }
+
+  /* Small/caption — 12px 500 ls 0.3px */
+  .t-label {
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.5;
+    letter-spacing: 0.3px;
+  }
+
+  /* Tiny — 11px 600 ls 0.5px */
+  .t-badge {
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: 0.5px;
+  }
+
+  /* Mono data — 13px 500 */
+  .t-num {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 13px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.5;
+  }
+
+  /* Large mono metric */
+  .t-metric {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 20px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+  }
+
+  /* Hero mono metric */
   .t-metric-hero {
     font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-size: 24px;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     line-height: 1.1;
+    letter-spacing: -0.5px;
   }
 
-  .t-metric {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 24px;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    line-height: 1.1;
-  }
-
+  /* Amount */
   .t-amount {
     font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-size: 16px;
@@ -108,71 +200,26 @@
     line-height: 1.2;
   }
 
-  .t-num {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 14px;
+  /* Table header — 11px 600 uppercase ls 0.5px */
+  .t-th {
+    font-size: 11px;
     font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    line-height: 1.2;
-  }
-
-  .t-title {
-    font-size: 18px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    line-height: 1.2;
-  }
-
-  .t-section {
-    font-size: 14px;
-    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
     line-height: 1.3;
   }
 
-  .t-body {
-    font-size: 14px;
+  /* Meta — 12px 400 muted color */
+  .t-meta {
+    font-size: 12px;
     font-weight: 400;
-    line-height: 1.45;
-  }
-
-  .t-nav {
-    font-size: 14px;
-    font-weight: 500;
-    line-height: 1.3;
+    line-height: 1.5;
   }
 
   .t-insight {
     font-size: 13px;
     font-weight: 400;
     line-height: 1.35;
-  }
-
-  .t-label {
-    font-size: 12px;
-    font-weight: 500;
-    line-height: 1.3;
-  }
-
-  .t-meta {
-    font-size: 12px;
-    font-weight: 400;
-    line-height: 1.3;
-    color: rgb(148 163 184);
-  }
-
-  .t-badge {
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 1.3;
-  }
-
-  .t-th {
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.025em;
-    line-height: 1.3;
-    color: rgb(148 163 184);
   }
 
   .t-micro {

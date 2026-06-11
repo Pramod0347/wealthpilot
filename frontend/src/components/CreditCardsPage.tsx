@@ -93,8 +93,8 @@ function SectionCard({
   className?: string
 }) {
   return (
-    <div className={['rounded-[6px] border border-[rgba(51,65,85,0.5)] bg-[#11192d] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] transition-colors duration-200 ease-out hover:border-slate-600/60 motion-reduce:transition-none', className].join(' ')}>
-      {title ? <div className="border-b border-[rgba(51,65,85,0.45)] px-6 py-5 t-section text-white">{title}</div> : null}
+    <div className={['bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm transition-all duration-200 hover:shadow-md motion-reduce:transition-none', className].join(' ')}>
+      {title ? <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4 text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</div> : null}
       {children}
     </div>
   )
@@ -111,39 +111,50 @@ function FormField({
 }) {
   return (
     <label className="block">
-      <div className="mb-2 t-label text-slate-300">{label}</div>
+      <div className="mb-1.5 text-sm font-semibold text-slate-700 dark:text-slate-300">{label}</div>
       {children}
-      {error ? <div className="mt-2 t-meta text-rose-400">{error}</div> : null}
+      {error ? <div className="mt-1.5 text-xs text-rose-600 dark:text-rose-400">{error}</div> : null}
     </label>
   )
 }
 
 function buildStatusTone(status: ApiCreditCard['status']) {
-  if (status === 'paid') {
-    return { border: 'border-emerald-500/60', badge: 'bg-emerald-500/15 text-emerald-400', accent: 'text-emerald-400', bar: 'bg-emerald-500' }
+  if (status === 'paid') return {
+    border: 'border-emerald-200 dark:border-emerald-500/40',
+    badge: 'inline-flex items-center rounded-full bg-emerald-50 dark:bg-emerald-500/15 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 ring-1 ring-inset ring-emerald-500/20',
+    accent: 'text-emerald-600 dark:text-emerald-400',
+    bar: 'bg-emerald-500'
   }
-  if (status === 'due_soon') {
-    return { border: 'border-amber-500/60', badge: 'bg-amber-500/15 text-amber-400', accent: 'text-amber-400', bar: 'bg-amber-500' }
+  if (status === 'due_soon') return {
+    border: 'border-amber-200 dark:border-amber-500/40',
+    badge: 'inline-flex items-center rounded-full bg-amber-50 dark:bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400 ring-1 ring-inset ring-amber-500/20',
+    accent: 'text-amber-600 dark:text-amber-400',
+    bar: 'bg-amber-500'
   }
-  return { border: 'border-rose-500/60', badge: 'bg-rose-500/15 text-rose-400', accent: 'text-rose-400', bar: 'bg-rose-500' }
+  return {
+    border: 'border-rose-200 dark:border-rose-500/40',
+    badge: 'inline-flex items-center rounded-full bg-rose-50 dark:bg-rose-500/15 px-2.5 py-1 text-[11px] font-semibold text-rose-700 dark:text-rose-400 ring-1 ring-inset ring-rose-500/20',
+    accent: 'text-rose-600 dark:text-rose-400',
+    bar: 'bg-rose-500'
+  }
 }
 
 function buildSummaryCards(summary: ApiDashboardSummary | null, loading: boolean, error: string | null) {
   if (loading) {
     return [
-      { label: 'Total Dues', value: 'Loading...', meta: 'Fetching from backend', iconBg: 'bg-amber-500/20 text-amber-400' },
-      { label: 'Card Limit', value: 'Loading...', meta: 'Fetching from backend', iconBg: 'bg-slate-800 text-slate-300' },
-      { label: 'Used Amount', value: 'Loading...', meta: 'Fetching from backend', iconBg: 'bg-slate-800 text-slate-300' },
-      { label: 'Utilization', value: 'Loading...', meta: 'Fetching from backend', iconBg: 'bg-slate-800 text-slate-300' },
+      { label: 'Total Dues', value: 'Loading...', meta: 'Fetching from backend', iconBg: 'bg-amber-50 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400' },
+      { label: 'Card Limit', value: 'Loading...', meta: 'Fetching from backend', iconBg: 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400' },
+      { label: 'Used Amount', value: 'Loading...', meta: 'Fetching from backend', iconBg: 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400' },
+      { label: 'Utilization', value: 'Loading...', meta: 'Fetching from backend', iconBg: 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400' },
     ]
   }
 
   if (error || summary === null) {
     return [
-      { label: 'Total Dues', value: '—', meta: error ?? 'No data available', iconBg: 'bg-amber-500/20 text-amber-400' },
-      { label: 'Card Limit', value: '—', meta: error ?? 'No data available', iconBg: 'bg-slate-800 text-slate-300' },
-      { label: 'Used Amount', value: '—', meta: error ?? 'No data available', iconBg: 'bg-slate-800 text-slate-300' },
-      { label: 'Utilization', value: '—', meta: error ?? 'No data available', iconBg: 'bg-slate-800 text-slate-300' },
+      { label: 'Total Dues', value: '—', meta: error ?? 'No data available', iconBg: 'bg-amber-50 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400' },
+      { label: 'Card Limit', value: '—', meta: error ?? 'No data available', iconBg: 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400' },
+      { label: 'Used Amount', value: '—', meta: error ?? 'No data available', iconBg: 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400' },
+      { label: 'Utilization', value: '—', meta: error ?? 'No data available', iconBg: 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400' },
     ]
   }
 
@@ -157,27 +168,27 @@ function buildSummaryCards(summary: ApiDashboardSummary | null, loading: boolean
       label: 'Total Dues',
       value: formatINR(totalDues),
       meta: `${summary.overdue_count} overdue · ${summary.due_soon_count} due soon`,
-      iconBg: 'bg-amber-500/20 text-amber-400',
-      valueClass: totalDues > 0 ? 'text-amber-300' : 'text-white',
+      iconBg: 'bg-amber-50 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400',
+      valueClass: totalDues > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white',
     },
     {
       label: 'Card Limit',
       value: formatINR(totalCardLimit),
       meta: 'Across all cards',
-      iconBg: 'bg-slate-800 text-slate-300',
+      iconBg: 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400',
     },
     {
       label: 'Used Amount',
       value: formatINR(totalCardUsed),
       meta: 'Current spending',
-      iconBg: 'bg-slate-800 text-slate-300',
+      iconBg: 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400',
     },
     {
       label: 'Utilization',
       value: `${utilization.toFixed(2)}%`,
       meta: 'Overall utilization',
-      iconBg: 'bg-slate-800 text-slate-300',
-      valueClass: utilization >= 80 ? 'text-rose-400' : utilization >= 50 ? 'text-amber-400' : 'text-emerald-400',
+      iconBg: 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400',
+      valueClass: utilization >= 80 ? 'text-rose-600 dark:text-rose-400' : utilization >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400',
     },
   ]
 }
@@ -427,14 +438,14 @@ export default function CreditCardsPage() {
         {statusMessage ? (
           <div
             className={[
-              'rounded-[6px] border px-4 py-3 t-body',
+              'rounded-lg border px-4 py-3 text-sm',
               statusTone === 'emerald'
-                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+                ? 'border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
                 : statusTone === 'amber'
-                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-100'
+                  ? 'border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-100'
                   : statusTone === 'rose'
-                    ? 'border-rose-500/40 bg-rose-500/10 text-rose-200'
-                    : 'border-slate-700 bg-slate-900 text-slate-200',
+                    ? 'border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-rose-800 dark:text-rose-200'
+                    : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300',
             ].join(' ')}
           >
             {statusMessage}
@@ -443,53 +454,53 @@ export default function CreditCardsPage() {
 
         <div className="flex items-center justify-between gap-4">
           <div>
-            <div className="t-section text-white">Credit Cards</div>
-            <div className="mt-1 t-meta text-slate-400">Track limits, dues, utilization, and bill cycles.</div>
+            <div className="text-lg font-semibold text-slate-900 dark:text-white">Credit Cards</div>
+            <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">Track limits, dues, utilization, and bill cycles.</div>
           </div>
           <button
             type="button"
             onClick={openCreateModal}
-            className="flex h-12 shrink-0 items-center gap-3 rounded-[6px] bg-[var(--accent-600)] px-4 t-body font-semibold text-white transition-all duration-200 ease-out hover:bg-[var(--accent-700)] hover:brightness-105 active:scale-[0.98] motion-reduce:transition-none"
+            className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-accent-700 active:bg-accent-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <Icon name="add" className="h-4 w-4 text-white" />
+            <Icon name="add" className="h-4 w-4" />
             Add Credit Card
           </button>
         </div>
 
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {summaryCards.map((card) => (
-            <SectionCard key={card.label} className="px-6 py-6">
+            <div key={card.label} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md motion-reduce:transition-none">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <div className="t-label text-slate-400">{card.label}</div>
-                  <div className={['t-metric mt-6 text-white', card.valueClass].filter(Boolean).join(' ')}>{card.value}</div>
-                  <div className="t-meta mt-4 text-slate-400">{card.meta}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{card.label}</div>
+                  <div className={['t-metric mt-4 text-slate-900 dark:text-white', card.valueClass].filter(Boolean).join(' ')}>{card.value}</div>
+                  <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">{card.meta}</div>
                 </div>
-                      <div className={['grid h-12 w-12 shrink-0 place-items-center rounded-[6px] transition-colors duration-200 ease-out', card.iconBg].join(' ')}>
-                        <Icon name="cards" className="h-5 w-5" />
-                      </div>
-                    </div>
-                  </SectionCard>
-                ))}
+                <div className={['grid h-11 w-11 shrink-0 place-items-center rounded-xl', card.iconBg].join(' ')}>
+                  <Icon name="cards" className="h-5 w-5" />
+                </div>
+              </div>
+            </div>
+          ))}
         </section>
 
         <SectionCard>
-          <div className="border-b border-[rgba(51,65,85,0.45)] px-6 py-5">
+          <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4">
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-              <label className="flex h-12 items-center gap-3 rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 text-slate-400">
-                <Icon name="search" className="h-4 w-4 shrink-0" />
+              <label className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 shadow-sm focus-within:border-accent-500 focus-within:ring-2 focus-within:ring-accent-500/15">
+                <Icon name="search" className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
                 <input
                   value={searchTerm}
                   onChange={(event) => setSearchTerm(event.target.value)}
                   placeholder="Search card or bank"
-                  className="w-full bg-transparent t-body text-slate-200 outline-none placeholder:text-slate-500"
+                  className="w-full bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none"
                 />
               </label>
 
               <select
                 value={statusFilter}
                 onChange={(event) => setStatusFilter(event.target.value as 'all' | ApiCreditCard['status'])}
-                className="h-12 rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-slate-200 outline-none"
+                className="h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-sm text-slate-700 dark:text-slate-200 shadow-sm focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/15"
               >
                 <option value="all">All statuses</option>
                 <option value="paid">Paid</option>
@@ -501,26 +512,26 @@ export default function CreditCardsPage() {
 
           {cardsLoading ? (
             <div className="px-6 py-10">
-              <div className="rounded-[6px] border border-dashed border-[rgba(51,65,85,0.6)] bg-[#0f172a] p-8 text-center">
-                <div className="t-section text-white">Loading cards...</div>
-                <div className="mt-2 t-body text-slate-400">Fetching positions from the backend.</div>
+              <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-10 text-center">
+                <div className="text-base font-semibold text-slate-900 dark:text-white">Loading cards...</div>
+                <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">Fetching positions from the backend.</div>
               </div>
             </div>
           ) : cardsError ? (
             <div className="px-6 py-10">
-              <div className="rounded-[6px] border border-rose-500/40 bg-rose-500/10 p-8 text-center">
-                <div className="t-section text-rose-300">Unable to load cards</div>
-                <div className="mt-2 t-body text-rose-200/80">{cardsError}</div>
+              <div className="rounded-lg border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 p-8 text-center">
+                <div className="text-base font-semibold text-rose-800 dark:text-rose-200">Unable to load cards</div>
+                <div className="mt-2 text-sm text-rose-600 dark:text-rose-300">{cardsError}</div>
               </div>
             </div>
           ) : filteredCards.length === 0 ? (
             <div className="px-6 py-10">
-              <div className="rounded-[6px] border border-dashed border-[rgba(51,65,85,0.6)] bg-[#0f172a] p-10 text-center">
-                <div className="mx-auto grid h-12 w-12 place-items-center rounded-[6px] bg-[#18233d] text-accent-400">
+              <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-10 text-center">
+                <div className="mx-auto grid h-11 w-11 place-items-center rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
                   <Icon name="cards" className="h-5 w-5" />
                 </div>
-                <div className="mt-4 t-section text-white">No cards match the filters</div>
-                <div className="mt-2 t-body text-slate-400">Try a different status or search term.</div>
+                <div className="mt-4 text-base font-semibold text-slate-900 dark:text-white">No cards match the filters</div>
+                <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">Try a different status or search term.</div>
               </div>
             </div>
           ) : (
@@ -529,37 +540,37 @@ export default function CreditCardsPage() {
                 const tone = buildStatusTone(card.status)
 
                 return (
-                  <div key={card.id} className={['rounded-[6px] border bg-[#131c31] p-5 transition-colors duration-200 ease-out hover:border-slate-600/60 motion-reduce:transition-none', tone.border].join(' ')}>
+                  <div key={card.id} className={['rounded-xl border bg-white dark:bg-slate-800 p-5 shadow-sm transition-all duration-200 hover:shadow-md', tone.border].join(' ')}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="t-nav truncate text-white">{card.card_name}</div>
-                        <div className="t-meta truncate">{card.bank_name} ••{card.last4}</div>
+                        <div className="text-sm font-semibold truncate text-slate-900 dark:text-white">{card.card_name}</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 truncate">{card.bank_name} ••{card.last4}</div>
                       </div>
-                      <span className={['rounded-[999px] px-3 py-1 t-badge', tone.badge].join(' ')}>{card.status.replace('_', ' ')}</span>
+                      <span className={tone.badge}>{card.status.replace('_', ' ')}</span>
                     </div>
 
                     <div className="mt-5">
-                      <div className="flex items-center justify-between t-meta">
+                      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                         <span>Used {formatINRShort(toNumber(card.used_amount))}</span>
                         <span>{toNumber(card.utilization_pct).toFixed(1)}%</span>
                       </div>
-                      <div className="mt-2 h-2 rounded-full bg-slate-800">
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
                         <div className={['h-2 rounded-full', tone.bar].join(' ')} style={{ width: `${Math.min(toNumber(card.utilization_pct), 100)}%` }} />
                       </div>
-                      <div className="mt-3 flex items-center justify-between t-meta">
+                      <div className="mt-3 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                         <span>Avail. {formatINRShort(toNumber(card.available_limit))} of {formatINRShort(toNumber(card.total_limit))}</span>
                       </div>
                     </div>
 
                     <div className="mt-6 grid grid-cols-2 gap-4">
                       <div>
-                        <div className="t-micro text-slate-400">Bill amount</div>
-                        <div className={['mt-1 t-amount', tone.accent].join(' ')}>{formatINR(toNumber(card.current_bill_amount))}</div>
+                        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Bill amount</div>
+                        <div className={['mt-1 text-sm font-semibold', tone.accent].join(' ')}>{formatINR(toNumber(card.current_bill_amount))}</div>
                       </div>
                       <div className="text-right">
-                        <div className="t-micro text-slate-400">Due date</div>
-                        <div className="mt-1 t-nav text-white">{card.due_date}</div>
-                        <div className={['mt-1 t-meta', card.days_until_due < 0 ? 'text-rose-400' : card.days_until_due <= 7 ? 'text-amber-400' : 'text-slate-400'].join(' ')}>
+                        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Due date</div>
+                        <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{card.due_date}</div>
+                        <div className={['mt-1 text-xs', card.days_until_due < 0 ? 'text-rose-600 dark:text-rose-400' : card.days_until_due <= 7 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-slate-400'].join(' ')}>
                           {card.days_until_due < 0 ? `${Math.abs(card.days_until_due)} days overdue` : `${card.days_until_due} days left`}
                         </div>
                       </div>
@@ -569,14 +580,14 @@ export default function CreditCardsPage() {
                       <button
                         type="button"
                         onClick={() => openEditModal(card)}
-                        className="rounded-[6px] border border-[var(--border-soft)] px-3 py-2 t-badge text-slate-200 transition-all duration-200 ease-out hover:bg-white/5 active:scale-[0.95] motion-reduce:transition-none"
+                        className="rounded-lg p-2 text-slate-400 dark:text-slate-500 transition-all duration-150 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-700 dark:hover:text-slate-300 active:scale-95"
                       >
                         Edit
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDelete(card)}
-                        className="rounded-[6px] border border-[var(--border-soft)] px-3 py-2 t-badge text-rose-300 transition-all duration-200 ease-out hover:bg-white/5 active:scale-[0.95] motion-reduce:transition-none"
+                        className="rounded-lg p-2 text-slate-400 dark:text-slate-500 transition-all duration-150 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-rose-600 dark:hover:text-rose-400 active:scale-95"
                       >
                         Delete
                       </button>
@@ -592,7 +603,7 @@ export default function CreditCardsPage() {
       {isDrawerMounted ? (
         <div
           className={[
-            'fixed inset-0 z-50 flex items-stretch justify-end bg-slate-950/70 backdrop-blur-sm transition-opacity duration-200 ease-out motion-reduce:transition-none',
+            'fixed inset-0 z-50 flex items-stretch justify-end bg-slate-950/60 backdrop-blur-sm transition-opacity duration-200 motion-reduce:transition-none',
             isDrawerVisible ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
           ].join(' ')}
           onClick={() => setIsModalOpen(false)}
@@ -600,20 +611,20 @@ export default function CreditCardsPage() {
         >
           <section
             className={[
-              'relative z-10 flex h-full w-full max-w-[560px] flex-col border-l border-[var(--border)] bg-[#0f172a] shadow-[0_24px_80px_rgba(0,0,0,0.45)] transition-all duration-300 ease-out motion-reduce:transition-none',
+              'relative z-10 flex h-full w-full max-w-140 flex-col border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl transition-all duration-300 ease-out motion-reduce:transition-none',
               isDrawerVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0',
             ].join(' ')}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-[rgba(51,65,85,0.45)] px-6 py-5">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-6 py-5">
               <div>
-                <div className="t-section text-white">{editingId === null ? 'Add Credit Card' : 'Edit Credit Card'}</div>
-                <div className="mt-1 t-meta">Manual entry for one credit card</div>
+                <div className="text-base font-semibold text-slate-900 dark:text-white">{editingId === null ? 'Add Credit Card' : 'Edit Credit Card'}</div>
+                <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Manual entry for one credit card</div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="grid h-10 w-10 place-items-center rounded-[6px] text-slate-400 transition-all duration-200 ease-out hover:bg-white/5 hover:text-white active:scale-[0.95] motion-reduce:transition-none"
+                className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 dark:text-slate-500 transition-all duration-150 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-300 active:scale-95"
                 aria-label="Close"
               >
                 <Icon name="close" className="h-5 w-5" />
@@ -623,13 +634,13 @@ export default function CreditCardsPage() {
             <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
                 {formErrorMessage ? (
-                  <div className="mb-5 whitespace-pre-wrap rounded-[6px] border border-rose-500/40 bg-rose-500/10 px-4 py-3 t-body text-rose-200">
+                  <div className="mb-5 rounded-lg border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-4 py-3 text-sm text-rose-800 dark:text-rose-200 whitespace-pre-wrap">
                     {formErrorMessage}
                   </div>
                 ) : null}
 
                 {editingId !== null ? (
-                  <div className="mb-5 rounded-[6px] border border-[rgba(51,65,85,0.45)] bg-[rgba(15,23,42,0.72)] px-4 py-3 t-meta text-slate-300">
+                  <div className="mb-5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
                     Editing existing card details. Update the fields below and click Save Changes.
                   </div>
                 ) : null}
@@ -640,7 +651,7 @@ export default function CreditCardsPage() {
                       value={form.card_name}
                       onChange={(event) => setForm((current) => ({ ...current, card_name: event.target.value }))}
                       placeholder="HDFC Regalia"
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     />
                   </FormField>
 
@@ -649,7 +660,7 @@ export default function CreditCardsPage() {
                       value={form.bank_name}
                       onChange={(event) => setForm((current) => ({ ...current, bank_name: event.target.value }))}
                       placeholder="HDFC Bank"
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     />
                   </FormField>
 
@@ -660,7 +671,7 @@ export default function CreditCardsPage() {
                       placeholder="4821"
                       inputMode="numeric"
                       maxLength={4}
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     />
                   </FormField>
 
@@ -668,7 +679,7 @@ export default function CreditCardsPage() {
                     <select
                       value={form.status}
                       onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as CreditCardFormState['status'] }))}
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-sm text-slate-900 dark:text-slate-100 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     >
                       <option value="paid">Paid</option>
                       <option value="due_soon">Due Soon</option>
@@ -683,7 +694,7 @@ export default function CreditCardsPage() {
                       placeholder="500000"
                       inputMode="decimal"
                       step="any"
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     />
                   </FormField>
 
@@ -694,7 +705,7 @@ export default function CreditCardsPage() {
                       placeholder="71420"
                       inputMode="decimal"
                       step="any"
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     />
                   </FormField>
 
@@ -705,7 +716,7 @@ export default function CreditCardsPage() {
                       placeholder="38450"
                       inputMode="decimal"
                       step="any"
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     />
                   </FormField>
 
@@ -714,7 +725,7 @@ export default function CreditCardsPage() {
                       type="date"
                       value={form.billing_cycle_start}
                       onChange={(event) => setForm((current) => ({ ...current, billing_cycle_start: event.target.value }))}
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     />
                   </FormField>
 
@@ -723,7 +734,7 @@ export default function CreditCardsPage() {
                       type="date"
                       value={form.billing_cycle_end}
                       onChange={(event) => setForm((current) => ({ ...current, billing_cycle_end: event.target.value }))}
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     />
                   </FormField>
 
@@ -732,7 +743,7 @@ export default function CreditCardsPage() {
                       type="date"
                       value={form.due_date}
                       onChange={(event) => setForm((current) => ({ ...current, due_date: event.target.value }))}
-                      className="h-11 w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 t-body text-white outline-none focus:border-[var(--accent-600)]"
+                      className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     />
                   </FormField>
                 </div>
@@ -743,30 +754,28 @@ export default function CreditCardsPage() {
                     onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
                     rows={4}
                     placeholder="Optional notes about the card"
-                    className="w-full rounded-[6px] border border-[var(--border-soft)] bg-[rgba(15,23,42,0.72)] px-4 py-3 t-body text-white outline-none placeholder:text-slate-500 focus:border-[var(--accent-600)]"
+                    className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150 resize-none"
                   />
                 </FormField>
               </div>
 
-              <div className="border-t border-[rgba(51,65,85,0.45)] px-6 py-4">
-                <div className="flex items-center justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="h-11 rounded-[6px] border border-[var(--border-soft)] px-5 t-nav text-slate-200 transition-all duration-200 ease-out hover:bg-white/5 active:scale-[0.98] motion-reduce:transition-none"
-                    disabled={isSaving}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSaving}
-                    className="flex h-11 items-center gap-3 rounded-[6px] bg-[var(--accent-600)] px-5 t-nav font-semibold text-white transition-all duration-200 ease-out hover:bg-[var(--accent-700)] hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 motion-reduce:transition-none"
-                  >
-                    {isSaving ? <Icon name="refresh" className="h-4 w-4 animate-spin" /> : <Icon name="add" className="h-4 w-4" />}
-                    {isSaving ? 'Saving...' : editingId === null ? 'Create Credit Card' : 'Save Changes'}
-                  </button>
-                </div>
+              <div className="border-t border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-600 dark:text-slate-300 shadow-sm transition-all duration-150 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                  disabled={isSaving}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-accent-700 active:bg-accent-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isSaving ? <Icon name="refresh" className="h-4 w-4 animate-spin" /> : <Icon name="add" className="h-4 w-4" />}
+                  {isSaving ? 'Saving...' : editingId === null ? 'Create Credit Card' : 'Save Changes'}
+                </button>
               </div>
             </form>
           </section>

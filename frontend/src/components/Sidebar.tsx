@@ -36,29 +36,42 @@ export default function Sidebar({
   return (
     <aside
       className={[
-        'sticky left-0 top-0 relative flex h-screen shrink-0 flex-col overflow-y-auto overflow-x-hidden border-r border-[var(--border)] bg-[#0b1224] text-slate-200 transition-[width] duration-300 ease-in-out motion-reduce:transition-none no-scrollbar',
-        collapsed ? 'w-[72px] px-3 py-4' : 'w-[260px] px-5 py-5',
+        'relative flex h-screen shrink-0 flex-col overflow-hidden',
+        'border-r border-slate-200 dark:border-slate-700/30',
+        'bg-white dark:bg-slate-900',
+        'text-slate-700 dark:text-slate-300',
+        'transition-[width] duration-300 ease-in-out motion-reduce:transition-none no-scrollbar',
+        collapsed ? 'w-[68px] px-2 py-4' : 'w-65 px-4 py-5',
         className,
       ].join(' ')}
     >
-      <div className={collapsed ? 'flex items-center justify-center' : 'flex items-center gap-4'}>
+      {/* Logo + brand */}
+      <div className={collapsed ? 'flex items-center justify-center' : 'flex items-center gap-3'}>
         <Logo />
         <div
           className={[
             'min-w-0 overflow-hidden transition-all duration-300 ease-in-out motion-reduce:transition-none',
-            collapsed ? 'max-w-0 opacity-0 -translate-x-2 pointer-events-none' : 'max-w-[160px] opacity-100 translate-x-0',
+            collapsed
+              ? 'max-w-0 opacity-0 -translate-x-2 pointer-events-none'
+              : 'max-w-45 opacity-100 translate-x-0',
           ].join(' ')}
         >
-          <div className="min-w-0">
-            <div className="t-section truncate text-[18px] font-bold leading-none tracking-[-0.03em] text-white">
-              WealthPilot
-            </div>
-            <div className="mt-1 text-[11px] font-medium uppercase tracking-[0.04em] text-slate-400">Personal Finance</div>
+          <div className="text-[18px] font-bold leading-none tracking-[-0.03em] text-slate-900 dark:text-white truncate">
+            WealthPilot
+          </div>
+          <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.05em] text-slate-400 dark:text-slate-500">
+            Personal Finance
           </div>
         </div>
       </div>
 
-      <nav className={['mt-8 flex min-w-0 flex-1 flex-col', collapsed ? 'items-center gap-2' : 'gap-2'].join(' ')}>
+      {/* Nav items */}
+      <nav
+        className={[
+          'mt-6 flex min-w-0 flex-1 flex-col overflow-y-auto no-scrollbar',
+          collapsed ? 'items-center gap-1.5' : 'gap-1',
+        ].join(' ')}
+      >
         {navItems.map((item) => {
           const isActive = item.key === activePage
           const isNavigable = item.navigable ?? false
@@ -70,73 +83,73 @@ export default function Sidebar({
               aria-label={item.label}
               aria-current={isActive ? 'page' : undefined}
               onClick={isNavigable ? () => onNavigate(item.key as 'dashboard' | 'stocks' | 'banks' | 'cards') : undefined}
-              className={[
-                'group flex min-w-0 items-center rounded-[6px] text-left transition-all duration-300 ease-in-out motion-reduce:transition-none focus-visible:outline-none active:scale-[0.98]',
-                collapsed ? 'h-11 w-11 justify-center' : 'h-[52px] w-full gap-4 px-4',
-                isActive
-                  ? 'bg-[#163443] text-[var(--accent-400)]'
-                  : 'text-slate-400 hover:bg-white/5 hover:text-slate-200',
-              ].join(' ')}
               disabled={!isNavigable}
+              className={[
+                'group flex min-w-0 items-center rounded-lg text-left',
+                'transition-all duration-150 ease-in-out motion-reduce:transition-none',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/40',
+                'active:scale-[0.98]',
+                collapsed ? 'h-12.5 w-12.5 justify-center' : 'h-12.5 w-full gap-3 px-3',
+                isActive
+                  ? 'bg-teal-50 dark:bg-teal-500/15 text-teal-700 dark:text-teal-300'
+                  : isNavigable
+                  ? 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
+                  : 'text-slate-400 dark:text-slate-500 cursor-default',
+              ].join(' ')}
             >
               <Icon
                 name={item.icon}
                 className={[
-                  collapsed ? 'h-5 w-5 shrink-0' : 'h-[18px] w-[18px] shrink-0',
-                  isActive ? 'text-[var(--accent-400)]' : 'text-current',
+                  'shrink-0',
+                  'h-5 w-5',
+                  isActive ? 'text-teal-600 dark:text-teal-400' : 'text-current',
                 ].join(' ')}
+                strokeWidth={isActive ? 2 : 1.75}
               />
               <span
                 className={[
-                  'overflow-hidden whitespace-nowrap text-left transition-all duration-300 ease-in-out motion-reduce:transition-none',
-                  collapsed ? 'max-w-0 opacity-0 -translate-x-2 pointer-events-none' : 'ml-0 max-w-[140px] opacity-100 translate-x-0',
+                  'overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out motion-reduce:transition-none',
+                  collapsed
+                    ? 'max-w-0 opacity-0 pointer-events-none'
+                    : 'max-w-[140px] opacity-100',
                 ].join(' ')}
               >
-                <span className={['t-nav truncate', isActive ? 'text-[var(--accent-400)]' : 'text-current'].join(' ')}>{item.label}</span>
+                <span className="text-[15px] font-medium truncate">{item.label}</span>
               </span>
-              <span
-                className={[
-                  'ml-auto flex shrink-0 transition-all duration-300 ease-in-out motion-reduce:transition-none',
-                  collapsed ? 'opacity-0 scale-90 pointer-events-none' : 'opacity-100 scale-100',
-                ].join(' ')}
-              >
-                {isActive ? <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent-400)]" /> : null}
-              </span>
+
+              {/* Active dot */}
+              {!collapsed && isActive ? (
+                <span className="ml-auto h-2 w-2 shrink-0 rounded-full bg-teal-400 dark:bg-teal-400" />
+              ) : null}
             </button>
           )
         })}
       </nav>
 
-      <div
-        className={[
-          'mt-auto pb-5 transition-all duration-300 ease-in-out motion-reduce:transition-none',
-          collapsed ? 'pointer-events-none translate-y-1 scale-[0.98] opacity-0' : 'translate-y-0 scale-100 opacity-100',
-        ].join(' ')}
-      >
-        <div className="rounded-[6px] bg-gradient-to-br from-[var(--accent-700)] to-[var(--accent-900)] p-5 text-white shadow-[0_18px_50px_rgba(13,148,136,0.12)]">
-          <h3 className="t-section text-[16px] font-semibold text-white">Tax season is here</h3>
-          <p className="mt-2 t-body text-slate-200/90">Export FY25-26 capital gains report.</p>
-          <button
-            type="button"
-            className="mt-5 h-11 w-full rounded-[6px] bg-white t-nav font-semibold text-slate-900 transition-all duration-200 ease-out hover:brightness-95 active:scale-[0.98] motion-reduce:transition-none"
-          >
-            Generate report
-          </button>
-        </div>
-      </div>
-
+      {/* Collapse toggle */}
       <button
         type="button"
-        onClick={() => setCollapsed((value) => !value)}
+        onClick={() => setCollapsed((v) => !v)}
         className={[
-          'mt-2 flex items-center rounded-[6px] px-3 py-3 text-[var(--text-muted)] transition-all duration-200 ease-out hover:bg-white/5 hover:text-slate-100 active:scale-[0.98] motion-reduce:transition-none',
-          collapsed ? 'justify-center' : 'gap-4',
+          'mt-4 shrink-0 flex items-center rounded-lg px-2.5 py-2.5',
+          'text-slate-400 dark:text-slate-500',
+          'transition-all duration-150 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-300',
+          'active:scale-[0.98] motion-reduce:transition-none',
+          collapsed ? 'justify-center' : 'gap-3',
         ].join(' ')}
         aria-expanded={!collapsed}
         aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       >
-        <Icon name="collapse" className="h-4 w-4 shrink-0" />
-        {!collapsed && <span className="t-nav">Collapse</span>}
+        <Icon
+          name="collapse"
+          className={[
+            'h-4 w-4 shrink-0 transition-transform duration-300',
+            collapsed ? 'rotate-180' : '',
+          ].join(' ')}
+        />
+        {!collapsed && (
+          <span className="text-[13px] font-medium">Collapse</span>
+        )}
       </button>
     </aside>
   )
