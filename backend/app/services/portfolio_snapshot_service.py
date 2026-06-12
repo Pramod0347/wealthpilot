@@ -19,11 +19,10 @@ from app.schemas.portfolio_snapshot import (
     PortfolioSnapshotRead,
 )
 from app.services.calculations import (
-    calculate_current_value,
-    calculate_invested_amount,
     calculate_pnl,
     calculate_return_pct,
 )
+from app.services.holdings_service import serialize_holding
 
 logger = logging.getLogger(__name__)
 
@@ -34,15 +33,12 @@ def _today() -> date:
 
 def calculate_current_snapshot_from_holdings(db: Session) -> PortfolioSnapshotRead:
     holdings = db.scalars(select(Holding)).all()
+    serialized_holdings = [serialize_holding(holding) for holding in holdings]
 
-    total_invested = sum(
-        (calculate_invested_amount(holding.quantity, holding.avg_buy_price) for holding in holdings),
-        Decimal("0"),
-    )
-    current_value = sum(
-        (calculate_current_value(holding.quantity, holding.current_price) for holding in holdings),
-        Decimal("0"),
-    )
+    # Keep snapshot values aligned with dashboard summary values, which already
+    # include INR conversion for US holdings and other non-INR positions.
+    total_invested = sum((holding.invested_amount for holding in serialized_holdings), Decimal("0"))
+    current_value = sum((holding.current_value for holding in serialized_holdings), Decimal("0"))
     total_pnl = calculate_pnl(current_value, total_invested)
     total_return_pct = calculate_return_pct(total_pnl, total_invested)
 

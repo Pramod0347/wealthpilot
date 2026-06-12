@@ -50,6 +50,7 @@ class HoldingUpdate(BaseModel):
 class HoldingRead(HoldingBase):
     id: int
     fx_rate_to_inr: Decimal
+    effective_fx_rate_to_inr: Decimal
     price_source: str
     last_price_refreshed_at: datetime | None
     as_of_date: date

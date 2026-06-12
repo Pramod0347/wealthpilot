@@ -9,8 +9,11 @@ import {
   YAxis,
 } from 'recharts'
 import { Icon } from './Icon'
+import PrivateValue from './ui/PrivateValue'
 import { ApiError, apiFetch, getBankAccounts, type BankAccount } from '../lib/api'
 import { formatINR, formatINRShort, formatPct, formatSignedPct, getTrendClass } from '../lib/format'
+import { maskSensitiveText } from '../utils/privacy'
+import { usePrivacyMode } from '../context/PrivacyContext'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -19,6 +22,8 @@ type ApiDashboardSummary = {
   current_value: string | number
   total_bank_cash: string | number
   bank_accounts_count: number
+  total_fixed_savings_value: string | number
+  fixed_savings_accounts_count: number
   total_assets: string | number
   total_liabilities: string | number
   net_worth: string | number
@@ -49,6 +54,7 @@ type ApiHolding = {
   exchange: string | null
   exchange_symbol: string | null
   fx_rate_to_inr: string | number
+  effective_fx_rate_to_inr: string | number
   quantity: string | number
   avg_buy_price: string | number
   current_price: string | number
@@ -147,6 +153,7 @@ const assetTypePalette: Record<string, { label: string; color: string }> = {
   cash: { label: 'Cash', color: '#f59e0b' },
   other: { label: 'Other Assets', color: '#64748b' },
   banks: { label: 'Banks', color: '#f97316' },
+  pfepf: { label: 'PF / EPF', color: '#22c55e' },
 }
 
 const LABEL = 'text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500'
@@ -335,6 +342,7 @@ export default function Dashboard({
   onOpenStocks?: () => void
   onOpenCards?: () => void
 } = {}) {
+  const { privacyMode } = usePrivacyMode()
   const [activeFilter, setActiveFilter] = useState<PortfolioRange>('6M')
   const [summary, setSummary] = useState<ApiDashboardSummary | null>(null)
   const [holdings, setHoldings] = useState<ApiHolding[]>([])
@@ -430,6 +438,10 @@ export default function Dashboard({
   const equityExposurePct = useMemo(() => allocationData.reduce((acc, e) => e.key === 'stock_in' || e.key === 'stock' || e.key === 'etf' ? acc + e.percentage : acc, 0), [allocationData])
   const portfolioChartData = useMemo(() => buildPortfolioChartData(portfolioPerformance), [portfolioPerformance])
   const usStocksValue = useMemo(() => holdings.reduce((acc, h) => h.country === 'US' ? acc + toNumber(h.current_value) : acc, 0), [holdings])
+  const liveUsdInrRate = useMemo(() => {
+    const firstUsHolding = holdings.find((holding) => holding.country === 'US')
+    return firstUsHolding ? toNumber(firstUsHolding.effective_fx_rate_to_inr) : 0
+  }, [holdings])
   const actionItems = useMemo(() => buildActionItems(creditCards, summary, portfolioPerformance), [creditCards, portfolioPerformance, summary])
   const upcomingPayments = useMemo(() => buildUpcomingPayments(creditCards), [creditCards])
   const insights = useMemo(() => buildInsights(summary, holdings, creditCards, portfolioPerformance), [creditCards, holdings, portfolioPerformance, summary])
@@ -525,11 +537,11 @@ export default function Dashboard({
             <div>
               <div className={LABEL}>Net Worth</div>
               <div className="mt-2.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
-                {summaryLoading ? '—' : formatMoney(netWorth)}
+                {summaryLoading ? '—' : <PrivateValue value={formatMoney(netWorth)} mask="••••" hideColor />}
               </div>
               {portfolioHasSnapshots ? (
-                <div className={['mt-1.5 text-xs font-semibold', getTrendClass(toNumber(latestSnapshotReturn ?? 0))].join(' ')}>
-                  {toNumber(latestSnapshotReturn ?? 0) >= 0 ? '↑' : '↓'} {formatPct(Math.abs(toNumber(latestSnapshotReturn ?? 0)))}
+                <div className={['mt-1.5 text-xs font-semibold', privacyMode ? 'text-slate-400 dark:text-slate-400' : getTrendClass(toNumber(latestSnapshotReturn ?? 0))].join(' ')}>
+                  {privacyMode ? 'Portfolio hidden' : `${toNumber(latestSnapshotReturn ?? 0) >= 0 ? '↑' : '↓'} ${formatPct(Math.abs(toNumber(latestSnapshotReturn ?? 0)))}`}
                 </div>
               ) : (
                 <div className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">No snapshot</div>
@@ -540,18 +552,18 @@ export default function Dashboard({
             <div>
               <div className={LABEL}>Assets</div>
               <div className="mt-2.5 font-mono text-xl font-bold tabular-nums text-slate-900 dark:text-white">
-                {summaryLoading ? '—' : formatMoney(toNumber(summary?.total_assets))}
+                {summaryLoading ? '—' : <PrivateValue value={formatMoney(toNumber(summary?.total_assets))} mask="••••" hideColor />}
               </div>
               <div className="mt-1.5 text-xs text-slate-500 dark:text-slate-500">
-                {summary ? `${summary.bank_accounts_count} accounts` : '—'}
+                {summary ? `${summary.holdings_count + summary.bank_accounts_count + summary.fixed_savings_accounts_count} accounts` : '—'}
               </div>
             </div>
 
             {/* LIABILITIES */}
             <div>
               <div className={LABEL}>Liabilities</div>
-              <div className={['mt-2.5 font-mono text-xl font-bold tabular-nums', toNumber(summary?.total_liabilities) > 0 ? 'text-rose-500 dark:text-rose-400' : 'text-slate-900 dark:text-white'].join(' ')}>
-                {summaryLoading ? '—' : formatMoney(toNumber(summary?.total_liabilities))}
+              <div className={['mt-2.5 font-mono text-xl font-bold tabular-nums', privacyMode ? 'text-slate-400 dark:text-slate-400' : toNumber(summary?.total_liabilities) > 0 ? 'text-rose-500 dark:text-rose-400' : 'text-slate-900 dark:text-white'].join(' ')}>
+                {summaryLoading ? '—' : <PrivateValue value={formatMoney(toNumber(summary?.total_liabilities))} mask="••••" hideColor />}
               </div>
               <div className="mt-1.5 text-xs text-slate-500 dark:text-slate-500">
                 {summary ? `${creditCards.length} cards` : '—'}
@@ -584,7 +596,7 @@ export default function Dashboard({
                   {allocationData.map(entry => (
                     <span key={entry.key} className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                       <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
-                      {entry.label} {entry.percentage.toFixed(1)}%
+                      {entry.label} {privacyMode ? '•••' : `${entry.percentage.toFixed(1)}%`}
                     </span>
                   ))}
                 </div>
@@ -614,7 +626,9 @@ export default function Dashboard({
                   </div>
                 </div>
                 <div className="shrink-0 text-right">
-                  <div className="font-mono text-sm font-bold tabular-nums text-slate-900 dark:text-white">{item.amount}</div>
+                  <div className="font-mono text-sm font-bold tabular-nums text-slate-900 dark:text-white">
+                    <PrivateValue value={item.amount} mask="••••" hideColor />
+                  </div>
                   <div className="mt-1.5">
                     <StatusPill tone={item.statusTone} label={item.statusLabel} />
                   </div>
@@ -627,13 +641,13 @@ export default function Dashboard({
               <div className="flex items-start justify-between gap-3 pt-3.5 pb-0">
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-slate-900 dark:text-slate-200">
-                    Portfolio {toNumber(latestSnapshotReturn ?? 0) >= 0 ? 'up' : 'down'} {formatPct(Math.abs(toNumber(latestSnapshotReturn ?? 0)))}
+                    {privacyMode ? 'Portfolio snapshot hidden' : `Portfolio ${toNumber(latestSnapshotReturn ?? 0) >= 0 ? 'up' : 'down'} ${formatPct(Math.abs(toNumber(latestSnapshotReturn ?? 0)))}`}
                   </div>
                   <div className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">From latest snapshot</div>
                 </div>
                 <div className="shrink-0 text-right">
                   <div className="font-mono text-sm font-bold tabular-nums text-slate-900 dark:text-white">
-                    {formatSignedPct(toNumber(latestSnapshotReturn ?? 0))}
+                    <PrivateValue value={formatSignedPct(toNumber(latestSnapshotReturn ?? 0))} mask="••••" hideColor />
                   </div>
                   <div className="mt-1.5">
                     <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:text-slate-400">
@@ -655,7 +669,7 @@ export default function Dashboard({
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm">
           <div className={LABEL}>Portfolio Value</div>
           <div className="mt-2.5 font-mono text-lg font-bold tabular-nums text-slate-900 dark:text-white">
-            {summaryLoading ? '—' : formatMoney(toNumber(summary?.current_value))}
+            {summaryLoading ? '—' : <PrivateValue value={formatMoney(toNumber(summary?.current_value))} mask="••••" hideColor />}
           </div>
           <div className="mt-3 grid h-7 w-7 place-items-center rounded-lg bg-teal-500/15">
             <Icon name="stocks" className="h-3.5 w-3.5 text-teal-400" />
@@ -666,7 +680,7 @@ export default function Dashboard({
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm">
           <div className={LABEL}>Bank Balance</div>
           <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', toNumber(summary?.total_bank_cash) > 0 ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'].join(' ')}>
-            {summaryLoading ? '—' : toNumber(summary?.total_bank_cash) > 0 ? formatMoney(toNumber(summary?.total_bank_cash)) : 'Not added'}
+            {summaryLoading ? '—' : toNumber(summary?.total_bank_cash) > 0 ? <PrivateValue value={formatMoney(toNumber(summary?.total_bank_cash))} mask="••••" hideColor /> : 'Not added'}
           </div>
           <div className="mt-3 grid h-7 w-7 place-items-center rounded-lg bg-orange-500/15">
             <Icon name="banks" className="h-3.5 w-3.5 text-orange-400" />
@@ -676,9 +690,14 @@ export default function Dashboard({
         {/* PF / EPF */}
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm">
           <div className={LABEL}>PF / EPF</div>
-          <div className="mt-2.5 font-mono text-lg font-bold tabular-nums text-slate-400 dark:text-slate-500">Not added</div>
-          <div className="mt-3 grid h-7 w-7 place-items-center rounded-lg bg-slate-100 dark:bg-slate-800">
-            <Icon name="pfepf" className="h-3.5 w-3.5 text-slate-400" />
+          <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', toNumber(summary?.total_fixed_savings_value) > 0 ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'].join(' ')}>
+            {summaryLoading ? '—' : toNumber(summary?.total_fixed_savings_value) > 0 ? <PrivateValue value={formatMoney(toNumber(summary?.total_fixed_savings_value))} mask="••••" hideColor /> : 'Not added'}
+          </div>
+          <div className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+            {summaryLoading ? 'Loading...' : toNumber(summary?.total_fixed_savings_value) > 0 ? `${summary?.fixed_savings_accounts_count ?? 0} accounts` : 'No PF / PPF accounts'}
+          </div>
+          <div className="mt-3 grid h-7 w-7 place-items-center rounded-lg bg-emerald-500/15">
+            <Icon name="pfepf" className="h-3.5 w-3.5 text-emerald-400" />
           </div>
         </div>
 
@@ -686,7 +705,10 @@ export default function Dashboard({
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm">
           <div className={LABEL}>US Stocks</div>
           <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', usStocksValue > 0 ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'].join(' ')}>
-            {usStocksValue > 0 ? formatMoney(usStocksValue) : 'Not added'}
+            {usStocksValue > 0 ? <PrivateValue value={formatMoney(usStocksValue)} mask="••••" hideColor /> : 'Not added'}
+          </div>
+          <div className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+            {usStocksValue > 0 && liveUsdInrRate > 0 ? (privacyMode ? 'Live USD/INR ••••' : `Live USD/INR ${liveUsdInrRate.toFixed(2)}`) : 'No US holdings'}
           </div>
           <div className="mt-3 grid h-7 w-7 place-items-center rounded-lg bg-sky-500/15">
             <Icon name="portfolio" className="h-3.5 w-3.5 text-sky-400" />
@@ -697,7 +719,7 @@ export default function Dashboard({
         <div className="rounded-2xl border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 p-4 shadow-sm">
           <div className="text-[10px] font-semibold uppercase tracking-widest text-rose-500/80 dark:text-rose-400/70">Card Dues</div>
           <div className="mt-2.5 font-mono text-lg font-bold tabular-nums text-rose-700 dark:text-rose-400">
-            {summaryLoading ? '—' : formatMoney(toNumber(summary?.total_credit_card_dues))}
+            {summaryLoading ? '—' : <PrivateValue value={formatMoney(toNumber(summary?.total_credit_card_dues))} mask="••••" hideColor />}
           </div>
           <div className="mt-3 grid h-7 w-7 place-items-center rounded-lg bg-rose-500/20">
             <Icon name="cards" className="h-3.5 w-3.5 text-rose-400" />
@@ -724,11 +746,11 @@ export default function Dashboard({
               <div className={LABEL}>Performance</div>
               <div className="mt-2 flex items-baseline gap-3">
                 <span className="font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
-                  {portfolioLoading ? '—' : portfolioHasSnapshots ? formatMoney(toNumber(latestSnapshotValue)) : '—'}
+                  {portfolioLoading ? '—' : portfolioHasSnapshots ? <PrivateValue value={formatMoney(toNumber(latestSnapshotValue))} mask="••••" hideColor /> : '—'}
                 </span>
                 {portfolioHasSnapshots ? (
-                  <span className={['text-sm font-semibold', getTrendClass(toNumber(latestSnapshotReturn ?? 0))].join(' ')}>
-                    {formatSignedPct(toNumber(latestSnapshotReturn ?? 0))}
+                  <span className={['text-sm font-semibold', privacyMode ? 'text-slate-400 dark:text-slate-400' : getTrendClass(toNumber(latestSnapshotReturn ?? 0))].join(' ')}>
+                    <PrivateValue value={formatSignedPct(toNumber(latestSnapshotReturn ?? 0))} mask="••••" hideColor />
                   </span>
                 ) : null}
               </div>
@@ -788,10 +810,10 @@ export default function Dashboard({
                     <LineChart data={portfolioChartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                       <CartesianGrid stroke="rgba(51,65,85,0.35)" vertical={false} />
                       <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} width={48} tickFormatter={v => formatINRShort(Number(v))} />
+                      <YAxis tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} width={48} tickFormatter={v => (privacyMode ? '••••' : formatINRShort(Number(v)))} />
                       <Tooltip
                         contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#e2e8f0', fontSize: 12 }}
-                        formatter={(value, name) => value !== null && value !== undefined ? [formatINRShort(Number(value)), name === 'actual_value' ? 'Actual' : 'Predicted'] : ['-', name === 'actual_value' ? 'Actual' : 'Predicted']}
+                        formatter={(value, name) => value !== null && value !== undefined ? [privacyMode ? '••••' : formatINRShort(Number(value)), name === 'actual_value' ? 'Actual' : 'Predicted'] : ['-', name === 'actual_value' ? 'Actual' : 'Predicted']}
                       />
                       <Line type="monotone" dataKey="actual_value" stroke="#0d9488" strokeWidth={2.5} dot={false} connectNulls isAnimationActive={false} />
                       <Line type="monotone" dataKey="predicted_value" stroke="#f59e0b" strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls isAnimationActive={false} />
@@ -847,7 +869,9 @@ export default function Dashboard({
             <div className="mt-6 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-4">
               <div>
                 <div className={LABEL}>Equity</div>
-                <div className="mt-0.5 text-sm font-semibold text-slate-900 dark:text-white">{formatPct(equityExposurePct)}</div>
+                <div className="mt-0.5 text-sm font-semibold text-slate-900 dark:text-white">
+                  <PrivateValue value={formatPct(equityExposurePct)} mask="••••" hideColor />
+                </div>
               </div>
               <div className="text-right">
                 <div className={LABEL}>Diversification</div>
@@ -870,13 +894,13 @@ export default function Dashboard({
             ) : bankAccounts.length > 0 ? (
               bankAccounts.map(account => (
                 <div key={account.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium text-slate-900 dark:text-slate-200">{account.bank_name}</div>
-                    <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-500">{account.account_type}</div>
-                  </div>
-                  <div className="shrink-0 font-mono text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
-                    {formatMoney(toNumber(account.balance))}
-                  </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-slate-900 dark:text-slate-200">{account.bank_name}</div>
+                  <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-500">{account.account_type}</div>
+                </div>
+                <div className="shrink-0 font-mono text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
+                    <PrivateValue value={formatMoney(toNumber(account.balance))} mask="••••" hideColor />
+                </div>
                 </div>
               ))
             ) : (
@@ -902,7 +926,7 @@ export default function Dashboard({
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       <span className="font-mono text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
-                        {formatMoney(toNumber(card.current_bill_amount))}
+                        <PrivateValue value={formatMoney(toNumber(card.current_bill_amount))} mask="••••" hideColor />
                       </span>
                       <StatusPill tone={tone} label={card.status === 'overdue' ? 'Overdue' : 'Due Soon'} />
                     </div>
@@ -930,7 +954,7 @@ export default function Dashboard({
                   ].join(' ')}>
                     <Icon name={insight.tone === 'amber' || insight.tone === 'rose' ? 'warning' : 'stocks'} className="h-4 w-4" />
                   </div>
-                  <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">{insight.text}</p>
+                  <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">{maskSensitiveText(insight.text, privacyMode, '••••')}</p>
                 </div>
               ))
             ) : (

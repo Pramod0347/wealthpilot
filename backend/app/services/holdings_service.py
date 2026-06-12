@@ -12,10 +12,22 @@ from app.services.calculations import (
     convert_to_inr,
     normalize_fx_rate,
 )
+from app.services.market_service import get_latest_usd_to_inr_rate
 
 
 def _normalized_fx_rate(holding: Holding) -> Decimal:
     return normalize_fx_rate(getattr(holding, "fx_rate_to_inr", None))
+
+
+def _effective_fx_rate(holding: Holding) -> Decimal:
+    stored_rate = _normalized_fx_rate(holding)
+    if holding.country != "US":
+        return stored_rate
+
+    try:
+        return normalize_fx_rate(get_latest_usd_to_inr_rate())
+    except Exception:
+        return stored_rate
 
 
 def normalize_holding_location_fields(holding: Holding) -> None:
@@ -46,12 +58,13 @@ def resolve_refresh_symbol(holding: Holding) -> str:
 
 
 def serialize_holding(holding: Holding) -> HoldingRead:
-    fx_rate = _normalized_fx_rate(holding)
+    stored_fx_rate = _normalized_fx_rate(holding)
+    effective_fx_rate = _effective_fx_rate(holding)
     native_invested_amount = calculate_native_invested_amount(holding.quantity, holding.avg_buy_price)
     native_current_value = calculate_native_current_value(holding.quantity, holding.current_price)
     native_pnl = calculate_native_pnl(native_current_value, native_invested_amount)
-    invested_amount = convert_to_inr(native_invested_amount, fx_rate)
-    current_value = convert_to_inr(native_current_value, fx_rate)
+    invested_amount = convert_to_inr(native_invested_amount, effective_fx_rate)
+    current_value = convert_to_inr(native_current_value, effective_fx_rate)
     pnl = calculate_pnl(current_value, invested_amount)
     return_pct = calculate_return_pct(native_pnl, native_invested_amount)
 
@@ -64,7 +77,8 @@ def serialize_holding(holding: Holding) -> HoldingRead:
         currency=holding.currency,
         exchange=holding.exchange,
         exchange_symbol=holding.exchange_symbol,
-        fx_rate_to_inr=fx_rate,
+        fx_rate_to_inr=stored_fx_rate,
+        effective_fx_rate_to_inr=effective_fx_rate,
         quantity=holding.quantity,
         avg_buy_price=holding.avg_buy_price,
         current_price=holding.current_price,

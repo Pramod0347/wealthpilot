@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Icon } from './Icon'
+import PrivateValue from './ui/PrivateValue'
 import { ApiError, apiFetch } from '../lib/api'
 import { formatINR, formatINRShort, formatPct, formatSignedPct, getTrendClass } from '../lib/format'
+import { usePrivacyMode } from '../context/PrivacyContext'
 
 type ApiHolding = {
   id: number
@@ -14,6 +16,7 @@ type ApiHolding = {
   exchange: string | null
   exchange_symbol: string | null
   fx_rate_to_inr: string | number
+  effective_fx_rate_to_inr: string | number
   quantity: string | number
   avg_buy_price: string | number
   current_price: string | number
@@ -355,13 +358,13 @@ function renderNativeAndInr(nativeValue: number, inrValue: number, currency: str
   if (currency === 'USD') {
     return (
       <div className="flex flex-col">
-        <span>{formatNativeMoney(nativeValue, currency)}</span>
-        <span className="t-meta text-slate-500 dark:text-slate-400">{formatINR(inrValue)}</span>
+        <span><PrivateValue value={formatNativeMoney(nativeValue, currency)} mask="••••" hideColor /></span>
+        <span className="t-meta text-slate-500 dark:text-slate-400"><PrivateValue value={formatINR(inrValue)} mask="••••" hideColor /></span>
       </div>
     )
   }
 
-  return <span>{formatINR(inrValue)}</span>
+  return <span><PrivateValue value={formatINR(inrValue)} mask="••••" hideColor /></span>
 }
 
 function formatDisplayDate(value: string | null | undefined) {
@@ -448,6 +451,7 @@ function FormField({
 }
 
 export default function StocksPage() {
+  const { privacyMode } = usePrivacyMode()
   const [holdings, setHoldings] = useState<ApiHolding[]>([])
   const [analytics, setAnalytics] = useState<ApiHoldingsAnalytics | null>(null)
   const [holdingsLoading, setHoldingsLoading] = useState(true)
@@ -569,6 +573,10 @@ export default function StocksPage() {
   }, [isHoldingDrawerMounted])
 
   const holdingGroups = useMemo(() => buildHoldingGroups(holdings), [holdings])
+  const liveUsdInrRate = useMemo(() => {
+    const firstUsHolding = holdings.find((holding) => holding.country === 'US')
+    return firstUsHolding ? toNumber(firstUsHolding.effective_fx_rate_to_inr) : 0
+  }, [holdings])
 
   const summaryCards = useMemo(() => {
     if (analyticsLoading) {
@@ -605,14 +613,14 @@ export default function StocksPage() {
     return [
       { label: 'Total Invested', value: formatINRShort(totalInvested), meta: `${holdings.length} positions`, color: 'text-slate-900 dark:text-white' },
       { label: 'Current Value', value: formatINRShort(currentValue), meta: 'From holdings', color: 'text-slate-900 dark:text-white' },
-      { label: 'Total P&L', value: `${pnl > 0 ? '+' : pnl < 0 ? '-' : ''}${formatINRShort(Math.abs(pnl)).replace('₹', '')}`, meta: 'Overall profit / loss', color: getTrendClass(pnl) },
-      { label: 'Return %', value: formatSignedPct(returnPct), meta: 'Based on invested amount', color: getTrendClass(returnPct) },
+      { label: 'Total P&L', value: `${pnl > 0 ? '+' : pnl < 0 ? '-' : ''}${formatINRShort(Math.abs(pnl)).replace('₹', '')}`, meta: 'Overall profit / loss', color: privacyMode ? 'text-slate-400 dark:text-slate-400' : getTrendClass(pnl) },
+      { label: 'Return %', value: formatSignedPct(returnPct), meta: 'Based on invested amount', color: privacyMode ? 'text-slate-400 dark:text-slate-400' : getTrendClass(returnPct) },
       { label: 'Indian Equity', value: formatINRShort(holdingGroups.indianEquity), meta: 'Indian stock positions', color: 'text-slate-900 dark:text-white' },
-      { label: 'US Market', value: formatINRShort(holdingGroups.usEquity), meta: 'US stocks and ETFs', color: 'text-slate-900 dark:text-white' },
+      { label: 'US Market', value: formatINRShort(holdingGroups.usEquity), meta: liveUsdInrRate > 0 ? (privacyMode ? 'Live USD/INR ••••' : `Live USD/INR ${liveUsdInrRate.toFixed(2)}`) : 'US stocks and ETFs', color: 'text-slate-900 dark:text-white' },
       { label: 'ETFs / Gold', value: formatINRShort(holdingGroups.etfsGold), meta: 'India ETFs and gold exposure', color: 'text-slate-900 dark:text-white' },
       { label: 'Mutual Funds', value: formatINRShort(holdingGroups.mutualFunds), meta: 'Units valued in INR', color: 'text-slate-900 dark:text-white' },
     ]
-  }, [analytics, analyticsError, analyticsLoading, holdingGroups.indianEquity, holdingGroups.mutualFunds, holdingGroups.etfsGold, holdingGroups.usEquity, holdings.length])
+  }, [analytics, analyticsError, analyticsLoading, holdingGroups.indianEquity, holdingGroups.mutualFunds, holdingGroups.etfsGold, holdingGroups.usEquity, holdings.length, liveUsdInrRate, privacyMode])
 
   const sectorOptions = useMemo(() => {
     const sectors = Array.from(new Set(holdings.map((holding) => holding.sector).filter(Boolean) as string[]))
@@ -973,7 +981,7 @@ export default function StocksPage() {
             <MetricCardView
               key={card.label}
               label={card.label}
-              value={card.value}
+              value={privacyMode ? '••••' : card.value}
               meta={card.meta}
               icon={
                 card.label === 'Total Invested'
@@ -988,7 +996,7 @@ export default function StocksPage() {
                           ? 'cards'
                           : 'analytics'
               }
-              valueClass={card.color}
+              valueClass={privacyMode ? 'text-slate-400 dark:text-slate-400' : card.color}
             />
           ))}
         </section>
@@ -1012,8 +1020,8 @@ export default function StocksPage() {
                         <span className="t-body text-slate-600 dark:text-slate-300">{entry.name}</span>
                       </div>
                       <div className="text-right">
-                        <div className="t-nav text-slate-900 dark:text-white">{formatINRShort(entry.value)}</div>
-                        <div className="t-meta text-slate-500 dark:text-slate-400">{entry.percentage.toFixed(1)}%</div>
+                        <div className="t-nav text-slate-900 dark:text-white">{privacyMode ? '••••' : formatINRShort(entry.value)}</div>
+                        <div className="t-meta text-slate-500 dark:text-slate-400">{privacyMode ? '•••' : `${entry.percentage.toFixed(1)}%`}</div>
                       </div>
                     </div>
                   ))}
@@ -1053,8 +1061,8 @@ export default function StocksPage() {
             </div>
 
             <div className="mt-4 flex items-center gap-3">
-              <div className="t-metric text-slate-900 dark:text-white">{portfolioHasSnapshots ? formatINRShort(latestSnapshotValue) : '—'}</div>
-              {portfolioHasSnapshots ? <div className={['t-nav', getTrendClass(latestSnapshotReturn)].join(' ')}>{formatSignedPct(latestSnapshotReturn)}</div> : null}
+              <div className="t-metric text-slate-900 dark:text-white">{portfolioHasSnapshots ? (privacyMode ? '••••' : formatINRShort(latestSnapshotValue)) : '—'}</div>
+              {portfolioHasSnapshots ? <div className={['t-nav', privacyMode ? 'text-slate-400 dark:text-slate-400' : getTrendClass(latestSnapshotReturn)].join(' ')}>{privacyMode ? '••••' : formatSignedPct(latestSnapshotReturn)}</div> : null}
               <div className="t-body text-slate-600 dark:text-slate-300">{portfolioHasSnapshots ? 'latest snapshot' : 'waiting for snapshots'}</div>
             </div>
 
@@ -1098,11 +1106,11 @@ export default function StocksPage() {
                     <LineChart data={portfolioChartData} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
                       <CartesianGrid stroke="rgba(51,65,85,0.45)" strokeDasharray="3 3" vertical={false} />
                       <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                      <YAxis tickLine={false} axisLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={(value) => formatINRShort(Number(value))} width={70} />
+                      <YAxis tickLine={false} axisLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={(value) => (privacyMode ? '••••' : formatINRShort(Number(value)))} width={70} />
                       <Tooltip
                         contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#e2e8f0' }}
                         labelStyle={{ color: '#e2e8f0' }}
-                        formatter={(value, name) => [formatINRShort(Number(value)), name === 'actual_value' ? 'Actual' : 'Predicted']}
+                        formatter={(value, name) => [privacyMode ? '••••' : formatINRShort(Number(value)), name === 'actual_value' ? 'Actual' : 'Predicted']}
                       />
                       <Line
                         type="monotone"
@@ -1238,8 +1246,8 @@ export default function StocksPage() {
                     const nativeInvested = toNumber(row.native_invested_amount)
                     const nativeCurrent = toNumber(row.native_current_value)
                     const nativePnl = toNumber(row.native_pnl ?? nativeCurrent - nativeInvested)
-                    const pnlTone = getTrendClass(pnl)
-                    const returnTone = getTrendClass(pct)
+                    const pnlTone = privacyMode ? 'text-slate-400 dark:text-slate-400' : getTrendClass(pnl)
+                    const returnTone = privacyMode ? 'text-slate-400 dark:text-slate-400' : getTrendClass(pct)
                     const refreshSupported = getRefreshSupported(row)
 
                     return (
@@ -1258,13 +1266,23 @@ export default function StocksPage() {
                         </td>
                         <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">{row.country === 'US' ? 'US' : 'India'}</td>
                         <td className="px-4 py-3 text-sm t-num text-slate-600 dark:text-slate-300">{toNumber(row.quantity)}</td>
-                        <td className="px-4 py-3 text-sm t-num text-slate-600 dark:text-slate-300">{formatNativeMoney(toNumber(row.avg_buy_price), row.currency)}</td>
-                        <td className="px-4 py-3 text-sm t-num text-slate-600 dark:text-slate-300">{formatNativeMoney(toNumber(row.current_price), row.currency)}</td>
-                        <td className="px-4 py-3 text-sm t-num text-slate-600 dark:text-slate-300">{renderNativeAndInr(nativeInvested, invested, row.currency)}</td>
-                        <td className="px-4 py-3 text-sm t-num text-slate-900 dark:text-white">{renderNativeAndInr(nativeCurrent, currentValue, row.currency)}</td>
-                        <td className={['px-4 py-3 text-sm t-num', pnlTone].join(' ')}>{renderNativeAndInr(nativePnl, pnl, row.currency)}</td>
+                        <td className="px-4 py-3 text-sm t-num text-slate-600 dark:text-slate-300">
+                          <PrivateValue value={formatNativeMoney(toNumber(row.avg_buy_price), row.currency)} mask="••••" hideColor />
+                        </td>
+                        <td className="px-4 py-3 text-sm t-num text-slate-600 dark:text-slate-300">
+                          <PrivateValue value={formatNativeMoney(toNumber(row.current_price), row.currency)} mask="••••" hideColor />
+                        </td>
+                        <td className="px-4 py-3 text-sm t-num text-slate-600 dark:text-slate-300">
+                          {renderNativeAndInr(nativeInvested, invested, row.currency)}
+                        </td>
+                        <td className="px-4 py-3 text-sm t-num text-slate-900 dark:text-white">
+                          {renderNativeAndInr(nativeCurrent, currentValue, row.currency)}
+                        </td>
+                        <td className={['px-4 py-3 text-sm t-num', pnlTone].join(' ')}>
+                          {renderNativeAndInr(nativePnl, pnl, row.currency)}
+                        </td>
                         <td className={['px-4 py-3 text-sm t-badge', returnTone].join(' ')}>
-                          {pct > 0 ? '↑' : pct < 0 ? '↓' : '•'} {formatPct(pct)}
+                          {pct > 0 ? '↑' : pct < 0 ? '↓' : '•'} {privacyMode ? '••••' : formatPct(pct)}
                         </td>
                         <td className="px-4 py-3 text-sm text-right">
                           {refreshSupported ? (

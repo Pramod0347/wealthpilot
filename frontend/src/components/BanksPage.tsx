@@ -12,6 +12,8 @@ import {
 } from '../lib/api'
 import { formatINR, formatINRShort } from '../lib/format'
 import { Icon } from './Icon'
+import PrivateValue from './ui/PrivateValue'
+import { usePrivacyMode } from '../context/PrivacyContext'
 
 type BankAccountFormState = {
   bank_name: string
@@ -137,6 +139,7 @@ function FormField({
 }
 
 export default function BanksPage() {
+  const { privacyMode } = usePrivacyMode()
   const [accounts, setAccounts] = useState<BankAccount[]>([])
   const [summary, setSummary] = useState<BankAccountsSummary | null>(null)
   const [accountsLoading, setAccountsLoading] = useState(true)
@@ -428,7 +431,9 @@ export default function BanksPage() {
               className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm"
             >
               <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">{card.label}</div>
-              <div className="mt-2.5 font-mono text-lg font-bold tabular-nums text-slate-900 dark:text-white">{card.value}</div>
+              <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', privacyMode ? 'text-slate-400 dark:text-slate-400' : 'text-slate-900 dark:text-white'].join(' ')}>
+                <PrivateValue value={card.value} mask="••••" hideColor />
+              </div>
               <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{card.meta}</div>
               <div className="mt-4 grid h-7 w-7 place-items-center rounded-lg bg-slate-100 dark:bg-slate-800">
                 <Icon name={card.icon} className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
@@ -502,7 +507,9 @@ export default function BanksPage() {
 
                   <div className="flex items-center gap-6">
                     <div className="text-right">
-                      <div className="font-mono text-2xl font-bold tracking-[-0.03em] text-slate-900 dark:text-white">{formatINR(toNumber(account.balance))}</div>
+                      <div className="font-mono text-2xl font-bold tracking-[-0.03em] text-slate-900 dark:text-white">
+                        <PrivateValue value={formatINR(toNumber(account.balance))} mask="••••" hideColor />
+                      </div>
                       <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Updated {formatDateTime(account.updated_at)}</div>
                     </div>
 

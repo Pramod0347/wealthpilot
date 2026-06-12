@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models.bank_account import BankAccount
 from app.models.credit_card import CreditCard
+from app.models.fixed_savings_account import FixedSavingsAccount
 from app.models.holding import Holding
 from app.schemas.dashboard import AssetAllocationItem, DashboardSummary
 from app.services.holdings_service import serialize_holding
@@ -58,7 +59,16 @@ def build_dashboard_summary(db: Session) -> DashboardSummary:
     total_bank_cash = Decimal(bank_stats[0])
     bank_accounts_count = int(bank_stats[1])
 
-    total_assets = current_value + total_bank_cash
+    fixed_savings_stats = db.execute(
+        select(
+            func.coalesce(func.sum(FixedSavingsAccount.current_value), 0),
+            func.count(FixedSavingsAccount.id),
+        )
+    ).one()
+    total_fixed_savings_value = Decimal(fixed_savings_stats[0])
+    fixed_savings_accounts_count = int(fixed_savings_stats[1])
+
+    total_assets = current_value + total_bank_cash + total_fixed_savings_value
 
     allocation_entries = [
         ("stock_in", "Indian Stocks", indian_stocks),
@@ -70,6 +80,8 @@ def build_dashboard_summary(db: Session) -> DashboardSummary:
     ]
     if total_bank_cash > 0:
         allocation_entries.append(("banks", "Banks", total_bank_cash))
+    if total_fixed_savings_value > 0:
+        allocation_entries.append(("pfepf", "PF / EPF", total_fixed_savings_value))
 
     allocations = [
         _allocation_entry(key, label, amount, total_assets)
@@ -101,6 +113,8 @@ def build_dashboard_summary(db: Session) -> DashboardSummary:
         current_value=current_value,
         total_bank_cash=total_bank_cash,
         bank_accounts_count=bank_accounts_count,
+        total_fixed_savings_value=total_fixed_savings_value,
+        fixed_savings_accounts_count=fixed_savings_accounts_count,
         total_assets=total_assets,
         total_liabilities=total_liabilities,
         net_worth=net_worth,

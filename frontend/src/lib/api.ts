@@ -33,6 +33,62 @@ export type BankAccountPayload = {
   as_of_date: string | null
 }
 
+export type FixedSavingsAccount = {
+  id: number
+  account_type: 'epf' | 'ppf' | 'vpf' | 'nps' | 'fd' | 'rd' | 'other'
+  account_name: string
+  provider_name: string | null
+  account_number_last4: string | null
+  employee_contribution: string | number
+  employer_contribution: string | number
+  self_contribution: string | number
+  interest_earned: string | number
+  current_value: string | number
+  interest_rate: string | number | null
+  start_date: string | null
+  maturity_date: string | null
+  as_of_date: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+  total_contribution: string | number
+  gain_or_interest: string | number
+  return_pct: string | number
+}
+
+export type FixedSavingsByTypeSummary = {
+  account_type: 'epf' | 'ppf' | 'vpf' | 'nps' | 'fd' | 'rd' | 'other'
+  current_value: string | number
+  total_contribution: string | number
+  interest_earned: string | number
+  count: number
+}
+
+export type FixedSavingsSummary = {
+  total_value: string | number
+  total_contribution: string | number
+  total_interest: string | number
+  accounts_count: number
+  by_type: FixedSavingsByTypeSummary[]
+}
+
+export type FixedSavingsAccountPayload = {
+  account_type: 'epf' | 'ppf' | 'vpf' | 'nps' | 'fd' | 'rd' | 'other'
+  account_name: string
+  provider_name: string | null
+  account_number_last4: string | null
+  employee_contribution: string
+  employer_contribution: string
+  self_contribution: string
+  interest_earned: string
+  current_value: string
+  interest_rate: string | null
+  start_date: string | null
+  maturity_date: string | null
+  as_of_date: string | null
+  notes: string | null
+}
+
 export type ApiValidationError = {
   path: string
   message: string
@@ -168,6 +224,34 @@ export function updateBankAccount(accountId: number, payload: BankAccountPayload
 
 export function deleteBankAccount(accountId: number) {
   return apiFetch<void>(`/api/bank-accounts/${accountId}`, {
+    method: 'DELETE',
+  })
+}
+
+export function getFixedSavingsAccounts(signal?: AbortSignal) {
+  return apiFetch<FixedSavingsAccount[]>('/api/fixed-savings', { signal })
+}
+
+export function getFixedSavingsSummary(signal?: AbortSignal) {
+  return apiFetch<FixedSavingsSummary>('/api/fixed-savings/summary', { signal })
+}
+
+export function createFixedSavingsAccount(payload: FixedSavingsAccountPayload) {
+  return apiFetch<FixedSavingsAccount>('/api/fixed-savings', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateFixedSavingsAccount(accountId: number, payload: FixedSavingsAccountPayload) {
+  return apiFetch<FixedSavingsAccount>(`/api/fixed-savings/${accountId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteFixedSavingsAccount(accountId: number) {
+  return apiFetch<void>(`/api/fixed-savings/${accountId}`, {
     method: 'DELETE',
   })
 }

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Icon } from './Icon'
+import PrivateValue from './ui/PrivateValue'
 import { ApiError, apiFetch } from '../lib/api'
 import { formatINR, formatINRShort, formatPct } from '../lib/format'
+import { usePrivacyMode } from '../context/PrivacyContext'
 
 type ApiDashboardSummary = {
   total_credit_card_dues: string | number
@@ -194,6 +196,7 @@ function buildSummaryCards(summary: ApiDashboardSummary | null, loading: boolean
 }
 
 export default function CreditCardsPage() {
+  const { privacyMode } = usePrivacyMode()
   const [summary, setSummary] = useState<ApiDashboardSummary | null>(null)
   const [cards, setCards] = useState<ApiCreditCard[]>([])
   const [summaryLoading, setSummaryLoading] = useState(true)
@@ -485,7 +488,9 @@ export default function CreditCardsPage() {
               className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm"
             >
               <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">{card.label}</div>
-              <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', card.valueClass ?? 'text-slate-900 dark:text-white'].join(' ')}>{card.value}</div>
+              <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', privacyMode ? 'text-slate-400 dark:text-slate-400' : card.valueClass ?? 'text-slate-900 dark:text-white'].join(' ')}>
+                <PrivateValue value={card.value} mask="••••" hideColor />
+              </div>
               <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{card.meta}</div>
               <div className={['mt-4 grid h-7 w-7 place-items-center rounded-lg', card.iconBg].join(' ')}>
                 <Icon name="cards" className="h-3.5 w-3.5" />
@@ -561,21 +566,23 @@ export default function CreditCardsPage() {
 
                     <div className="mt-5">
                       <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                        <span>Used {formatINRShort(toNumber(card.used_amount))}</span>
-                        <span>{toNumber(card.utilization_pct).toFixed(1)}%</span>
+                        <span>Used {privacyMode ? '••••' : formatINRShort(toNumber(card.used_amount))}</span>
+                        <span>{privacyMode ? '•••' : `${toNumber(card.utilization_pct).toFixed(1)}%`}</span>
                       </div>
                       <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                         <div className={['h-2 rounded-full', tone.bar].join(' ')} style={{ width: `${Math.min(toNumber(card.utilization_pct), 100)}%` }} />
                       </div>
                       <div className="mt-3 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                        <span>Avail. {formatINRShort(toNumber(card.available_limit))} of {formatINRShort(toNumber(card.total_limit))}</span>
+                        <span>Avail. {privacyMode ? '••••' : formatINRShort(toNumber(card.available_limit))} of {privacyMode ? '••••' : formatINRShort(toNumber(card.total_limit))}</span>
                       </div>
                     </div>
 
                     <div className="mt-6 grid grid-cols-2 gap-4">
                       <div>
                         <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Bill amount</div>
-                        <div className={['mt-1 text-sm font-semibold', tone.accent].join(' ')}>{formatINR(toNumber(card.current_bill_amount))}</div>
+                        <div className={['mt-1 text-sm font-semibold', privacyMode ? 'text-slate-400 dark:text-slate-400' : tone.accent].join(' ')}>
+                          <PrivateValue value={formatINR(toNumber(card.current_bill_amount))} mask="••••" hideColor />
+                        </div>
                       </div>
                       <div className="text-right">
                         <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Due date</div>

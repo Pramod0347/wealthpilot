@@ -15,6 +15,7 @@ from app.core.config import normalize_database_url, settings
 from app.core.database import Base
 from app.models.bank_account import BankAccount  # noqa: F401
 from app.models.credit_card import CreditCard  # noqa: F401
+from app.models.fixed_savings_account import FixedSavingsAccount  # noqa: F401
 from app.models.holding import Holding  # noqa: F401
 from app.models.portfolio_snapshot import PortfolioSnapshot  # noqa: F401
 

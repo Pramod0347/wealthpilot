@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { apiFetch } from '../lib/api'
 import { getTrendClass } from '../lib/format'
 import { useTheme } from '../context/ThemeContext'
+import { usePrivacyMode } from '../context/PrivacyContext'
 import { Icon } from './Icon'
 
 type MarketOverviewItem = {
@@ -28,8 +29,8 @@ type MarketChipData = {
 const FALLBACK_MARKETS: MarketChipData[] = [
   { name: 'NIFTY 50', symbol: '^NSEI', price: 23222, change: -144.9, change_pct: -0.62, currency: 'INR' },
   { name: 'SENSEX', symbol: '^BSESN', price: 76490, change: -451.2, change_pct: -0.59, currency: 'INR' },
-  { name: 'GOLD', symbol: 'GC=F', price: 98450, change: 420.0, change_pct: 0.43, currency: 'USD' },
-  { name: 'SILVER', symbol: 'SI=F', price: 109200, change: 840.0, change_pct: 0.78, currency: 'USD' },
+  { name: 'GOLD', symbol: 'GC=F', price: 98450, change: 420.0, change_pct: 0.43, currency: 'INR' },
+  { name: 'SILVER', symbol: 'SI=F', price: 109200, change: 840.0, change_pct: 0.78, currency: 'INR' },
 ]
 
 function formatMarketValue(value: number | string, currency: string, symbol: string) {
@@ -67,7 +68,9 @@ function MarketChip({
   symbol: string
 }) {
   const numericChangePct = typeof change_pct === 'number' ? change_pct : Number(change_pct)
-  const toneClass = Number.isFinite(numericChangePct) ? getTrendClass(numericChangePct) : 'text-slate-500 dark:text-slate-400'
+  const toneClass = Number.isFinite(numericChangePct)
+    ? getTrendClass(numericChangePct)
+    : 'text-slate-500 dark:text-slate-400'
   const arrow = Number.isFinite(numericChangePct) ? (numericChangePct > 0 ? '↑' : numericChangePct < 0 ? '↓' : '•') : '•'
 
   return (
@@ -75,7 +78,7 @@ function MarketChip({
       <div className="flex items-center justify-between gap-2 text-[12px] leading-none">
         <span className="truncate font-medium text-slate-600 dark:text-slate-300">{name}</span>
         <span className={['font-semibold text-[11px]', toneClass].join(' ')}>
-          {arrow} {formatChangePct(change_pct)}
+          {`${arrow} ${formatChangePct(change_pct)}`}
         </span>
       </div>
       <div className="mt-1.5 font-mono text-[15px] font-semibold leading-none tabular-nums text-slate-900 dark:text-white">
@@ -121,8 +124,12 @@ function formatMarketTimestamp(value: string | null) {
     month: 'short',
     hour: 'numeric',
     minute: '2-digit',
+    hour12: true,
     timeZone: 'Asia/Kolkata',
-  }).format(parsed)
+  })
+    .format(parsed)
+    .replace('AM', 'am')
+    .replace('PM', 'pm')
 }
 
 export default function Header({
@@ -135,6 +142,7 @@ export default function Header({
   subtitle?: string
 }) {
   const { isDark, toggleTheme } = useTheme()
+  const { privacyMode, togglePrivacyMode } = usePrivacyMode()
   const [markets, setMarkets] = useState<MarketChipData[]>(FALLBACK_MARKETS)
   const [isLoadingMarkets, setIsLoadingMarkets] = useState(true)
   const [isStale, setIsStale] = useState(false)
@@ -227,6 +235,16 @@ export default function Header({
             aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             <Icon name={isDark ? 'sun' : 'moon'} className="h-4 w-4" />
+          </button>
+
+          <button
+            type="button"
+            onClick={togglePrivacyMode}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 shadow-sm transition-all duration-150 hover:border-slate-300 dark:hover:border-slate-600 hover:text-slate-900 dark:hover:text-white active:scale-95"
+            aria-label={privacyMode ? 'Show sensitive values' : 'Hide sensitive values'}
+            title={privacyMode ? 'Show sensitive values' : 'Hide sensitive values'}
+          >
+            <Icon name={privacyMode ? 'viewOff' : 'view'} className="h-4 w-4" />
           </button>
         </div>
       </div>

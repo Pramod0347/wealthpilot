@@ -5,9 +5,10 @@ import Dashboard from './components/Dashboard'
 import StocksPage from './components/StocksPage'
 import CreditCardsPage from './components/CreditCardsPage'
 import BanksPage from './components/BanksPage'
+import FixedSavingsPage from './components/FixedSavingsPage'
 
 export default function App() {
-  const [activePage, setActivePage] = useState<'dashboard' | 'stocks' | 'banks' | 'cards'>('dashboard')
+  const [activePage, setActivePage] = useState<'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards'>('dashboard')
 
   const pageConfig = {
     dashboard: {
@@ -24,6 +25,11 @@ export default function App() {
       title: 'Banks',
       subtitle: 'Cash accounts and balances across your banks',
       content: <BanksPage />,
+    },
+    pfepf: {
+      title: 'PF / EPF',
+      subtitle: 'Provident fund, PPF, and long-term savings',
+      content: <FixedSavingsPage />,
     },
     cards: {
       title: 'Credit Cards',
