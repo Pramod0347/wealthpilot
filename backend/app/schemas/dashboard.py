@@ -30,3 +30,10 @@ class DashboardSummary(BaseModel):
     overall_card_utilization: Decimal = Decimal("0")
     due_soon_count: int = 0
     overdue_count: int = 0
+    monthly_income: Decimal = Decimal("0")
+    monthly_expense: Decimal = Decimal("0")
+    monthly_net_savings: Decimal = Decimal("0")
+    monthly_savings_rate: Decimal = Decimal("0")
+    monthly_income_count: int = 0
+    monthly_expense_count: int = 0
+    cashflow_month: str | None = None

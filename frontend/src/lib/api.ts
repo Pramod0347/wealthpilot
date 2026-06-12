@@ -89,6 +89,45 @@ export type FixedSavingsAccountPayload = {
   notes: string | null
 }
 
+export type CashflowEntry = {
+  id: number
+  month: string
+  entry_type: 'income' | 'expense'
+  category: string
+  source: string | null
+  amount: string | number
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type CashflowCategoryBreakdownItem = {
+  category: string
+  amount: string | number
+  percentage: string | number
+}
+
+export type CashflowSummary = {
+  month: string
+  total_income: string | number
+  total_expense: string | number
+  net_savings: string | number
+  savings_rate: string | number
+  income_count: number
+  expense_count: number
+  expenses_by_category: CashflowCategoryBreakdownItem[]
+  income_by_category: CashflowCategoryBreakdownItem[]
+}
+
+export type CashflowEntryPayload = {
+  month: string
+  entry_type: 'income' | 'expense'
+  category: string
+  source: string | null
+  amount: string
+  notes: string | null
+}
+
 export type ApiValidationError = {
   path: string
   message: string
@@ -252,6 +291,40 @@ export function updateFixedSavingsAccount(accountId: number, payload: FixedSavin
 
 export function deleteFixedSavingsAccount(accountId: number) {
   return apiFetch<void>(`/api/fixed-savings/${accountId}`, {
+    method: 'DELETE',
+  })
+}
+
+export function getCashflowEntries(month?: string, signal?: AbortSignal) {
+  const query = month ? `?month=${encodeURIComponent(month)}` : ''
+  return apiFetch<CashflowEntry[]>(`/api/cashflow${query}`, { signal })
+}
+
+export function getCashflowSummary(month?: string, signal?: AbortSignal) {
+  const query = month ? `?month=${encodeURIComponent(month)}` : ''
+  return apiFetch<CashflowSummary>(`/api/cashflow/summary${query}`, { signal })
+}
+
+export function getCashflowMonths(signal?: AbortSignal) {
+  return apiFetch<string[]>('/api/cashflow/months', { signal })
+}
+
+export function createCashflowEntry(payload: CashflowEntryPayload) {
+  return apiFetch<CashflowEntry>('/api/cashflow', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateCashflowEntry(entryId: number, payload: CashflowEntryPayload) {
+  return apiFetch<CashflowEntry>(`/api/cashflow/${entryId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteCashflowEntry(entryId: number) {
+  return apiFetch<void>(`/api/cashflow/${entryId}`, {
     method: 'DELETE',
   })
 }

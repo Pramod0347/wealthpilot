@@ -6,9 +6,10 @@ import StocksPage from './components/StocksPage'
 import CreditCardsPage from './components/CreditCardsPage'
 import BanksPage from './components/BanksPage'
 import FixedSavingsPage from './components/FixedSavingsPage'
+import CashflowPage from './components/CashflowPage'
 
 export default function App() {
-  const [activePage, setActivePage] = useState<'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards'>('dashboard')
+  const [activePage, setActivePage] = useState<'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards' | 'transactions'>('dashboard')
 
   const pageConfig = {
     dashboard: {
@@ -35,6 +36,11 @@ export default function App() {
       title: 'Credit Cards',
       subtitle: 'Bills, limits, and payment tracker',
       content: <CreditCardsPage />,
+    },
+    transactions: {
+      title: 'Monthly Cashflow',
+      subtitle: 'Monthly income, category spends, and savings rate',
+      content: <CashflowPage />,
     },
   }[activePage]
 

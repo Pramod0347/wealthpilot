@@ -1,5 +1,12 @@
 from app.schemas.dashboard import AssetAllocationItem, DashboardSummary
 from app.schemas.bank_account import BankAccountCreate, BankAccountRead, BankAccountsSummary, BankAccountUpdate
+from app.schemas.cashflow import (
+    CashflowCategoryBreakdownItem,
+    CashflowEntryCreate,
+    CashflowEntryRead,
+    CashflowEntryUpdate,
+    CashflowSummary,
+)
 from app.schemas.credit_card import CreditCardCreate, CreditCardRead, CreditCardUpdate
 from app.schemas.credit_card import CardStatus
 from app.schemas.fixed_savings_account import (

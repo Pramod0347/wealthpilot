@@ -36,6 +36,13 @@ type ApiDashboardSummary = {
   overall_card_utilization: string | number
   due_soon_count: number
   overdue_count: number
+  monthly_income: string | number
+  monthly_expense: string | number
+  monthly_net_savings: string | number
+  monthly_savings_rate: string | number
+  monthly_income_count: number
+  monthly_expense_count: number
+  cashflow_month: string | null
   allocations?: Array<{
     asset_type: string
     label: string
@@ -459,6 +466,7 @@ export default function Dashboard({
   const latestSnapshotValue = portfolioPerformance?.actual.at(-1)?.current_value
   const latestSnapshotReturn = portfolioPerformance?.actual.at(-1)?.total_return_pct
   const netWorth = toNumber(summary?.net_worth)
+  const monthlyHasData = ((summary?.monthly_income_count ?? 0) + (summary?.monthly_expense_count ?? 0)) > 0
   const portfolioHasSnapshots = (portfolioPerformance?.actual.length ?? 0) > 0
   const chartMessage = portfolioPerformance?.message
   const portfolioEmptyState = !portfolioLoading && !portfolioHasSnapshots && chartMessage?.includes('No portfolio snapshots yet')
@@ -729,9 +737,46 @@ export default function Dashboard({
         {/* Monthly Spend */}
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm">
           <div className={LABEL}>Monthly Spend</div>
-          <div className="mt-2.5 font-mono text-lg font-bold tabular-nums text-slate-400 dark:text-slate-500">Not added</div>
-          <div className="mt-3 grid h-7 w-7 place-items-center rounded-lg bg-slate-100 dark:bg-slate-800">
-            <Icon name="transactions" className="h-3.5 w-3.5 text-slate-400" />
+          <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', monthlyHasData ? (privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-rose-400') : 'text-slate-400 dark:text-slate-500'].join(' ')}>
+            {summaryLoading ? '—' : monthlyHasData ? <PrivateValue value={formatMoney(toNumber(summary?.monthly_expense))} mask="••••" hideColor /> : 'Not added'}
+          </div>
+          <div className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+            {summaryLoading ? 'Loading...' : monthlyHasData ? `${summary?.monthly_expense_count ?? 0} expense entries` : 'No cashflow data'}
+          </div>
+          <div className="mt-3 grid h-7 w-7 place-items-center rounded-lg bg-rose-500/15">
+            <Icon name="transactions" className="h-3.5 w-3.5 text-rose-400" />
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm">
+          <div className={LABEL}>Monthly Income</div>
+          <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', monthlyHasData ? (privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-emerald-400') : 'text-slate-400 dark:text-slate-500'].join(' ')}>
+            {summaryLoading ? '—' : monthlyHasData ? <PrivateValue value={formatMoney(toNumber(summary?.monthly_income))} mask="••••" hideColor /> : 'Not added'}
+          </div>
+          <div className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+            {summaryLoading ? 'Loading...' : monthlyHasData ? `${summary?.monthly_income_count ?? 0} income entries` : 'No cashflow data'}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm">
+          <div className={LABEL}>Net Savings</div>
+          <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', !monthlyHasData ? 'text-slate-400 dark:text-slate-500' : privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(summary?.monthly_net_savings))].join(' ')}>
+            {summaryLoading ? '—' : monthlyHasData ? <PrivateValue value={formatMoney(toNumber(summary?.monthly_net_savings))} mask="••••" hideColor /> : 'Not added'}
+          </div>
+          <div className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+            {summary?.cashflow_month ? `For ${summary.cashflow_month}` : 'Current month'}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm">
+          <div className={LABEL}>Savings Rate</div>
+          <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', !monthlyHasData ? 'text-slate-400 dark:text-slate-500' : privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(summary?.monthly_savings_rate))].join(' ')}>
+            {summaryLoading ? '—' : monthlyHasData ? <PrivateValue value={formatPct(toNumber(summary?.monthly_savings_rate))} mask="••••" hideColor /> : 'Not added'}
+          </div>
+          <div className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+            {monthlyHasData ? 'Current month savings rate' : 'No cashflow data'}
           </div>
         </div>
       </div>

@@ -8,6 +8,7 @@ from app.models.credit_card import CreditCard
 from app.models.fixed_savings_account import FixedSavingsAccount
 from app.models.holding import Holding
 from app.schemas.dashboard import AssetAllocationItem, DashboardSummary
+from app.services.cashflow_service import build_cashflow_summary, current_month_string
 from app.services.holdings_service import serialize_holding
 
 
@@ -107,6 +108,8 @@ def build_dashboard_summary(db: Session) -> DashboardSummary:
         overall_card_utilization = (total_card_used / total_card_limit) * Decimal("100")
     total_liabilities = total_credit_card_dues
     net_worth = total_assets - total_liabilities
+    cashflow_month = current_month_string()
+    cashflow_summary = build_cashflow_summary(db, cashflow_month)
 
     return DashboardSummary(
         total_invested=total_invested,
@@ -128,4 +131,11 @@ def build_dashboard_summary(db: Session) -> DashboardSummary:
         overall_card_utilization=overall_card_utilization,
         due_soon_count=due_soon_count,
         overdue_count=overdue_count,
+        monthly_income=cashflow_summary.total_income,
+        monthly_expense=cashflow_summary.total_expense,
+        monthly_net_savings=cashflow_summary.net_savings,
+        monthly_savings_rate=cashflow_summary.savings_rate,
+        monthly_income_count=cashflow_summary.income_count,
+        monthly_expense_count=cashflow_summary.expense_count,
+        cashflow_month=cashflow_summary.month,
     )
