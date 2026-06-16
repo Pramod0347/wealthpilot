@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import Dashboard from './components/Dashboard'
+import AnalyticsPage from './components/AnalyticsPage'
 import StocksPage from './components/StocksPage'
 import CreditCardsPage from './components/CreditCardsPage'
 import BanksPage from './components/BanksPage'
@@ -9,7 +10,7 @@ import FixedSavingsPage from './components/FixedSavingsPage'
 import CashflowPage from './components/CashflowPage'
 
 export default function App() {
-  const [activePage, setActivePage] = useState<'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards' | 'transactions'>('dashboard')
+  const [activePage, setActivePage] = useState<'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards' | 'transactions' | 'analytics'>('dashboard')
 
   const pageConfig = {
     dashboard: {
@@ -41,6 +42,11 @@ export default function App() {
       title: 'Monthly Cashflow',
       subtitle: 'Monthly income, category spends, and savings rate',
       content: <CashflowPage />,
+    },
+    analytics: {
+      title: 'Financial Analytics',
+      subtitle: 'Net worth, risk, allocation, cashflow, and credit health',
+      content: <AnalyticsPage />,
     },
   }[activePage]
 

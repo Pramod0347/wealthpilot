@@ -382,6 +382,122 @@ function formatDisplayDate(value: string | null | undefined) {
   }).format(parsed)
 }
 
+function formatCompactTimestamp(value: string | null | undefined) {
+  if (!value) return 'Not updated'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return 'Not updated'
+  return new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Kolkata',
+  })
+    .format(parsed)
+    .replace(' am', ' am')
+    .replace(' pm', ' pm')
+}
+
+function getSourceBadgeMeta(holding: ApiHolding) {
+  if (holding.price_source === 'yfinance') {
+    return {
+      label: 'Auto',
+      title: 'Price auto-refreshed',
+      className:
+        'inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-[11px] font-semibold text-sky-300',
+      icon: 'refresh' as const,
+    }
+  }
+
+  return {
+    label: 'Manual',
+    title: 'Price entered manually',
+    className:
+      'inline-flex items-center gap-1.5 rounded-full border border-amber-500/35 bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold text-amber-300',
+    icon: 'edit' as const,
+  }
+}
+
+function getFreshnessMeta(holding: ApiHolding) {
+  if (holding.price_source !== 'yfinance') {
+    return {
+      label: 'Manual',
+      title: 'Manual price entry',
+      className:
+        'inline-flex items-center rounded-full border border-amber-500/35 bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold text-amber-300',
+    }
+  }
+
+  if (!holding.last_price_refreshed_at) {
+    return {
+      label: 'Stale',
+      title: 'Auto price has not been refreshed yet',
+      className:
+        'inline-flex items-center rounded-full border border-rose-500/30 bg-rose-500/10 px-2.5 py-1 text-[11px] font-semibold text-rose-300',
+    }
+  }
+
+  const lastRefresh = new Date(holding.last_price_refreshed_at)
+  const ageMs = Date.now() - lastRefresh.getTime()
+  if (Number.isNaN(lastRefresh.getTime())) {
+    return {
+      label: 'Updated',
+      title: 'Price was auto-refreshed',
+      className:
+        'inline-flex items-center rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-[11px] font-semibold text-sky-300',
+    }
+  }
+
+  if (ageMs <= 1000 * 60 * 60 * 24) {
+    return {
+      label: 'Fresh',
+      title: `Updated ${formatCompactTimestamp(holding.last_price_refreshed_at)}`,
+      className:
+        'inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-300',
+    }
+  }
+
+  return {
+    label: 'Stale',
+    title: `Last updated ${formatCompactTimestamp(holding.last_price_refreshed_at)}`,
+    className:
+      'inline-flex items-center rounded-full border border-rose-500/30 bg-rose-500/10 px-2.5 py-1 text-[11px] font-semibold text-rose-300',
+  }
+}
+
+function getRowToneMeta(holding: ApiHolding) {
+  const pnl = toNumber(holding.pnl)
+  if (pnl > 0) {
+    return {
+      accent: 'bg-emerald-400',
+      border: 'border-emerald-500/25 hover:border-emerald-400/35',
+      glow: 'shadow-[inset_0_1px_0_rgba(16,185,129,0.05)]',
+      panel: 'bg-slate-950/70',
+      text: 'text-emerald-300',
+      arrow: 'up' as const,
+    }
+  }
+  if (pnl < 0) {
+    return {
+      accent: 'bg-rose-400',
+      border: 'border-rose-500/25 hover:border-rose-400/35',
+      glow: 'shadow-[inset_0_1px_0_rgba(244,63,94,0.05)]',
+      panel: 'bg-slate-950/70',
+      text: 'text-rose-300',
+      arrow: 'down' as const,
+    }
+  }
+  return {
+    accent: 'bg-slate-500',
+    border: 'border-slate-700/70 hover:border-slate-600/80',
+    glow: '',
+    panel: 'bg-slate-950/70',
+    text: 'text-slate-300',
+    arrow: null,
+  }
+}
+
 function getCountryDefaults(country: string) {
   if (country === 'US') {
     return { currency: 'USD', exchange: 'NASDAQ', fx_rate_to_inr: '83.50' }
@@ -398,6 +514,8 @@ const timeFilters: Array<{ label: string; value: '1M' | '3M' | '6M' | '1Y' | 'AL
   { label: 'All', value: 'ALL' },
 ]
 
+const sectionLabel = 't-micro text-slate-500 dark:text-slate-500'
+
 function SectionCard({ title, children, className = '' }: { title?: string; children: ReactNode; className?: string }) {
   return (
     <div className={['bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-sm', className].join(' ')}>
@@ -413,20 +531,26 @@ function MetricCardView({
   meta,
   icon,
   valueClass = 'text-slate-900 dark:text-white',
+  chipClass = 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500',
 }: {
   label: string
   value: string
   meta: string
   icon: 'netWorth' | 'portfolio' | 'analytics' | 'cards' | 'up'
   valueClass?: string
+  chipClass?: string
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm">
-      <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">{label}</div>
-      <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', valueClass].join(' ')}>{value}</div>
-      <div className="mt-1 text-xs text-slate-500 dark:text-slate-500">{meta}</div>
-      <div className="mt-4 grid h-7 w-7 place-items-center rounded-lg bg-slate-100 dark:bg-slate-800">
-        <Icon name={icon} className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
+    <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm transition-colors duration-200 hover:border-slate-300 dark:hover:border-slate-600/60">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="t-micro text-slate-500 dark:text-slate-500">{label}</div>
+          <div className={['mt-2.5 t-metric', valueClass].join(' ')}>{value}</div>
+          <div className="mt-1 t-meta text-slate-500 dark:text-slate-500">{meta}</div>
+        </div>
+        <div className={['grid h-10 w-10 shrink-0 place-items-center rounded-xl', chipClass].join(' ')}>
+          <Icon name={icon} className="h-4 w-4" />
+        </div>
       </div>
     </div>
   )
@@ -480,6 +604,7 @@ export default function StocksPage() {
   const [portfolioLoading, setPortfolioLoading] = useState(true)
   const [portfolioError, setPortfolioError] = useState<string | null>(null)
   const [savingSnapshot, setSavingSnapshot] = useState(false)
+  const [expandedHoldingId, setExpandedHoldingId] = useState<number | null>(null)
 
   const loadData = async (signal?: AbortSignal) => {
     setHoldingsLoading(true)
@@ -581,27 +706,27 @@ export default function StocksPage() {
   const summaryCards = useMemo(() => {
     if (analyticsLoading) {
       return [
-        { label: 'Total Invested', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white' },
-        { label: 'Current Value', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white' },
-        { label: 'Total P&L', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white' },
-        { label: 'Return %', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white' },
-        { label: 'Indian Equity', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white' },
-        { label: 'US Market', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white' },
-        { label: 'ETFs / Gold', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white' },
-        { label: 'Mutual Funds', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white' },
+        { label: 'Total Invested', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-200 text-slate-500' },
+        { label: 'Current Value', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-200 text-slate-500' },
+        { label: 'Total P&L', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-200 text-slate-500' },
+        { label: 'Return %', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-200 text-slate-500' },
+        { label: 'Indian Equity', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-200 text-slate-500' },
+        { label: 'US Market', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-200 text-slate-500' },
+        { label: 'ETFs / Gold', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-200 text-slate-500' },
+        { label: 'Mutual Funds', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-200 text-slate-500' },
       ]
     }
 
     if (analyticsError || !analytics) {
       return [
-        { label: 'Total Invested', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white' },
-        { label: 'Current Value', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white' },
-        { label: 'Total P&L', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white' },
-        { label: 'Return %', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white' },
-        { label: 'Indian Equity', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white' },
-        { label: 'US Market', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white' },
-        { label: 'ETFs / Gold', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white' },
-        { label: 'Mutual Funds', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white' },
+        { label: 'Total Invested', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500' },
+        { label: 'Current Value', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500' },
+        { label: 'Total P&L', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500' },
+        { label: 'Return %', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500' },
+        { label: 'Indian Equity', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500' },
+        { label: 'US Market', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500' },
+        { label: 'ETFs / Gold', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500' },
+        { label: 'Mutual Funds', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500' },
       ]
     }
 
@@ -611,16 +736,37 @@ export default function StocksPage() {
     const returnPct = toNumber(analytics.total_return_pct)
 
     return [
-      { label: 'Total Invested', value: formatINRShort(totalInvested), meta: `${holdings.length} positions`, color: 'text-slate-900 dark:text-white' },
-      { label: 'Current Value', value: formatINRShort(currentValue), meta: 'From holdings', color: 'text-slate-900 dark:text-white' },
-      { label: 'Total P&L', value: `${pnl > 0 ? '+' : pnl < 0 ? '-' : ''}${formatINRShort(Math.abs(pnl)).replace('₹', '')}`, meta: 'Overall profit / loss', color: privacyMode ? 'text-slate-400 dark:text-slate-400' : getTrendClass(pnl) },
-      { label: 'Return %', value: formatSignedPct(returnPct), meta: 'Based on invested amount', color: privacyMode ? 'text-slate-400 dark:text-slate-400' : getTrendClass(returnPct) },
-      { label: 'Indian Equity', value: formatINRShort(holdingGroups.indianEquity), meta: 'Indian stock positions', color: 'text-slate-900 dark:text-white' },
-      { label: 'US Market', value: formatINRShort(holdingGroups.usEquity), meta: liveUsdInrRate > 0 ? (privacyMode ? 'Live USD/INR ••••' : `Live USD/INR ${liveUsdInrRate.toFixed(2)}`) : 'US stocks and ETFs', color: 'text-slate-900 dark:text-white' },
-      { label: 'ETFs / Gold', value: formatINRShort(holdingGroups.etfsGold), meta: 'India ETFs and gold exposure', color: 'text-slate-900 dark:text-white' },
-      { label: 'Mutual Funds', value: formatINRShort(holdingGroups.mutualFunds), meta: 'Units valued in INR', color: 'text-slate-900 dark:text-white' },
+      { label: 'Total Invested', value: formatINRShort(totalInvested), meta: `${holdings.length} positions`, color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500' },
+      { label: 'Current Value', value: formatINRShort(currentValue), meta: 'From holdings', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500' },
+      { label: 'Total P&L', value: `${pnl > 0 ? '+' : pnl < 0 ? '-' : ''}${formatINRShort(Math.abs(pnl)).replace('₹', '')}`, meta: 'Overall profit / loss', color: privacyMode ? 'text-slate-400 dark:text-slate-400' : getTrendClass(pnl), chipClass: 'bg-emerald-500/15 text-emerald-300' },
+      { label: 'Return %', value: formatSignedPct(returnPct), meta: 'Based on invested amount', color: privacyMode ? 'text-slate-400 dark:text-slate-400' : getTrendClass(returnPct), chipClass: 'bg-emerald-500/15 text-emerald-300' },
+      { label: 'Indian Equity', value: formatINRShort(holdingGroups.indianEquity), meta: 'Indian stock positions', color: 'text-teal-300 dark:text-teal-300', chipClass: 'bg-teal-500/15 text-teal-300' },
+      { label: 'US Market', value: formatINRShort(holdingGroups.usEquity), meta: liveUsdInrRate > 0 ? (privacyMode ? 'Live USD/INR ••••' : `Live USD/INR ${liveUsdInrRate.toFixed(2)}`) : 'US stocks and ETFs', color: 'text-sky-300 dark:text-sky-300', chipClass: 'bg-sky-500/15 text-sky-300' },
+      { label: 'ETFs / Gold', value: formatINRShort(holdingGroups.etfsGold), meta: 'India ETFs and gold exposure', color: 'text-amber-300 dark:text-amber-300', chipClass: 'bg-amber-500/15 text-amber-300' },
+      { label: 'Mutual Funds', value: formatINRShort(holdingGroups.mutualFunds), meta: 'Units valued in INR', color: 'text-violet-300 dark:text-violet-300', chipClass: 'bg-violet-500/15 text-violet-300' },
     ]
   }, [analytics, analyticsError, analyticsLoading, holdingGroups.indianEquity, holdingGroups.mutualFunds, holdingGroups.etfsGold, holdingGroups.usEquity, holdings.length, liveUsdInrRate, privacyMode])
+
+  const filterChips = useMemo(() => {
+    const counts = holdings.reduce<Record<string, number>>(
+      (acc, holding) => {
+        const key = getInvestmentClass(holding)
+        acc.all += 1
+        acc[key] = (acc[key] ?? 0) + 1
+        return acc
+      },
+      { all: 0 },
+    )
+
+    return [
+      { value: 'all', label: 'All', count: counts.all ?? 0 },
+      { value: 'indian_stock', label: 'Indian Stocks', count: counts.indian_stock ?? 0 },
+      { value: 'us_stock', label: 'US Stocks', count: counts.us_stock ?? 0 },
+      { value: 'etf', label: 'ETFs', count: counts.etf ?? 0 },
+      { value: 'gold', label: 'Gold', count: counts.gold ?? 0 },
+      { value: 'mutual_fund', label: 'Mutual Funds', count: counts.mutual_fund ?? 0 },
+    ]
+  }, [holdings])
 
   const sectorOptions = useMemo(() => {
     const sectors = Array.from(new Set(holdings.map((holding) => holding.sector).filter(Boolean) as string[]))
@@ -983,6 +1129,7 @@ export default function StocksPage() {
               label={card.label}
               value={privacyMode ? '••••' : card.value}
               meta={card.meta}
+              chipClass={card.chipClass}
               icon={
                 card.label === 'Total Invested'
                   ? 'netWorth'
@@ -1003,8 +1150,8 @@ export default function StocksPage() {
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <SectionCard className="px-6 py-6">
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Investment Breakdown</div>
-            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Asset mix by current value</div>
+            <div className="t-micro text-slate-500 dark:text-slate-500">Investment Breakdown</div>
+            <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Asset mix by current value</div>
             {allocationData.length > 0 ? (
               <div className="mt-6">
                 <div className="flex h-3 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
@@ -1029,7 +1176,7 @@ export default function StocksPage() {
               </div>
             ) : (
               <div className="mt-6 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-8 text-center">
-                <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">No allocation yet</div>
+                <div className="t-section text-slate-900 dark:text-slate-100">No allocation yet</div>
                 <div className="mt-2 t-body text-slate-600 dark:text-slate-300">Add investments to populate the breakdown.</div>
               </div>
             )}
@@ -1038,10 +1185,10 @@ export default function StocksPage() {
           <SectionCard className="px-6 py-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Performance</div>
-                <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Portfolio snapshot trend</div>
+                <div className="t-micro text-slate-500 dark:text-slate-500">Performance</div>
+                <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Portfolio snapshot trend</div>
               </div>
-              <div className="flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-700 p-1 text-[11px]">
+              <div className="flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-700 p-1 t-badge">
                 {timeFilters.map((filter) => (
                   <button
                     key={filter.value}
@@ -1068,7 +1215,7 @@ export default function StocksPage() {
 
             {portfolioLoading ? (
               <div className="mt-8 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-8 text-center">
-                <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Loading portfolio snapshots...</div>
+                <div className="t-section text-slate-900 dark:text-slate-100">Loading portfolio snapshots...</div>
                 <div className="mt-2 t-body text-slate-600 dark:text-slate-300">Fetching actual and predicted data from the backend.</div>
               </div>
             ) : portfolioError ? (
@@ -1077,7 +1224,7 @@ export default function StocksPage() {
               </div>
             ) : !portfolioHasSnapshots ? (
               <div className="mt-8 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-8 text-center">
-                <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">No portfolio history yet</div>
+                <div className="t-section text-slate-900 dark:text-slate-100">No portfolio history yet</div>
                 <div className="mt-2 t-body text-slate-600 dark:text-slate-300">Save today&apos;s snapshot to start tracking performance.</div>
                 <button
                   type="button"
@@ -1091,7 +1238,7 @@ export default function StocksPage() {
               </div>
             ) : (
               <>
-                <div className="mt-6 flex items-center gap-4 text-[11px] text-slate-500 dark:text-slate-400">
+                <div className="mt-6 flex items-center gap-4 t-badge text-slate-500 dark:text-slate-400">
                   <span className="flex items-center gap-2">
                     <span className="h-2.5 w-2.5 rounded-full bg-accent-400" />
                     Actual
@@ -1153,14 +1300,7 @@ export default function StocksPage() {
           <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="no-scrollbar flex items-center gap-2 overflow-x-auto">
-                {[
-                  { value: 'all', label: 'All' },
-                  { value: 'indian_stock', label: 'Indian Stocks' },
-                  { value: 'us_stock', label: 'US Stocks' },
-                  { value: 'etf', label: 'ETFs' },
-                  { value: 'gold', label: 'Gold' },
-                  { value: 'mutual_fund', label: 'Mutual Funds' },
-                ].map((filter) => (
+                {filterChips.map((filter) => (
                   <button
                     key={filter.value}
                     type="button"
@@ -1172,12 +1312,16 @@ export default function StocksPage() {
                         : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 hover:text-slate-900 dark:hover:text-white',
                     ].join(' ')}
                   >
-                    {filter.label}
+                    {filter.label} <span className="opacity-80">({filter.count})</span>
                   </button>
                 ))}
               </div>
 
               <div className="flex items-center gap-3">
+                <div className="hidden h-10 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 t-nav text-slate-500 dark:text-slate-400 xl:inline-flex">
+                  <Icon name="due" className="h-4 w-4" />
+                  <span>{latestUpdate ? `Updated ${formatCompactTimestamp(latestUpdate.toISOString())}` : 'No updates yet'}</span>
+                </div>
                 <label className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-slate-500 dark:text-slate-400 shadow-sm focus-within:border-accent-500 focus-within:ring-2 focus-within:ring-accent-500/15 min-w-65">
                   <Icon name="search" className="h-4 w-4 shrink-0" />
                   <input
@@ -1226,103 +1370,153 @@ export default function StocksPage() {
               </div>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-275 w-full border-separate border-spacing-0">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700/50">
-                    {['Asset', 'Class', 'Country', 'Qty / Units', 'Avg Buy', 'Current Price', 'Invested', 'Current Value', 'P&L', 'Return %', 'Actions'].map((head) => (
-                      <th key={head} className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.5px] text-slate-500 dark:text-slate-400 text-left whitespace-nowrap">
-                        {head}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredHoldings.map((row) => {
-                    const invested = toNumber(row.invested_amount)
-                    const currentValue = toNumber(row.current_value)
-                    const pnl = toNumber(row.pnl)
-                    const pct = toNumber(row.return_pct)
-                    const nativeInvested = toNumber(row.native_invested_amount)
-                    const nativeCurrent = toNumber(row.native_current_value)
-                    const nativePnl = toNumber(row.native_pnl ?? nativeCurrent - nativeInvested)
-                    const pnlTone = privacyMode ? 'text-slate-400 dark:text-slate-400' : getTrendClass(pnl)
-                    const returnTone = privacyMode ? 'text-slate-400 dark:text-slate-400' : getTrendClass(pct)
-                    const refreshSupported = getRefreshSupported(row)
+            <div className="space-y-4 px-4 py-4">
+              {filteredHoldings.map((row) => {
+                const invested = toNumber(row.invested_amount)
+                const currentValue = toNumber(row.current_value)
+                const pnl = toNumber(row.pnl)
+                const pct = toNumber(row.return_pct)
+                const nativeInvested = toNumber(row.native_invested_amount)
+                const nativeCurrent = toNumber(row.native_current_value)
+                const nativePnl = toNumber(row.native_pnl ?? nativeCurrent - nativeInvested)
+                const refreshSupported = getRefreshSupported(row)
+                const sourceMeta = getSourceBadgeMeta(row)
+                const freshnessMeta = getFreshnessMeta(row)
+                const rowTone = getRowToneMeta(row)
+                const isExpanded = expandedHoldingId === row.id
 
-                    return (
-                      <tr key={row.id} className="border-b border-slate-100 dark:border-slate-800/80 transition-colors duration-100 hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                        <td className="px-4 py-3 text-sm">
-                          <div className="font-semibold text-slate-900 dark:text-white">{row.symbol}</div>
-                          <div className="t-meta truncate text-slate-500 dark:text-slate-400">{row.company_name}</div>
-                          <div className="mt-2 inline-flex rounded-full px-2 py-1 t-badge bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400">
-                            {row.price_source === 'yfinance' ? 'Auto' : 'Manual'}
+                return (
+                  <div
+                    key={row.id}
+                    className={[
+                      'overflow-hidden rounded-2xl border bg-slate-950/65 transition-all duration-200',
+                      rowTone.border,
+                      rowTone.glow,
+                    ].join(' ')}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setExpandedHoldingId((current) => (current === row.id ? null : row.id))}
+                      className="flex w-full items-stretch gap-4 px-4 py-4 text-left transition-colors duration-150 hover:bg-slate-900/40"
+                    >
+                      <span className={['mt-1 h-auto w-1 shrink-0 rounded-full', rowTone.accent].join(' ')} />
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="t-title text-white">{row.symbol}</span>
+                              <span className="inline-flex rounded-full bg-teal-500/15 px-2.5 py-1 text-[11px] font-semibold text-teal-300">
+                                {row.country === 'US' ? 'US' : 'IN'}
+                              </span>
+                              <span className={getInvestmentClassBadgeClass(getInvestmentClass(row))}>{getInvestmentClassLabel(row)}</span>
+                              <span className={sourceMeta.className} title={sourceMeta.title}>
+                                <Icon name={sourceMeta.icon} className="h-3.5 w-3.5" />
+                                {sourceMeta.label}
+                              </span>
+                              <span className={freshnessMeta.className} title={freshnessMeta.title}>
+                                {freshnessMeta.label}
+                              </span>
+                            </div>
+                            <div className="mt-2 t-body text-slate-400">{row.company_name}</div>
                           </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <div className={getInvestmentClassBadgeClass(getInvestmentClass(row))}>
-                            {getInvestmentClassLabel(row)}
+
+                          <div className="flex shrink-0 items-center gap-5">
+                            <div className="text-right">
+                              <div className="t-metric text-white">
+                                <PrivateValue value={formatNativeMoney(toNumber(row.current_price), row.currency)} mask="••••" hideColor />
+                              </div>
+                              <div className="mt-1 t-meta text-slate-400">
+                                {privacyMode ? '••••' : formatCompactTimestamp(row.last_price_refreshed_at ?? row.updated_at)}
+                              </div>
+                            </div>
+
+                            <div className="text-right">
+                              <div className={['inline-flex items-center gap-1 t-metric', privacyMode ? 'text-slate-300 dark:text-slate-300' : rowTone.text].join(' ')}>
+                                {rowTone.arrow ? <Icon name={rowTone.arrow} className="h-4 w-4" /> : null}
+                                <PrivateValue value={formatPct(pct)} mask="••••" hideColor />
+                              </div>
+                              <div className={['mt-1 t-nav', privacyMode ? 'text-slate-400 dark:text-slate-400' : rowTone.text].join(' ')}>
+                                {renderNativeAndInr(nativePnl, pnl, row.currency)}
+                              </div>
+                            </div>
+
+                            <div className="grid h-10 w-10 place-items-center rounded-xl border border-slate-700 bg-slate-900 text-slate-400">
+                              <Icon name={isExpanded ? 'chevronUp' : 'chevronDown'} className="h-5 w-5" />
+                            </div>
                           </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">{row.country === 'US' ? 'US' : 'India'}</td>
-                        <td className="px-4 py-3 text-sm t-num text-slate-600 dark:text-slate-300">{toNumber(row.quantity)}</td>
-                        <td className="px-4 py-3 text-sm t-num text-slate-600 dark:text-slate-300">
-                          <PrivateValue value={formatNativeMoney(toNumber(row.avg_buy_price), row.currency)} mask="••••" hideColor />
-                        </td>
-                        <td className="px-4 py-3 text-sm t-num text-slate-600 dark:text-slate-300">
-                          <PrivateValue value={formatNativeMoney(toNumber(row.current_price), row.currency)} mask="••••" hideColor />
-                        </td>
-                        <td className="px-4 py-3 text-sm t-num text-slate-600 dark:text-slate-300">
-                          {renderNativeAndInr(nativeInvested, invested, row.currency)}
-                        </td>
-                        <td className="px-4 py-3 text-sm t-num text-slate-900 dark:text-white">
-                          {renderNativeAndInr(nativeCurrent, currentValue, row.currency)}
-                        </td>
-                        <td className={['px-4 py-3 text-sm t-num', pnlTone].join(' ')}>
-                          {renderNativeAndInr(nativePnl, pnl, row.currency)}
-                        </td>
-                        <td className={['px-4 py-3 text-sm t-badge', returnTone].join(' ')}>
-                          {pct > 0 ? '↑' : pct < 0 ? '↓' : '•'} {privacyMode ? '••••' : formatPct(pct)}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right">
-                          {refreshSupported ? (
+                        </div>
+                      </div>
+                    </button>
+
+                    {isExpanded ? (
+                      <div className="border-t border-slate-800 bg-slate-900/70 px-5 py-4">
+                        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
+                          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                            <div>
+                              <div className={sectionLabel}>Qty / Units</div>
+                              <div className="mt-1 t-num text-slate-200">{toNumber(row.quantity)}</div>
+                            </div>
+                            <div>
+                              <div className={sectionLabel}>Avg Buy</div>
+                              <div className="mt-1 t-num text-slate-200">
+                                <PrivateValue value={formatNativeMoney(toNumber(row.avg_buy_price), row.currency)} mask="••••" hideColor />
+                              </div>
+                            </div>
+                            <div>
+                              <div className={sectionLabel}>Invested</div>
+                              <div className="mt-1 t-num text-slate-200">{renderNativeAndInr(nativeInvested, invested, row.currency)}</div>
+                            </div>
+                            <div>
+                              <div className={sectionLabel}>Current Value</div>
+                              <div className="mt-1 t-num text-slate-200">{renderNativeAndInr(nativeCurrent, currentValue, row.currency)}</div>
+                            </div>
+                            <div>
+                              <div className={sectionLabel}>Exchange / Market</div>
+                              <div className="mt-1 t-nav text-slate-300">{getHoldingMarketSymbol(row)}</div>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                            {refreshSupported ? (
+                              <button
+                                type="button"
+                                onClick={() => handleRefreshHolding(row)}
+                                disabled={refreshingHoldingId === row.id || isRefreshingAllPrices}
+                                title="Refresh market price"
+                                className="inline-flex h-10 items-center gap-2 rounded-lg border border-sky-500/25 bg-sky-500/10 px-3 text-sm font-semibold text-sky-200 shadow-sm transition-all duration-150 hover:border-sky-400/40 hover:bg-sky-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                <Icon name="refresh" className={['h-4 w-4', refreshingHoldingId === row.id ? 'animate-spin' : ''].join(' ')} />
+                                {refreshingHoldingId === row.id ? 'Refreshing...' : 'Refresh Price'}
+                              </button>
+                            ) : (
+                              <span className="inline-flex h-10 items-center rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 text-sm font-semibold text-amber-200">
+                                Manual price required
+                              </span>
+                            )}
                             <button
                               type="button"
-                              onClick={() => handleRefreshHolding(row)}
-                              disabled={refreshingHoldingId === row.id || isRefreshingAllPrices}
-                              title="Refresh market price"
-                              className="mr-2 inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-sm font-semibold text-slate-600 dark:text-slate-300 shadow-sm transition-all duration-150 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
+                              onClick={() => openEditModal(row)}
+                              className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 text-sm font-semibold text-slate-200 transition-all duration-150 hover:bg-slate-700 active:scale-95"
                             >
-                              <Icon name="refresh" className={['h-4 w-4', refreshingHoldingId === row.id ? 'animate-spin' : ''].join(' ')} />
-                              {refreshingHoldingId === row.id ? 'Refreshing' : 'Refresh'}
+                              <Icon name="edit" className="h-4 w-4" />
+                              Edit
                             </button>
-                          ) : (
-                            <span className="mr-2 inline-flex rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                              Manual only
-                            </span>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => openEditModal(row)}
-                            className="mr-2 rounded-lg p-2 text-slate-400 dark:text-slate-500 transition-all duration-150 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-700 dark:hover:text-slate-300 active:scale-95"
-                            aria-label={`Edit ${row.symbol}`}
-                          >
-                            <Icon name="edit" className="h-5 w-5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteHolding(row)}
-                            className="rounded-lg p-2 text-slate-400 dark:text-slate-500 transition-all duration-150 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-700 dark:hover:text-slate-300 active:scale-95"
-                            aria-label={`Delete ${row.symbol}`}
-                          >
-                            <Icon name="remove" className="h-5 w-5" />
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteHolding(row)}
+                              className="inline-flex h-10 items-center gap-2 rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 text-sm font-semibold text-rose-200 transition-all duration-150 hover:bg-rose-500/15 active:scale-95"
+                            >
+                              <Icon name="remove" className="h-4 w-4" />
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                )
+              })}
             </div>
           )}
         </SectionCard>

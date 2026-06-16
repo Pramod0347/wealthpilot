@@ -20,4 +20,15 @@ from app.schemas.holding import HoldingCreate, HoldingRead, HoldingUpdate
 from app.schemas.holding import AllocationItem, HoldingAnalyticsItem, HoldingsAnalyticsResponse
 from app.schemas.portfolio_snapshot import PerformanceRange, PortfolioPerformancePoint, PortfolioPerformanceResponse
 from app.schemas.portfolio_snapshot import PortfolioPredictedPoint, PortfolioSnapshotRead
+from app.schemas.portfolio_intelligence import (
+    PortfolioAllocationItem,
+    PortfolioAttentionItem,
+    PortfolioCashflowContext,
+    PortfolioHoldingMover,
+    PortfolioIntelligenceResponse,
+    PortfolioLiquidityView,
+    PortfolioNetWorthOverview,
+    PortfolioPerformanceOverview,
+    PortfolioTopMovers,
+)
 from app.schemas.transaction import TransactionCreate, TransactionRead, TransactionUpdate

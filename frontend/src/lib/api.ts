@@ -128,6 +128,71 @@ export type CashflowEntryPayload = {
   notes: string | null
 }
 
+export type PortfolioIntelligenceAllocationItem = {
+  key: string
+  label: string
+  amount: string | number
+  percentage: string | number
+  kind: string
+}
+
+export type PortfolioIntelligenceHoldingMover = {
+  id: number
+  symbol: string
+  company_name: string
+  asset_type: string
+  country: string
+  current_value: string | number
+  pnl: string | number
+  return_pct: string | number
+}
+
+export type PortfolioIntelligence = {
+  net_worth: {
+    total_assets: string | number
+    total_liabilities: string | number
+    net_worth: string | number
+    liquid_assets: string | number
+    long_term_assets: string | number
+    credit_exposure: string | number
+  }
+  asset_allocation: PortfolioIntelligenceAllocationItem[]
+  risk_allocation: PortfolioIntelligenceAllocationItem[]
+  liquidity: {
+    immediate_cash: string | number
+    market_linked: string | number
+    locked_long_term: string | number
+    liabilities: string | number
+  }
+  performance: {
+    has_snapshots: boolean
+    latest_snapshot_date: string | null
+    latest_snapshot_value: string | number
+    latest_snapshot_return_pct: string | number
+    message: string | null
+  }
+  top_movers: {
+    biggest_gainers: PortfolioIntelligenceHoldingMover[]
+    biggest_losers: PortfolioIntelligenceHoldingMover[]
+    largest_allocation: PortfolioIntelligenceAllocationItem | null
+    attention: Array<{
+      label: string
+      detail: string
+      tone: string
+    }>
+  }
+  insights: string[]
+  cashflow_context: {
+    month: string | null
+    income: string | number
+    spend: string | number
+    savings: string | number
+    savings_rate: string | number
+    has_data: boolean
+    note: string
+  }
+}
+
 export type ApiValidationError = {
   path: string
   message: string
@@ -327,4 +392,8 @@ export function deleteCashflowEntry(entryId: number) {
   return apiFetch<void>(`/api/cashflow/${entryId}`, {
     method: 'DELETE',
   })
+}
+
+export function getPortfolioIntelligence(signal?: AbortSignal) {
+  return apiFetch<PortfolioIntelligence>('/api/portfolio/intelligence', { signal })
 }

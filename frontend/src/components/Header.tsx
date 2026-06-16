@@ -72,11 +72,12 @@ function MarketChip({
     ? getTrendClass(numericChangePct)
     : 'text-slate-500 dark:text-slate-400'
   const arrow = Number.isFinite(numericChangePct) ? (numericChangePct > 0 ? '↑' : numericChangePct < 0 ? '↓' : '•') : '•'
+  const displayName = symbol === 'GC=F' ? 'GOLD 10G 24K' : symbol === 'SI=F' ? 'SILVER 1KG' : name
 
   return (
     <div className="flex h-12 min-w-[148px] shrink-0 flex-col justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 shadow-sm">
       <div className="flex items-center justify-between gap-2 text-[12px] leading-none">
-        <span className="truncate font-medium text-slate-600 dark:text-slate-300">{name}</span>
+        <span className="truncate font-medium text-slate-600 dark:text-slate-300">{displayName}</span>
         <span className={['font-semibold text-[11px]', toneClass].join(' ')}>
           {`${arrow} ${formatChangePct(change_pct)}`}
         </span>

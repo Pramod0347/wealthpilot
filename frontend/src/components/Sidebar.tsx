@@ -11,13 +11,12 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', icon: 'dashboard', navigable: true },
-  { key: 'portfolio', label: 'Portfolio', icon: 'portfolio' },
   { key: 'stocks', label: 'Stocks', icon: 'stocks', navigable: true },
   { key: 'banks', label: 'Banks', icon: 'banks', navigable: true },
   { key: 'pfepf', label: 'PF / EPF', icon: 'pfepf', navigable: true },
   { key: 'cards', label: 'Credit Cards', icon: 'cards', navigable: true },
   { key: 'transactions', label: 'Transactions', icon: 'transactions', navigable: true },
-  { key: 'analytics', label: 'Analytics', icon: 'analytics' },
+  { key: 'analytics', label: 'Analytics', icon: 'analytics', navigable: true },
   { key: 'reports', label: 'Reports', icon: 'reports' },
   { key: 'settings', label: 'Settings', icon: 'settings' },
 ]
@@ -28,8 +27,8 @@ export default function Sidebar({
   onNavigate,
 }: {
   className?: string
-  activePage: 'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards' | 'transactions'
-  onNavigate: (page: 'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards' | 'transactions') => void
+  activePage: 'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards' | 'transactions' | 'analytics'
+  onNavigate: (page: 'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards' | 'transactions' | 'analytics') => void
 }) {
   const [collapsed, setCollapsed] = useState(false)
 
@@ -82,7 +81,7 @@ export default function Sidebar({
               title={item.label}
               aria-label={item.label}
               aria-current={isActive ? 'page' : undefined}
-              onClick={isNavigable ? () => onNavigate(item.key as 'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards' | 'transactions') : undefined}
+              onClick={isNavigable ? () => onNavigate(item.key as 'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards' | 'transactions' | 'analytics') : undefined}
               disabled={!isNavigable}
               className={[
                 'group flex min-w-0 items-center rounded-lg text-left',
