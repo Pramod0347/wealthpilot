@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import Dashboard from './components/Dashboard'
@@ -11,10 +11,7 @@ import CashflowPage from './components/CashflowPage'
 import LoginPage from './components/auth/LoginPage'
 import BottomSheet from './components/ui/BottomSheet'
 import { Icon, type IconName } from './components/Icon'
-
-const ACCESS_STORAGE_KEY = 'wealthpilot_owner_access'
-const OWNER_EMAIL = (import.meta.env.VITE_OWNER_EMAIL as string | undefined)?.trim() || 'pgoudar347@gmail.com'
-const OWNER_PHONE = (import.meta.env.VITE_OWNER_PHONE as string | undefined)?.trim() || '8296090286'
+import { checkAuth, loginUser, logoutUser } from './lib/api'
 
 type PageKey = 'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards' | 'transactions' | 'analytics'
 
@@ -46,17 +43,23 @@ function isPageKey(value: NavItem['key']): value is PageKey {
 
 export default function App() {
   const [activePage, setActivePage] = useState<PageKey>('dashboard')
-  const [isUnlocked, setIsUnlocked] = useState<boolean>(() => localStorage.getItem(ACCESS_STORAGE_KEY) === 'granted')
+  const [authStatus, setAuthStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading')
   const [isMoreSheetOpen, setIsMoreSheetOpen] = useState(false)
 
-  const handleUnlock = () => {
-    localStorage.setItem(ACCESS_STORAGE_KEY, 'granted')
-    setIsUnlocked(true)
+  useEffect(() => {
+    checkAuth()
+      .then((data) => setAuthStatus(data.authenticated ? 'authenticated' : 'unauthenticated'))
+      .catch(() => setAuthStatus('unauthenticated'))
+  }, [])
+
+  const handleLogin = async (email: string, phone: string): Promise<void> => {
+    await loginUser(email, phone)
+    setAuthStatus('authenticated')
   }
 
   const handleLogout = () => {
-    localStorage.removeItem(ACCESS_STORAGE_KEY)
-    setIsUnlocked(false)
+    logoutUser().catch(() => undefined)
+    setAuthStatus('unauthenticated')
   }
 
   const pageConfig = {
@@ -106,14 +109,16 @@ export default function App() {
     setIsMoreSheetOpen(false)
   }
 
-  if (!isUnlocked) {
+  if (authStatus === 'loading') {
     return (
-      <LoginPage
-        expectedEmail={OWNER_EMAIL}
-        expectedPhone={OWNER_PHONE}
-        onUnlock={handleUnlock}
-      />
+      <div className="grid min-h-screen place-items-center bg-slate-50 dark:bg-slate-950">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-teal-500 border-t-transparent" />
+      </div>
     )
+  }
+
+  if (authStatus === 'unauthenticated') {
+    return <LoginPage onLogin={handleLogin} />
   }
 
   return (

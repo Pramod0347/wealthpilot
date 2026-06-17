@@ -1,6 +1,8 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.deps import require_auth
+from app.api.routes.auth import router as auth_router
 from app.api.routes.bank_accounts import router as bank_accounts_router
 from app.api.routes.cashflow import router as cashflow_router
 from app.api.routes.dashboard import router as dashboard_router
@@ -16,6 +18,7 @@ _LOCAL_ORIGINS = [
     "http://127.0.0.1:5173",
 ]
 
+
 def _build_allowed_origins() -> list[str]:
     origins = list(_LOCAL_ORIGINS)
     if settings.frontend_url:
@@ -25,7 +28,14 @@ def _build_allowed_origins() -> list[str]:
                 origins.append(stripped)
     return origins
 
-app = FastAPI(title="WealthPilot API")
+
+_IS_PRODUCTION = settings.app_env == "production"
+
+app = FastAPI(
+    title="WealthPilot API",
+    docs_url=None if _IS_PRODUCTION else "/docs",
+    redoc_url=None if _IS_PRODUCTION else "/redoc",
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -35,14 +45,17 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
-app.include_router(holdings_router, prefix="/api")
-app.include_router(credit_cards_router, prefix="/api")
-app.include_router(bank_accounts_router, prefix="/api")
-app.include_router(cashflow_router, prefix="/api")
-app.include_router(fixed_savings_router, prefix="/api")
-app.include_router(portfolio_router, prefix="/api")
-app.include_router(dashboard_router, prefix="/api")
-app.include_router(market_router, prefix="/api")
+_PROTECTED = [Depends(require_auth)]
+
+app.include_router(auth_router, prefix="/api")
+app.include_router(holdings_router, prefix="/api", dependencies=_PROTECTED)
+app.include_router(credit_cards_router, prefix="/api", dependencies=_PROTECTED)
+app.include_router(bank_accounts_router, prefix="/api", dependencies=_PROTECTED)
+app.include_router(cashflow_router, prefix="/api", dependencies=_PROTECTED)
+app.include_router(fixed_savings_router, prefix="/api", dependencies=_PROTECTED)
+app.include_router(portfolio_router, prefix="/api", dependencies=_PROTECTED)
+app.include_router(dashboard_router, prefix="/api", dependencies=_PROTECTED)
+app.include_router(market_router, prefix="/api", dependencies=_PROTECTED)
 
 
 @app.get("/health")

@@ -4,14 +4,18 @@ Stack: **Vercel** (frontend) · **Render** (backend) · **Neon** (PostgreSQL)
 
 ---
 
-## Security note — auth is frontend-only
+## How authentication works
 
-The current login gate checks `VITE_OWNER_EMAIL` and `VITE_OWNER_PHONE` inside the React bundle. This means:
+WealthPilot uses backend-protected session auth:
 
-- Credentials are embedded in the compiled JS and visible to anyone who opens DevTools.
-- All backend API routes are **publicly accessible** with no token or session check.
+- Credentials (`OWNER_EMAIL`, `OWNER_PHONE`, `SECRET_KEY`) live only in backend env vars — never in the frontend bundle.
+- Login submits email + phone to `POST /api/auth/login`. The backend validates them server-side and sets an **HttpOnly signed session cookie** (`wp_session`).
+- Every API route (`/api/holdings`, `/api/bank-accounts`, etc.) requires a valid cookie. Unauthenticated requests get `401`.
+- The frontend calls `GET /api/auth/me` on load to check session state. If no valid session, the login page is shown.
+- `/health`, `/api/auth/login`, `/api/auth/me`, and `/api/auth/logout` are the only unprotected endpoints.
+- `/docs` and `/redoc` are disabled in production (`APP_ENV=production`).
 
-For a personal app on a private URL this is acceptable, but be aware that anyone who finds your Render URL can read and modify your data without logging in. If you want real protection, you would need to add a backend auth layer (e.g. HTTP Basic Auth on Render, or a simple API key header check in FastAPI). This guide does not add that — it deploys the app as-is.
+Cookie settings in production: `HttpOnly`, `Secure`, `SameSite=None` (required for cross-domain Vercel ↔ Render).
 
 ---
 
@@ -40,8 +44,11 @@ For a personal app on a private URL this is acceptable, but be aware that anyone
    | Key | Value |
    |-----|-------|
    | `DATABASE_URL` | your Neon connection string (postgresql+psycopg:// prefix — see note below) |
-   | `FRONTEND_URL` | your Vercel URL — fill in after Step 3 (e.g. `https://money.pramodgoudar.com`) |
+   | `FRONTEND_URL` | `https://money.pramodgoudar.com` (fill in after Step 3) |
    | `APP_ENV` | `production` |
+   | `OWNER_EMAIL` | your login email |
+   | `OWNER_PHONE` | your login phone (digits only, e.g. `8296090286`) |
+   | `SECRET_KEY` | run `python -c "import secrets; print(secrets.token_hex(32))"` and paste the output |
 
    > **URL prefix note:** Neon gives you `postgresql://...`. The app's `normalize_database_url()` function automatically converts this to `postgresql+psycopg://...` so you can paste the Neon URL directly. SSL (`?sslmode=require`) is handled by psycopg3 natively — no extra config needed.
 
@@ -73,8 +80,8 @@ pip install -r requirements.txt && alembic upgrade head
    | Key | Value |
    |-----|-------|
    | `VITE_API_BASE_URL` | your Render URL, e.g. `https://wealthpilot-api.onrender.com` |
-   | `VITE_OWNER_EMAIL` | your login email |
-   | `VITE_OWNER_PHONE` | your login phone |
+
+   > Credentials are no longer in Vercel env vars — they live only in the Render backend.
 
 5. Click **Deploy**.
 6. Note the deployed URL. Your custom domain is `https://money.pramodgoudar.com` — add it in Vercel under **Settings → Domains** and point your DNS to Vercel.
@@ -110,10 +117,12 @@ After both services are deployed:
 
 ## Step 5 — Smoke test
 
-1. Open your Vercel URL → login with your credentials → verify the dashboard loads.
+1. Open your Vercel URL → login with your email + phone → verify the dashboard loads.
 2. Check `https://wealthpilot-api.onrender.com/health` → should return `{"status":"ok"}`.
-3. Check `https://wealthpilot-api.onrender.com/docs` → FastAPI Swagger UI (all routes listed).
-4. Add a bank account or stock holding and confirm it persists on reload.
+3. Check `https://wealthpilot-api.onrender.com/api/auth/me` → should return `{"authenticated":false}` (no session cookie yet).
+4. Check `https://wealthpilot-api.onrender.com/api/holdings` → should return `401` (protected route).
+5. `/docs` and `/redoc` return 404 in production — this is expected.
+6. Add a bank account or stock holding and confirm it persists on reload.
 
 ---
 
@@ -134,9 +143,11 @@ uvicorn app.main:app --reload
 Local `.env` files:
 
 ```bash
-cp backend/.env.example backend/.env   # fill in local DATABASE_URL
-cp frontend/.env.example frontend/.env # fill in local VITE_ vars
+cp backend/.env.example backend/.env   # fill in DATABASE_URL, OWNER_EMAIL, OWNER_PHONE, SECRET_KEY
+cp frontend/.env.example frontend/.env # VITE_API_BASE_URL only
 ```
+
+For local dev the backend `.env` needs `APP_ENV=development` (or leave it unset — development is the default). This ensures cookies are set with `SameSite=Lax; Secure=false`, which works on localhost without HTTPS.
 
 ---
 

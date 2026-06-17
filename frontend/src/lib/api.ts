@@ -239,6 +239,7 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
   try {
     response = await fetch(url, {
       ...requestOptions,
+      credentials: 'include',
       headers: {
         Accept: 'application/json',
         ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
@@ -411,4 +412,19 @@ export function deleteCashflowEntry(entryId: number) {
 
 export function getPortfolioIntelligence(signal?: AbortSignal) {
   return apiFetch<PortfolioIntelligence>('/api/portfolio/intelligence', { signal })
+}
+
+export function loginUser(email: string, phone: string) {
+  return apiFetch<{ authenticated: boolean }>('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, phone }),
+  })
+}
+
+export function checkAuth() {
+  return apiFetch<{ authenticated: boolean }>('/api/auth/me')
+}
+
+export function logoutUser() {
+  return apiFetch<{ authenticated: boolean }>('/api/auth/logout', { method: 'POST' })
 }

@@ -10,8 +10,13 @@ class Settings(BaseSettings):
     app_name: str = "WealthPilot API"
     app_env: str = "development"
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/wealthpilot"
-    # Comma-separated list of allowed frontend origins, e.g. "https://app.vercel.app,https://mycustom.domain"
+    # Comma-separated list of allowed frontend origins, e.g. "https://money.pramodgoudar.com"
     frontend_url: str = ""
+    # Owner credentials — keep server-side only, never in frontend env vars
+    owner_email: str = ""
+    owner_phone: str = ""
+    # HMAC signing key for session cookies — generate with: python -c "import secrets; print(secrets.token_hex(32))"
+    secret_key: str = "changeme-use-secrets-token-hex-32-in-production"
 
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),

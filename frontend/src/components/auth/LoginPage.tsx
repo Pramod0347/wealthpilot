@@ -1,36 +1,36 @@
 import { useState } from 'react'
 import Logo from '../Logo'
-
-const ACCESS_MESSAGE = 'Enter the owner email and phone number to continue.'
+import { ApiError } from '../../lib/api'
 
 type LoginPageProps = {
-  expectedEmail: string
-  expectedPhone: string
-  onUnlock: () => void
+  onLogin: (email: string, phone: string) => Promise<void>
 }
 
-function normalizePhone(value: string) {
-  return value.replace(/\D/g, '')
-}
-
-export default function LoginPage({ expectedEmail, expectedPhone, onUnlock }: LoginPageProps) {
+export default function LoginPage({ onLogin }: LoginPageProps) {
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-
-    const normalizedEmail = email.trim().toLowerCase()
-    const normalizedPhone = normalizePhone(phone)
-
-    if (normalizedEmail !== expectedEmail.trim().toLowerCase() || normalizedPhone !== normalizePhone(expectedPhone)) {
-      setError('Access denied. Enter the configured owner email and phone number.')
-      return
-    }
-
     setError(null)
-    onUnlock()
+    setIsLoading(true)
+    try {
+      await onLogin(email.trim(), phone.trim())
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        setError('Access denied. Check your email and phone number.')
+      } else if (err instanceof ApiError && err.status === 503) {
+        setError(err.message)
+      } else if (err instanceof ApiError && err.status === 0) {
+        setError('Cannot reach the server. Check your connection.')
+      } else {
+        setError('Login failed. Please try again.')
+      }
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -49,7 +49,7 @@ export default function LoginPage({ expectedEmail, expectedPhone, onUnlock }: Lo
             Continue to WealthPilot
           </h1>
           <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-            {ACCESS_MESSAGE}
+            Enter the owner email and phone number to continue.
           </p>
         </div>
 
@@ -70,6 +70,7 @@ export default function LoginPage({ expectedEmail, expectedPhone, onUnlock }: Lo
               className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-900 outline-none transition-colors focus:border-accent-500 dark:border-slate-700 dark:bg-slate-800/70 dark:text-white"
               autoComplete="email"
               required
+              disabled={isLoading}
             />
           </label>
 
@@ -83,14 +84,16 @@ export default function LoginPage({ expectedEmail, expectedPhone, onUnlock }: Lo
               className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-900 outline-none transition-colors focus:border-accent-500 dark:border-slate-700 dark:bg-slate-800/70 dark:text-white"
               autoComplete="tel"
               required
+              disabled={isLoading}
             />
           </label>
 
           <button
             type="submit"
-            className="mt-2 inline-flex h-12 w-full items-center justify-center rounded-xl bg-accent-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-700 active:scale-[0.99]"
+            disabled={isLoading}
+            className="mt-2 inline-flex h-12 w-full items-center justify-center rounded-xl bg-accent-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-700 active:scale-[0.99] disabled:opacity-60"
           >
-            Continue
+            {isLoading ? 'Checking...' : 'Continue'}
           </button>
         </form>
       </div>
