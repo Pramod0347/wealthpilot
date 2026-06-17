@@ -10,7 +10,9 @@ Private personal finance dashboard for manual portfolio, credit card, spend, and
 
 ## Current State
 
-Project skeleton only. The first UI target will be the dashboard screen using dummy data.
+Fully functional personal finance dashboard with: Portfolio, Stocks, Banks, Credit Cards, Cashflow, Fixed Savings, and Analytics pages. Dark/light theme, privacy mode, and mobile-first responsive layout.
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for Vercel + Render + Neon PostgreSQL deployment.
 
 ## Run
 

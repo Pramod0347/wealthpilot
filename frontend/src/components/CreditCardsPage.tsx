@@ -403,10 +403,6 @@ export default function CreditCardsPage() {
           body: JSON.stringify(payload),
         })
       } else {
-        console.log('PATCH credit-card', {
-          url: `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/credit-cards/${editingId}`,
-          payload,
-        })
         await apiFetch(`/api/credit-cards/${editingId}`, {
           method: 'PATCH',
           body: JSON.stringify(payload),
@@ -691,7 +687,7 @@ export default function CreditCardsPage() {
             <Icon name="cards" className="h-4 w-4 shrink-0 text-slate-400" />
             <span className="text-sm text-slate-500 dark:text-slate-400">Credit Cards</span>
             <span className="text-sm text-slate-400 dark:text-slate-600">·</span>
-            <span className="text-sm text-slate-500 dark:text-slate-400">Track limits, dues, utilization, and bill cycles</span>
+            <span className="hidden sm:inline text-sm text-slate-500 dark:text-slate-400">Track limits, dues, utilization, and bill cycles</span>
             <div className="ml-auto flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
               <span className="text-xs font-medium text-emerald-500 dark:text-emerald-400">Live</span>
@@ -728,7 +724,7 @@ export default function CreditCardsPage() {
           </section>
 
           <SectionCard>
-          <div className="border-b border-slate-200 dark:border-slate-700/50 px-6 py-4">
+          <div className="border-b border-slate-200 dark:border-slate-700/50 px-4 py-3 sm:px-6 sm:py-4">
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
               <label className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800 px-3 shadow-sm focus-within:border-accent-500 focus-within:ring-2 focus-within:ring-accent-500/15">
                 <Icon name="search" className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
@@ -778,7 +774,7 @@ export default function CreditCardsPage() {
               </div>
             </div>
           ) : (
-            <div className="grid gap-4 px-6 py-6 xl:grid-cols-3">
+            <div className="grid gap-4 px-4 py-4 sm:px-6 sm:py-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
               {filteredCards.map((card) => {
                 const tone = buildStatusTone(card.status)
 

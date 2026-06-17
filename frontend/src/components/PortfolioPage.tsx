@@ -175,9 +175,14 @@ export default function PortfolioPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Portfolio Intelligence</h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Net worth, allocation, risk, and long-term wealth analysis</p>
+      <div className="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 px-5 py-3 shadow-sm">
+        <Icon name="portfolio" className="h-4 w-4 shrink-0 text-slate-400" />
+        <span className="text-sm font-semibold text-slate-900 dark:text-white">Portfolio Intelligence</span>
+        <span className="hidden sm:inline text-sm text-slate-500 dark:text-slate-400">· Net worth, allocation, risk, and long-term wealth analysis</span>
+        <div className="ml-auto flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          <span className="text-xs font-medium text-emerald-500 dark:text-emerald-400">Live</span>
+        </div>
       </div>
 
       {error ? <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{error}</div> : null}
@@ -404,7 +409,7 @@ export default function PortfolioPage() {
           ) : (
             <div className="space-y-5">
               <div>
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-500">Biggest Gainers</div>
+                <div className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Biggest Gainers</div>
                 <div className="space-y-2">
                   {intelligence.top_movers.biggest_gainers.length === 0 ? (
                     <div className="text-sm text-slate-500 dark:text-slate-400">No holdings added</div>
@@ -428,7 +433,7 @@ export default function PortfolioPage() {
               </div>
 
               <div>
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-500">Biggest Losers</div>
+                <div className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Biggest Losers</div>
                 <div className="space-y-2">
                   {intelligence.top_movers.biggest_losers.length === 0 ? (
                     <div className="text-sm text-slate-500 dark:text-slate-400">No holdings added</div>
@@ -452,7 +457,7 @@ export default function PortfolioPage() {
               </div>
 
               <div>
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-500">Attention</div>
+                <div className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Attention</div>
                 <div className="space-y-2">
                   {intelligence.top_movers.attention.map((item, index) => (
                     <div key={`${item.label}-${index}`} className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 dark:border-slate-700/50 dark:bg-slate-900/40">
@@ -471,7 +476,7 @@ export default function PortfolioPage() {
         {!intelligence || intelligence.insights.length === 0 ? (
           <div className="text-sm text-slate-500 dark:text-slate-400">Not enough portfolio data yet.</div>
         ) : (
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             {intelligence.insights.map((insight, index) => (
               <div key={`${index}-${insight}`} className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-700 dark:border-slate-700/50 dark:bg-slate-900/40 dark:text-slate-300">
                 {insight}

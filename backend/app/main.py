@@ -9,18 +9,30 @@ from app.api.routes.fixed_savings import router as fixed_savings_router
 from app.api.routes.holdings import router as holdings_router
 from app.api.routes.portfolio import router as portfolio_router
 from app.api.routes.market import router as market_router
+from app.core.config import settings
+
+_LOCAL_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+def _build_allowed_origins() -> list[str]:
+    origins = list(_LOCAL_ORIGINS)
+    if settings.frontend_url:
+        for url in settings.frontend_url.split(","):
+            stripped = url.strip()
+            if stripped and stripped not in origins:
+                origins.append(stripped)
+    return origins
 
 app = FastAPI(title="WealthPilot API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=_build_allowed_origins(),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
 app.include_router(holdings_router, prefix="/api")

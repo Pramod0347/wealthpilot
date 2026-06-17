@@ -587,7 +587,7 @@ export default function BanksPage() {
             <Icon name="banks" className="h-4 w-4 shrink-0 text-slate-400" />
             <span className="text-sm text-slate-500 dark:text-slate-400">Bank Accounts</span>
             <span className="text-sm text-slate-400 dark:text-slate-600">·</span>
-            <span className="text-sm text-slate-500 dark:text-slate-400">Manual cash accounts tracked in the database</span>
+            <span className="hidden sm:inline text-sm text-slate-500 dark:text-slate-400">Manual cash accounts tracked in the database</span>
             <div className="ml-auto flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
               <span className="text-xs font-medium text-emerald-500 dark:text-emerald-400">Live</span>

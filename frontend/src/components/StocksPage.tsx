@@ -931,13 +931,6 @@ export default function StocksPage() {
           ? '/api/holdings'
           : `/api/holdings/${editingHoldingId}`
 
-      if (method === 'PATCH') {
-        console.log('PATCH holding', {
-          url: `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}${url}`,
-          payload,
-        })
-      }
-
       if (editingHoldingId === null) {
         await apiFetch('/api/holdings', {
           method,
@@ -1394,7 +1387,7 @@ export default function StocksPage() {
           )}
           <div className="ml-auto flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            <span className="text-xs font-medium text-emerald-500 dark:text-emerald-400">Live</span>
+            <span className="hidden sm:inline text-xs font-medium text-emerald-500 dark:text-emerald-400">Live</span>
           </div>
         </div>
 
@@ -1407,7 +1400,7 @@ export default function StocksPage() {
             className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 shadow-sm transition-all duration-150 hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-700/50 sm:h-10"
           >
             <Icon name="refresh" className={['h-4 w-4', isRefreshingAllPrices ? 'animate-spin' : ''].join(' ')} />
-            {isRefreshingAllPrices ? 'Refreshing...' : 'Refresh Prices'}
+            <span className="hidden sm:inline">{isRefreshingAllPrices ? 'Refreshing...' : 'Refresh Prices'}</span>
           </button>
           <button
             type="button"
@@ -1594,7 +1587,7 @@ export default function StocksPage() {
         </div>
 
         <SectionCard className="overflow-hidden">
-            <div className="border-b border-slate-200 px-4 py-4 dark:border-slate-700 sm:px-6">
+            <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-700 sm:px-6 sm:py-4">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="no-scrollbar flex items-center gap-2 overflow-x-auto">
                 {filterChips.map((filter) => (

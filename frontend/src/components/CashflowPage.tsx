@@ -396,10 +396,15 @@ export default function CashflowPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Monthly Cashflow</h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Monthly income, category spends, and savings rate</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 px-5 py-3 shadow-sm">
+          <Icon name="transactions" className="h-4 w-4 shrink-0 text-slate-400" />
+          <span className="text-sm font-semibold text-slate-900 dark:text-white">Monthly Cashflow</span>
+          <span className="hidden sm:inline text-sm text-slate-500 dark:text-slate-400">· Monthly income, category spends, and savings rate</span>
+          <div className="ml-auto flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            <span className="text-xs font-medium text-emerald-500 dark:text-emerald-400">Live</span>
+          </div>
         </div>
         <button
           type="button"
@@ -412,8 +417,11 @@ export default function CashflowPage() {
       </div>
 
       {statusMessage ? (
-        <div className={['rounded-xl border px-4 py-3 text-sm', statusTone === 'emerald' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : statusTone === 'amber' ? 'border-amber-500/30 bg-amber-500/10 text-amber-300' : statusTone === 'rose' ? 'border-rose-500/30 bg-rose-500/10 text-rose-300' : 'border-slate-700 bg-slate-900 text-slate-300'].join(' ')}>
-          {statusMessage}
+        <div className={['flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm', statusTone === 'emerald' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : statusTone === 'amber' ? 'border-amber-500/30 bg-amber-500/10 text-amber-300' : statusTone === 'rose' ? 'border-rose-500/30 bg-rose-500/10 text-rose-300' : 'border-slate-700 bg-slate-900 text-slate-300'].join(' ')}>
+          <span>{statusMessage}</span>
+          <button type="button" onClick={() => setStatusMessage(null)} className="shrink-0 opacity-60 hover:opacity-100">
+            <Icon name="close" className="h-4 w-4" />
+          </button>
         </div>
       ) : null}
 
@@ -448,7 +456,7 @@ export default function CashflowPage() {
         </div>
       </SectionCard>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {summaryCards.map((card) => (
           <SectionCard key={card.label} className="p-5">
             <div className="flex items-start justify-between gap-3">
@@ -459,7 +467,7 @@ export default function CashflowPage() {
                 </div>
                 <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">{card.meta}</div>
               </div>
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-100 dark:bg-slate-800">
+              <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-slate-100 dark:bg-slate-800">
                 <Icon name={card.icon} className="h-4 w-4 text-slate-500 dark:text-slate-400" />
               </div>
             </div>

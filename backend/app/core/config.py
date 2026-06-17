@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     app_name: str = "WealthPilot API"
     app_env: str = "development"
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/wealthpilot"
+    # Comma-separated list of allowed frontend origins, e.g. "https://app.vercel.app,https://mycustom.domain"
+    frontend_url: str = ""
 
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),
@@ -24,6 +26,7 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
+
 
 def normalize_database_url(url: str) -> str:
     if url.startswith("postgresql://"):

@@ -506,7 +506,7 @@ export default function Dashboard({
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-w-0 w-full space-y-5">
+    <div className="min-w-0 w-full space-y-4 sm:space-y-5">
       <WealthBucketModal bucket={selectedBucket} onClose={() => setSelectedBucketKey(null)} />
 
       {/* Toast banner */}
@@ -530,7 +530,7 @@ export default function Dashboard({
         <Icon name="refresh" className="h-4 w-4 shrink-0 text-slate-400" />
         <span className="text-sm text-slate-500 dark:text-slate-400">Prices last updated</span>
         {latestHoldingUpdate ? (
-          <span className="text-sm font-semibold text-slate-900 dark:text-white">
+          <span className="truncate max-w-35 sm:max-w-none text-sm font-semibold text-slate-900 dark:text-white">
             {formatShortDateTime(latestHoldingUpdate)}
           </span>
         ) : (

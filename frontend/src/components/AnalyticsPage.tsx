@@ -224,8 +224,8 @@ function SectionCard({ title, children, className = '', action }: { title?: stri
   return (
     <div className={['rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700/50 dark:bg-slate-900/80', className].join(' ')}>
       {title ? (
-        <div className="flex items-center justify-between gap-3 border-b border-slate-200 pr-5 py-4 pl-0 dark:border-slate-700/50">
-          <div className="text-base font-semibold tracking-[-0.02em] text-slate-900 dark:text-white">{title}</div>
+        <div className="flex items-center justify-between gap-3 border-b border-slate-200 pr-5 py-4 pl-5 dark:border-slate-700/50">
+          <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">{title}</div>
           {action}
         </div>
       ) : null}
@@ -599,10 +599,15 @@ export default function AnalyticsPage() {
       {error ? <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{error}</div> : null}
 
       <SectionCard className="overflow-hidden p-0">
-        <div className="flex flex-col gap-4 border-b border-slate-200 px-4 py-4 dark:border-slate-700/50 sm:px-6 sm:py-5 xl:flex-row xl:items-start xl:justify-between">
-          <div className="hidden md:block">
-            <div className="t-title text-slate-900 dark:text-white">Financial Analytics</div>
-            <div className="mt-1 t-body text-slate-500 dark:text-slate-400">Net worth, allocation, risk, and portfolio scan</div>
+        <div className="flex flex-col gap-4 border-b border-slate-200 px-4 py-4 dark:border-slate-700/50 sm:px-6 sm:py-5 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 px-5 py-3 shadow-sm">
+            <Icon name="analytics" className="h-4 w-4 shrink-0 text-slate-400" />
+            <span className="text-sm font-semibold text-slate-900 dark:text-white">Financial Analytics</span>
+            <span className="hidden sm:inline text-sm text-slate-500 dark:text-slate-400">· Net worth, allocation, risk, and portfolio scan</span>
+            <div className="ml-auto flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              <span className="text-xs font-medium text-emerald-500 dark:text-emerald-400">Live</span>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="inline-flex items-center gap-2 rounded-full border border-slate-700/70 bg-slate-900/60 px-3 py-2 t-badge text-slate-300">
@@ -625,7 +630,7 @@ export default function AnalyticsPage() {
         </div>
         <div className="grid gap-5 px-4 py-4 sm:px-6 sm:py-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
           <div className="space-y-4">
-            <div className="t-section text-slate-900 dark:text-white">Networth Intelligence</div>
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Networth Intelligence</div>
             {privacyMode ? <div className="rounded-lg border border-slate-700/70 bg-slate-900/60 px-3 py-2 t-meta text-slate-300">Privacy mode is on. Labels stay visible, values are masked.</div> : null}
             <div className="grid gap-3 sm:grid-cols-3">
               {loading || !intelligence
