@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Icon } from './Icon'
 import PrivateValue from './ui/PrivateValue'
+import BottomSheet from './ui/BottomSheet'
 import { ApiError, apiFetch } from '../lib/api'
 import { formatINR, formatINRShort, formatPct } from '../lib/format'
 import { usePrivacyMode } from '../context/PrivacyContext'
@@ -215,6 +216,7 @@ export default function CreditCardsPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [statusTone, setStatusTone] = useState<'emerald' | 'rose' | 'amber' | 'slate'>('emerald')
+  const [selectedCard, setSelectedCard] = useState<ApiCreditCard | null>(null)
 
   const loadData = async (signal?: AbortSignal) => {
     setSummaryLoading(true)
@@ -296,6 +298,19 @@ export default function CreditCardsPage() {
       return matchesQuery && matchesStatus
     })
   }, [cards, searchTerm, statusFilter])
+
+  const latestCardUpdate = useMemo(() => {
+    const values = cards.map((card) => new Date(card.updated_at).getTime()).filter((value) => !Number.isNaN(value))
+    if (values.length === 0) return null
+    return new Date(Math.max(...values)).toISOString()
+  }, [cards])
+
+  const cardStatusSummary = useMemo(() => {
+    const overdue = cards.filter((card) => card.status === 'overdue').length
+    const dueSoon = cards.filter((card) => card.status === 'due_soon').length
+    const paid = cards.filter((card) => card.status === 'paid').length
+    return { overdue, dueSoon, paid }
+  }, [cards])
 
   function openCreateModal() {
     setEditingId(null)
@@ -426,8 +441,41 @@ export default function CreditCardsPage() {
 
     try {
       await apiFetch(`/api/credit-cards/${card.id}`, { method: 'DELETE' })
+      if (selectedCard?.id === card.id) {
+        setSelectedCard(null)
+      }
       setStatusTone('emerald')
       setStatusMessage(`Deleted ${card.card_name}.`)
+      await refreshData()
+    } catch (error) {
+      setStatusTone('rose')
+      setStatusMessage(formatApiError(error))
+    }
+  }
+
+  async function handleMarkPaid(card: ApiCreditCard) {
+    try {
+      await apiFetch(`/api/credit-cards/${card.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          card_name: card.card_name,
+          bank_name: card.bank_name,
+          last4: card.last4,
+          total_limit: String(card.total_limit),
+          used_amount: String(card.used_amount),
+          current_bill_amount: String(card.current_bill_amount),
+          billing_cycle_start: card.billing_cycle_start,
+          billing_cycle_end: card.billing_cycle_end,
+          due_date: card.due_date,
+          status: 'paid',
+          notes: card.notes,
+        }),
+      })
+      if (selectedCard?.id === card.id) {
+        setSelectedCard(null)
+      }
+      setStatusTone('emerald')
+      setStatusMessage(`Marked ${card.card_name} as paid.`)
       await refreshData()
     } catch (error) {
       setStatusTone('rose')
@@ -458,48 +506,228 @@ export default function CreditCardsPage() {
           </div>
         ) : null}
 
-        {/* Info bar */}
-        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 px-5 py-3 shadow-sm">
-          <Icon name="cards" className="h-4 w-4 shrink-0 text-slate-400" />
-          <span className="text-sm text-slate-500 dark:text-slate-400">Credit Cards</span>
-          <span className="text-sm text-slate-400 dark:text-slate-600">·</span>
-          <span className="text-sm text-slate-500 dark:text-slate-400">Track limits, dues, utilization, and bill cycles</span>
-          <div className="ml-auto flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            <span className="text-xs font-medium text-emerald-500 dark:text-emerald-400">Live</span>
-          </div>
-        </div>
-        {/* Action row */}
-        <div className="flex items-center justify-end">
-          <button
-            type="button"
-            onClick={openCreateModal}
-            className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-accent-700 active:bg-accent-800 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Icon name="add" className="h-4 w-4" />
-            Add Credit Card
-          </button>
-        </div>
-
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {summaryCards.map((card) => (
-            <div
-              key={card.label}
-              className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm"
-            >
-              <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">{card.label}</div>
-              <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', privacyMode ? 'text-slate-400 dark:text-slate-400' : card.valueClass ?? 'text-slate-900 dark:text-white'].join(' ')}>
-                <PrivateValue value={card.value} mask="••••" hideColor />
+        <div className="space-y-4 md:hidden">
+          <div className="rounded-2xl bg-slate-900/75 px-4 py-4 ring-1 ring-slate-800/80">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Card Dues</div>
+                <div className="mt-2 font-mono text-2xl font-bold tracking-[-0.03em] text-slate-100">
+                  <PrivateValue
+                    value={summaryLoading ? 'Loading...' : summaryError ? '—' : formatINRShort(toNumber(summary?.total_credit_card_dues))}
+                    mask="••••"
+                    hideColor
+                  />
+                </div>
               </div>
-              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{card.meta}</div>
-              <div className={['mt-4 grid h-7 w-7 place-items-center rounded-lg', card.iconBg].join(' ')}>
-                <Icon name="cards" className="h-3.5 w-3.5" />
+              <button
+                type="button"
+                onClick={openCreateModal}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-accent-600 px-3.5 text-[12px] font-semibold text-white"
+              >
+                <Icon name="add" className="h-4 w-4" />
+                Add
+              </button>
+            </div>
+
+            <div className="mt-2 text-[12px] text-slate-400">
+              {cardStatusSummary.overdue > 0
+                ? `${cardStatusSummary.overdue} overdue · ${cardStatusSummary.dueSoon} due soon`
+                : cardStatusSummary.dueSoon > 0
+                  ? `${cardStatusSummary.dueSoon} due soon`
+                  : 'All clear'}
+            </div>
+
+            <div className="mt-4">
+              <div className="flex items-center justify-between text-[11px] text-slate-500">
+                <span>Total utilization</span>
+                <span>{privacyMode ? '••••' : `${toNumber(summary?.overall_card_utilization).toFixed(1)}%`}</span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
+                <div
+                  className={[
+                    'h-full rounded-full',
+                    cardStatusSummary.overdue > 0 ? 'bg-rose-500' : cardStatusSummary.dueSoon > 0 ? 'bg-amber-500' : 'bg-emerald-500',
+                  ].join(' ')}
+                  style={{ width: `${Math.min(toNumber(summary?.overall_card_utilization), 100)}%` }}
+                />
               </div>
             </div>
-          ))}
-        </section>
+          </div>
 
-        <SectionCard>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-2xl bg-slate-900/70 px-4 py-4 ring-1 ring-slate-800/80">
+              <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Total Limit</div>
+              <div className="mt-2 text-sm font-semibold text-slate-100">
+                <PrivateValue value={summaryLoading ? 'Loading...' : formatINRShort(toNumber(summary?.total_card_limit))} mask="••••" hideColor />
+              </div>
+              <div className="mt-1 text-[11px] text-slate-500">Used: <PrivateValue value={formatINRShort(toNumber(summary?.total_card_used))} mask="••••" hideColor /></div>
+            </div>
+            <div className="rounded-2xl bg-slate-900/70 px-4 py-4 ring-1 ring-slate-800/80">
+              <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Status</div>
+              <div className="mt-2 text-sm font-semibold text-slate-100">
+                {cardStatusSummary.overdue > 0 ? 'Overdue' : cardStatusSummary.dueSoon > 0 ? 'Due Soon' : 'All Clear'}
+              </div>
+              <div className="mt-1 text-[11px] text-slate-500">
+                {cards.length} cards{latestCardUpdate ? ` · Updated ${new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short' }).format(new Date(latestCardUpdate))}` : ''}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl bg-accent-600 text-sm font-semibold text-white"
+            >
+              <Icon name="add" className="h-4 w-4" />
+              Add Card
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const target = cards.find((card) => card.status !== 'paid')
+                if (target) setSelectedCard(target)
+              }}
+              disabled={!cards.some((card) => card.status !== 'paid')}
+              className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-900/80 text-sm font-semibold text-slate-200 disabled:opacity-50"
+            >
+              <Icon name="paid" className="h-4 w-4" />
+              Mark Paid
+            </button>
+          </div>
+
+          <div className="rounded-2xl bg-slate-900/75 px-4 py-4 ring-1 ring-slate-800/80">
+            <div className="grid grid-cols-[1fr_132px] gap-3">
+              <label className="flex h-11 items-center gap-2 rounded-2xl border border-slate-700 bg-slate-800/80 px-3 text-slate-500">
+                <Icon name="search" className="h-4 w-4 shrink-0" />
+                <input
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search card or bank"
+                  className="w-full bg-transparent text-sm text-slate-100 placeholder:text-slate-500 outline-none"
+                />
+              </label>
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value as 'all' | ApiCreditCard['status'])}
+                className="h-11 rounded-2xl border border-slate-700 bg-slate-800/80 px-3 text-sm text-slate-200 outline-none"
+              >
+                <option value="all">All</option>
+                <option value="paid">Paid</option>
+                <option value="due_soon">Due Soon</option>
+                <option value="overdue">Overdue</option>
+              </select>
+            </div>
+          </div>
+
+          {cardsLoading ? (
+            <div className="rounded-2xl bg-slate-900/75 px-4 py-8 text-center ring-1 ring-slate-800/80">
+              <div className="text-sm text-slate-400">Loading cards…</div>
+            </div>
+          ) : cardsError ? (
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-4 text-sm text-rose-200">{cardsError}</div>
+          ) : filteredCards.length === 0 ? (
+            <div className="rounded-2xl bg-slate-900/75 px-4 py-8 text-center ring-1 ring-slate-800/80">
+              <div className="text-sm font-semibold text-slate-100">No credit cards added yet</div>
+              <div className="mt-2 text-[12px] text-slate-500">Add Credit Card to track dues, usage, and due dates.</div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredCards.map((card) => {
+                const tone = buildStatusTone(card.status)
+                return (
+                  <div key={`mobile-card-${card.id}`} className={['rounded-2xl bg-slate-900/75 px-4 py-4 ring-1 ring-slate-800/80', tone.border].join(' ')}>
+                    <div className="flex items-start gap-3">
+                      <span className={['mt-1 h-14 w-1 shrink-0 rounded-full', tone.bar].join(' ')} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold text-slate-100">{card.card_name}</div>
+                            <div className="mt-1 text-[12px] text-slate-400">{card.bank_name} ••{card.last4}</div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedCard(card)}
+                            className="grid h-10 w-10 place-items-center rounded-xl border border-slate-700 bg-slate-800 text-slate-300"
+                          >
+                            <Icon name="more" className="h-4 w-4" />
+                          </button>
+                        </div>
+
+                        <div className="mt-3 flex items-center justify-between gap-3">
+                          <span className={tone.badge}>{card.status.replace('_', ' ')}</span>
+                          <div className="text-right">
+                            <div className={['text-sm font-semibold', privacyMode ? 'text-slate-300' : tone.accent].join(' ')}>
+                              <PrivateValue value={formatINR(toNumber(card.current_bill_amount))} mask="••••" hideColor />
+                            </div>
+                            <div className="mt-1 text-[11px] text-slate-500">Due {card.due_date}</div>
+                          </div>
+                        </div>
+
+                        <div className="mt-3">
+                          <div className="flex items-center justify-between text-[11px] text-slate-500">
+                            <span>Used <PrivateValue value={formatINRShort(toNumber(card.used_amount))} mask="••••" hideColor /></span>
+                            <span>{privacyMode ? '••••' : `${toNumber(card.utilization_pct).toFixed(1)}%`}</span>
+                          </div>
+                          <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
+                            <div className={['h-full rounded-full', tone.bar].join(' ')} style={{ width: `${Math.min(toNumber(card.utilization_pct), 100)}%` }} />
+                          </div>
+                          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+                            <span>Limit <PrivateValue value={formatINRShort(toNumber(card.total_limit))} mask="••••" hideColor /></span>
+                            <span>{card.days_until_due < 0 ? `${Math.abs(card.days_until_due)} days overdue` : `${card.days_until_due} days left`}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="hidden md:block space-y-6">
+          <div className="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 px-5 py-3 shadow-sm">
+            <Icon name="cards" className="h-4 w-4 shrink-0 text-slate-400" />
+            <span className="text-sm text-slate-500 dark:text-slate-400">Credit Cards</span>
+            <span className="text-sm text-slate-400 dark:text-slate-600">·</span>
+            <span className="text-sm text-slate-500 dark:text-slate-400">Track limits, dues, utilization, and bill cycles</span>
+            <div className="ml-auto flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              <span className="text-xs font-medium text-emerald-500 dark:text-emerald-400">Live</span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end">
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-accent-700 active:bg-accent-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Icon name="add" className="h-4 w-4" />
+              Add Credit Card
+            </button>
+          </div>
+
+          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {summaryCards.map((card) => (
+              <div
+                key={card.label}
+                className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm"
+              >
+                <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">{card.label}</div>
+                <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', privacyMode ? 'text-slate-400 dark:text-slate-400' : card.valueClass ?? 'text-slate-900 dark:text-white'].join(' ')}>
+                  <PrivateValue value={card.value} mask="••••" hideColor />
+                </div>
+                <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{card.meta}</div>
+                <div className={['mt-4 grid h-7 w-7 place-items-center rounded-lg', card.iconBg].join(' ')}>
+                  <Icon name="cards" className="h-3.5 w-3.5" />
+                </div>
+              </div>
+            ))}
+          </section>
+
+          <SectionCard>
           <div className="border-b border-slate-200 dark:border-slate-700/50 px-6 py-4">
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
               <label className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800 px-3 shadow-sm focus-within:border-accent-500 focus-within:ring-2 focus-within:ring-accent-500/15">
@@ -616,11 +844,180 @@ export default function CreditCardsPage() {
           )}
         </SectionCard>
       </div>
+      </div>
+
+      <BottomSheet
+        open={Boolean(selectedCard) && !isModalOpen}
+        onClose={() => setSelectedCard(null)}
+        title={selectedCard?.card_name ?? 'Credit card'}
+        subtitle={selectedCard ? `${selectedCard.bank_name} ••${selectedCard.last4}` : ''}
+        footer={
+          selectedCard ? (
+            <div className="grid grid-cols-1 gap-3">
+              {selectedCard.status !== 'paid' ? (
+                <button
+                  type="button"
+                  onClick={() => void handleMarkPaid(selectedCard)}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-semibold text-white"
+                >
+                  <Icon name="paid" className="h-4 w-4" />
+                  Mark Paid
+                </button>
+              ) : null}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCard(null)
+                    openEditModal(selectedCard)
+                  }}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-800 text-sm font-semibold text-slate-200"
+                >
+                  <Icon name="edit" className="h-4 w-4" />
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleDelete(selectedCard)}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-rose-500/20 bg-rose-500/10 text-sm font-semibold text-rose-300"
+                >
+                  <Icon name="remove" className="h-4 w-4" />
+                  Delete
+                </button>
+              </div>
+            </div>
+          ) : null
+        }
+      >
+        {selectedCard ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+                <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Bill Amount</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  <PrivateValue value={formatINR(toNumber(selectedCard.current_bill_amount))} mask="••••" hideColor />
+                </div>
+              </div>
+              <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+                <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Due Date</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{selectedCard.due_date}</div>
+              </div>
+              <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+                <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Used</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  <PrivateValue value={formatINR(toNumber(selectedCard.used_amount))} mask="••••" hideColor />
+                </div>
+              </div>
+              <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+                <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Limit</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  <PrivateValue value={formatINR(toNumber(selectedCard.total_limit))} mask="••••" hideColor />
+                </div>
+              </div>
+            </div>
+            <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+              <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-500">
+                <span>Utilization</span>
+                <span>{privacyMode ? '••••' : formatPct(toNumber(selectedCard.utilization_pct))}</span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                <div className={['h-full rounded-full', buildStatusTone(selectedCard.status).bar].join(' ')} style={{ width: `${Math.min(toNumber(selectedCard.utilization_pct), 100)}%` }} />
+              </div>
+              <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+                {selectedCard.days_until_due < 0 ? `${Math.abs(selectedCard.days_until_due)} days overdue` : `${selectedCard.days_until_due} days left`}
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </BottomSheet>
+
+      <div className="md:hidden">
+        <BottomSheet
+          open={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          title={editingId === null ? 'Add Credit Card' : 'Edit Credit Card'}
+          subtitle="Manual credit card tracking"
+          footer={
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                disabled={isSaving}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="credit-card-form"
+                disabled={isSaving}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-accent-600 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                <Icon name="add" className="h-4 w-4" />
+                {isSaving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          }
+        >
+          <form id="credit-card-form" onSubmit={handleSubmit} className="space-y-4">
+            {formErrorMessage ? (
+              <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200 whitespace-pre-wrap">
+                {formErrorMessage}
+              </div>
+            ) : null}
+            <div className="grid grid-cols-1 gap-4">
+              <FormField label="Card Name" error={formErrors.card_name}>
+                <input value={form.card_name} onChange={(event) => setForm((current) => ({ ...current, card_name: event.target.value }))} placeholder="HDFC Regalia" className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150" />
+              </FormField>
+              <FormField label="Bank Name" error={formErrors.bank_name}>
+                <input value={form.bank_name} onChange={(event) => setForm((current) => ({ ...current, bank_name: event.target.value }))} placeholder="HDFC Bank" className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150" />
+              </FormField>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField label="Last 4 Digits" error={formErrors.last4}>
+                  <input value={form.last4} onChange={(event) => setForm((current) => ({ ...current, last4: event.target.value.replace(/\D/g, '').slice(0, 4) }))} placeholder="4821" inputMode="numeric" maxLength={4} className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150" />
+                </FormField>
+                <FormField label="Status" error={formErrors.status}>
+                  <select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as CreditCardFormState['status'] }))} className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-sm text-slate-900 dark:text-slate-100 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150">
+                    <option value="paid">Paid</option>
+                    <option value="due_soon">Due Soon</option>
+                    <option value="overdue">Overdue</option>
+                  </select>
+                </FormField>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField label="Total Limit" error={formErrors.total_limit}>
+                  <input value={form.total_limit} onChange={(event) => setForm((current) => ({ ...current, total_limit: event.target.value }))} placeholder="500000" inputMode="decimal" className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150" />
+                </FormField>
+                <FormField label="Used Amount" error={formErrors.used_amount}>
+                  <input value={form.used_amount} onChange={(event) => setForm((current) => ({ ...current, used_amount: event.target.value }))} placeholder="71420" inputMode="decimal" className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150" />
+                </FormField>
+              </div>
+              <FormField label="Current Bill Amount" error={formErrors.current_bill_amount}>
+                <input value={form.current_bill_amount} onChange={(event) => setForm((current) => ({ ...current, current_bill_amount: event.target.value }))} placeholder="38450" inputMode="decimal" className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150" />
+              </FormField>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField label="Billing Start" error={formErrors.billing_cycle_start}>
+                  <input type="date" value={form.billing_cycle_start} onChange={(event) => setForm((current) => ({ ...current, billing_cycle_start: event.target.value }))} className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150" />
+                </FormField>
+                <FormField label="Billing End" error={formErrors.billing_cycle_end}>
+                  <input type="date" value={form.billing_cycle_end} onChange={(event) => setForm((current) => ({ ...current, billing_cycle_end: event.target.value }))} className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150" />
+                </FormField>
+              </div>
+              <FormField label="Due Date" error={formErrors.due_date}>
+                <input type="date" value={form.due_date} onChange={(event) => setForm((current) => ({ ...current, due_date: event.target.value }))} className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150" />
+              </FormField>
+              <FormField label="Notes" error={formErrors.notes}>
+                <textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} rows={4} placeholder="Optional notes about the card" className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150 resize-none" />
+              </FormField>
+            </div>
+          </form>
+        </BottomSheet>
+      </div>
 
       {isDrawerMounted ? (
         <div
           className={[
-            'fixed inset-0 z-50 flex items-stretch justify-end bg-slate-950/60 backdrop-blur-sm transition-opacity duration-200 motion-reduce:transition-none',
+            'fixed inset-0 z-50 hidden items-stretch justify-end bg-slate-950/60 backdrop-blur-sm transition-opacity duration-200 motion-reduce:transition-none md:flex',
             isDrawerVisible ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
           ].join(' ')}
           onClick={() => setIsModalOpen(false)}

@@ -10,7 +10,8 @@ import {
 } from 'recharts'
 import { Icon } from './Icon'
 import PrivateValue from './ui/PrivateValue'
-import { ApiError, apiFetch, getBankAccounts, type BankAccount } from '../lib/api'
+import WealthBucketModal from './ui/WealthBucketModal'
+import { ApiError, apiFetch, getBankAccounts, type BankAccount, type WealthBucketItem } from '../lib/api'
 import { formatINR, formatINRShort, formatPct, formatSignedPct, getTrendClass } from '../lib/format'
 import { maskSensitiveText } from '../utils/privacy'
 import { usePrivacyMode } from '../context/PrivacyContext'
@@ -48,6 +49,7 @@ type ApiDashboardSummary = {
     label: string
     amount: string | number
     percentage: string | number
+    items: WealthBucketItem[]
   }>
 }
 
@@ -152,15 +154,13 @@ const timeFilters: Array<{ label: string; value: PortfolioRange }> = [
 ]
 
 const assetTypePalette: Record<string, { label: string; color: string }> = {
-  stock_in: { label: 'Indian Stocks', color: '#0d9488' },
-  stock_us: { label: 'US Stocks', color: '#38bdf8' },
-  stock: { label: 'Indian Stocks', color: '#0d9488' },
-  etf: { label: 'ETFs', color: '#0ea5e9' },
-  mutual_fund: { label: 'Mutual Funds', color: '#a78bfa' },
-  cash: { label: 'Cash', color: '#f59e0b' },
-  other: { label: 'Other Assets', color: '#64748b' },
+  ind_stocks: { label: 'IND Stocks', color: '#14b8a6' },
+  us_stocks: { label: 'US Stocks', color: '#38bdf8' },
+  mutual_funds: { label: 'Mutual Funds', color: '#a78bfa' },
   banks: { label: 'Banks', color: '#f97316' },
-  pfepf: { label: 'PF / EPF', color: '#22c55e' },
+  epf: { label: 'EPF', color: '#22c55e' },
+  liabilities: { label: 'Liabilities', color: '#fb7185' },
+  other: { label: 'Other Assets', color: '#64748b' },
 }
 
 const LABEL = 'text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500'
@@ -223,6 +223,11 @@ function formatCompactDateTime(date: Date) {
   }).format(date)
 }
 
+function isGoldHolding(holding: ApiHolding) {
+  const text = `${holding.symbol} ${holding.company_name} ${holding.sector ?? ''} ${holding.notes ?? ''} ${holding.exchange_symbol ?? ''}`.toLowerCase()
+  return holding.asset_type === 'gold' || (holding.asset_type === 'other' && text.includes('gold')) || (holding.asset_type === 'etf' && text.includes('gold'))
+}
+
 function getAssetTypeMeta(assetType: string | null | undefined) {
   const normalized = (assetType || 'other').toLowerCase()
   return assetTypePalette[normalized] ?? assetTypePalette.other
@@ -261,17 +266,17 @@ function buildAllocationData(summary: ApiDashboardSummary | null, holdings: ApiH
   if (summary?.allocations && summary.allocations.length > 0) {
     return summary.allocations.map(entry => {
       const meta = getAssetTypeMeta(entry.asset_type)
-      return { key: entry.asset_type, label: entry.label || meta.label, value: toNumber(entry.amount), percentage: toNumber(entry.percentage), color: meta.color }
+      return { key: entry.asset_type, label: entry.label || meta.label, value: toNumber(entry.amount), percentage: toNumber(entry.percentage), color: meta.color, items: entry.items ?? [] }
     })
   }
   const totals = holdings.reduce<Record<string, { label: string; value: number; color: string }>>((acc, h) => {
-    const key = h.country === 'US' ? 'stock_us' : h.asset_type === 'stock' ? 'stock_in' : (h.asset_type || 'other').toLowerCase()
+    const key = h.country === 'US' ? 'us_stocks' : h.asset_type === 'mutual_fund' ? 'mutual_funds' : h.country === 'IN' && (['stock', 'etf', 'gold'].includes(h.asset_type) || isGoldHolding(h)) ? 'ind_stocks' : 'other'
     const meta = getAssetTypeMeta(key)
     acc[key] = { label: meta.label, value: (acc[key]?.value ?? 0) + toNumber(h.current_value), color: meta.color }
     return acc
   }, {})
   const totalValue = Object.values(totals).reduce((acc, item) => acc + item.value, 0)
-  return Object.entries(totals).map(([key, item]) => ({ key, label: item.label, value: item.value, percentage: totalValue > 0 ? (item.value / totalValue) * 100 : 0, color: item.color }))
+  return Object.entries(totals).map(([key, item]) => ({ key, label: item.label, value: item.value, percentage: totalValue > 0 ? (item.value / totalValue) * 100 : 0, color: item.color, items: [] as WealthBucketItem[] }))
 }
 
 function buildActionItems(cards: ApiCreditCard[], summary: ApiDashboardSummary | null, performance: ApiPortfolioPerformance | null): ActionItem[] {
@@ -309,7 +314,7 @@ function buildInsights(summary: ApiDashboardSummary | null, holdings: ApiHolding
   const insights: InsightItem[] = []
   const allocation = buildAllocationData(summary, holdings)
   const topAllocation = allocation
-    .filter(e => e.key === 'stock_in' || e.key === 'stock_us' || e.key === 'etf' || e.key === 'mutual_fund')
+    .filter(e => e.key === 'ind_stocks' || e.key === 'us_stocks' || e.key === 'mutual_funds')
     .sort((a, b) => b.percentage - a.percentage)[0]
   if (topAllocation && topAllocation.percentage >= 35) {
     insights.push({ tone: 'amber', text: `${topAllocation.label} are concentrated at ${topAllocation.percentage.toFixed(1)}% of holdings. Consider diversifying when you add new positions.` })
@@ -369,6 +374,7 @@ export default function Dashboard({
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [statusTone, setStatusTone] = useState<'emerald' | 'rose' | 'amber' | 'slate'>('emerald')
   const [savingSnapshot, setSavingSnapshot] = useState(false)
+  const [selectedBucketKey, setSelectedBucketKey] = useState<string | null>(null)
 
   const loadDashboardData = async (signal?: AbortSignal) => {
     setSummaryLoading(true)
@@ -442,7 +448,7 @@ export default function Dashboard({
   }, [activeFilter])
 
   const allocationData = useMemo(() => buildAllocationData(summary, holdings), [holdings, summary])
-  const equityExposurePct = useMemo(() => allocationData.reduce((acc, e) => e.key === 'stock_in' || e.key === 'stock' || e.key === 'etf' ? acc + e.percentage : acc, 0), [allocationData])
+  const equityExposurePct = useMemo(() => allocationData.reduce((acc, e) => e.key === 'ind_stocks' || e.key === 'us_stocks' ? acc + e.percentage : acc, 0), [allocationData])
   const portfolioChartData = useMemo(() => buildPortfolioChartData(portfolioPerformance), [portfolioPerformance])
   const usStocksValue = useMemo(() => holdings.reduce((acc, h) => h.country === 'US' ? acc + toNumber(h.current_value) : acc, 0), [holdings])
   const liveUsdInrRate = useMemo(() => {
@@ -452,6 +458,7 @@ export default function Dashboard({
   const actionItems = useMemo(() => buildActionItems(creditCards, summary, portfolioPerformance), [creditCards, portfolioPerformance, summary])
   const upcomingPayments = useMemo(() => buildUpcomingPayments(creditCards), [creditCards])
   const insights = useMemo(() => buildInsights(summary, holdings, creditCards, portfolioPerformance), [creditCards, holdings, portfolioPerformance, summary])
+  const selectedBucket = useMemo(() => allocationData.find((entry) => entry.key === selectedBucketKey) ?? null, [allocationData, selectedBucketKey])
 
   const latestHoldingUpdate = useMemo(() => {
     const timestamps = holdings.map(h => h.updated_at)
@@ -500,6 +507,7 @@ export default function Dashboard({
 
   return (
     <div className="min-w-0 w-full space-y-5">
+      <WealthBucketModal bucket={selectedBucket} onClose={() => setSelectedBucketKey(null)} />
 
       {/* Toast banner */}
       {statusMessage ? (
@@ -518,7 +526,7 @@ export default function Dashboard({
       ) : null}
 
       {/* ── Prices bar ── */}
-      <div className="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 px-5 py-3 shadow-sm">
+      <div className="hidden items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3 shadow-sm dark:border-slate-700/50 dark:bg-slate-900/80 md:flex">
         <Icon name="refresh" className="h-4 w-4 shrink-0 text-slate-400" />
         <span className="text-sm text-slate-500 dark:text-slate-400">Prices last updated</span>
         {latestHoldingUpdate ? (
@@ -538,7 +546,7 @@ export default function Dashboard({
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
 
         {/* Net Worth card */}
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700/50 dark:bg-slate-900/80 sm:p-6">
           <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
 
             {/* NET WORTH */}
@@ -597,15 +605,15 @@ export default function Dashboard({
               <>
                 <div className="flex h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                   {allocationData.map(entry => (
-                    <div key={entry.key} style={{ width: `${Math.max(entry.percentage, 0)}%`, backgroundColor: entry.color }} className="h-full" />
+                    <button key={entry.key} type="button" onClick={() => setSelectedBucketKey(entry.key)} style={{ width: `${Math.max(entry.percentage, 0)}%`, backgroundColor: entry.color }} className="h-full transition-opacity hover:opacity-85" aria-label={`View ${entry.label} details`} />
                   ))}
                 </div>
                 <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
                   {allocationData.map(entry => (
-                    <span key={entry.key} className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                    <button key={entry.key} type="button" onClick={() => setSelectedBucketKey(entry.key)} className="inline-flex items-center gap-1.5 text-xs text-slate-500 transition-opacity hover:opacity-80 dark:text-slate-400">
                       <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
                       {entry.label} {privacyMode ? '•••' : `${entry.percentage.toFixed(1)}%`}
-                    </span>
+                    </button>
                   ))}
                 </div>
               </>
@@ -616,7 +624,7 @@ export default function Dashboard({
         </div>
 
         {/* Action Center */}
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700/50 dark:bg-slate-900/80 sm:p-6">
           <div className={LABEL}>Action Center</div>
           <div className="mt-4 divide-y divide-slate-100 dark:divide-slate-800">
             {actionItems.map((item, i) => (
@@ -785,7 +793,7 @@ export default function Dashboard({
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
 
         {/* Performance chart */}
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700/50 dark:bg-slate-900/80 sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className={LABEL}>Performance</div>
@@ -883,13 +891,13 @@ export default function Dashboard({
         </div>
 
         {/* Composition */}
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700/50 dark:bg-slate-900/80 sm:p-6">
           <div className={LABEL}>Composition</div>
 
           {allocationData.length > 0 ? (
             <div className="mt-5 space-y-4">
               {allocationData.map(entry => (
-                <div key={entry.key} className="flex items-center gap-3">
+                <button key={entry.key} type="button" onClick={() => setSelectedBucketKey(entry.key)} className="flex w-full items-center gap-3 text-left transition-opacity hover:opacity-85">
                   <div className="flex w-28 shrink-0 items-center gap-2">
                     <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: entry.color }} />
                     <span className="truncate text-sm text-slate-600 dark:text-slate-300">{entry.label}</span>
@@ -903,7 +911,7 @@ export default function Dashboard({
                   <span className="w-9 shrink-0 text-right text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-200">
                     {entry.percentage.toFixed(0)}%
                   </span>
-                </div>
+                </button>
               ))}
             </div>
           ) : (
@@ -931,7 +939,7 @@ export default function Dashboard({
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
 
         {/* Accounts */}
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700/50 dark:bg-slate-900/80 sm:p-5">
           <div className={LABEL}>Accounts</div>
           <div className="mt-4 divide-y divide-slate-100 dark:divide-slate-800">
             {bankAccountsLoading ? (
@@ -955,7 +963,7 @@ export default function Dashboard({
         </div>
 
         {/* Upcoming Payments */}
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700/50 dark:bg-slate-900/80 sm:p-5">
           <div className={LABEL}>Upcoming Payments</div>
           <div className="mt-4 divide-y divide-slate-100 dark:divide-slate-800">
             {cardsLoading ? (
@@ -985,7 +993,7 @@ export default function Dashboard({
         </div>
 
         {/* Insights */}
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700/50 dark:bg-slate-900/80 sm:p-5">
           <div className={LABEL}>Insights</div>
           <div className="mt-4 divide-y divide-slate-100 dark:divide-slate-800">
             {insights.length > 0 ? (

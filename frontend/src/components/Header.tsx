@@ -75,7 +75,7 @@ function MarketChip({
   const displayName = symbol === 'GC=F' ? 'GOLD 10G 24K' : symbol === 'SI=F' ? 'SILVER 1KG' : name
 
   return (
-    <div className="flex h-12 min-w-[148px] shrink-0 flex-col justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 shadow-sm">
+    <div className="flex h-12 min-w-[136px] shrink-0 flex-col justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 shadow-sm">
       <div className="flex items-center justify-between gap-2 text-[12px] leading-none">
         <span className="truncate font-medium text-slate-600 dark:text-slate-300">{displayName}</span>
         <span className={['font-semibold text-[11px]', toneClass].join(' ')}>
@@ -137,10 +137,12 @@ export default function Header({
   className = '',
   title = 'Dashboard',
   subtitle = '',
+  onLogout,
 }: {
   className?: string
   title?: string
   subtitle?: string
+  onLogout?: () => void
 }) {
   const { isDark, toggleTheme } = useTheme()
   const { privacyMode, togglePrivacyMode } = usePrivacyMode()
@@ -192,61 +194,112 @@ export default function Header({
   return (
     <header
       className={[
-        'h-16 shrink-0 border-b border-slate-200 dark:border-slate-800',
+        'shrink-0 border-b border-slate-200 dark:border-slate-800',
         'bg-white/80 dark:bg-slate-950/95 backdrop-blur-md',
-        'px-6 xl:px-8',
+        'px-4 lg:px-6 xl:px-8',
         className,
       ].join(' ')}
     >
-      <div className="flex h-full items-center justify-between gap-4">
-        {/* Page title */}
-        <div className="min-w-0 shrink-0">
-          <h1 className="truncate text-lg font-bold tracking-[-0.25px] text-slate-900 dark:text-white leading-none">
+      <div className="lg:hidden">
+        <div className="flex min-h-[76px] items-center justify-between gap-4 py-3">
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-lg font-bold tracking-[-0.25px] leading-none text-slate-900 dark:text-white">
+              {title}
+            </h1>
+            {subtitle ? (
+              <p className="mt-1 truncate pr-2 text-[12px] text-slate-500 dark:text-slate-400">{subtitle}</p>
+            ) : null}
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={togglePrivacyMode}
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-all duration-150 hover:border-slate-300 hover:text-slate-900 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-white"
+              aria-label={privacyMode ? 'Show sensitive values' : 'Hide sensitive values'}
+              title={privacyMode ? 'Show sensitive values' : 'Hide sensitive values'}
+            >
+              <Icon name={privacyMode ? 'viewOff' : 'view'} className="h-4 w-4" />
+            </button>
+
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-all duration-150 hover:border-slate-300 hover:text-slate-900 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-white"
+              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              <Icon name={isDark ? 'sun' : 'moon'} className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="border-t border-slate-200/80 py-3 dark:border-slate-800">
+          <div className="no-scrollbar flex items-center gap-2 overflow-x-auto">
+            {marketContent}
+          </div>
+          <div className="mt-2 flex items-center gap-1.5 pl-0.5 text-[11px] text-slate-500 dark:text-slate-500">
+            <span className={['h-1.5 w-1.5 rounded-full', isStale ? 'bg-amber-400' : 'bg-emerald-400'].join(' ')} />
+            <span className="whitespace-nowrap">
+              {isStale ? 'Stale' : 'Live'}
+              {lastUpdated ? ` · ${formatMarketTimestamp(lastUpdated)}` : ''}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="hidden min-h-[76px] items-center justify-between gap-6 py-3 lg:flex">
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-lg font-bold tracking-[-0.25px] leading-none text-slate-900 dark:text-white">
             {title}
           </h1>
           {subtitle ? (
-            <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{subtitle}</p>
+            <p className="mt-1 truncate pr-2 text-xs text-slate-500 dark:text-slate-400">{subtitle}</p>
           ) : null}
         </div>
 
-        {/* Right side: market chips + status + theme toggle */}
-        <div className="flex min-w-0 items-center gap-3 overflow-hidden">
-          <div className="no-scrollbar hidden items-center gap-2 overflow-x-auto lg:flex">
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
+          <div className="no-scrollbar flex min-w-0 items-center gap-2 overflow-x-auto">
             {marketContent}
           </div>
-
-          <div className="hidden shrink-0 items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-500 xl:flex">
-            <span
-              className={[
-                'h-1.5 w-1.5 rounded-full',
-                isStale ? 'bg-amber-400' : 'bg-emerald-400',
-              ].join(' ')}
-            />
+          <div className="hidden shrink-0 items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-500 2xl:flex">
+            <span className={['h-1.5 w-1.5 rounded-full', isStale ? 'bg-amber-400' : 'bg-emerald-400'].join(' ')} />
             <span className="whitespace-nowrap">
               {isStale ? 'Stale' : 'Live'}
               {lastUpdated ? ` · ${formatMarketTimestamp(lastUpdated)}` : ''}
             </span>
           </div>
 
-          {/* Theme toggle */}
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 shadow-sm transition-all duration-150 hover:border-slate-300 dark:hover:border-slate-600 hover:text-slate-900 dark:hover:text-white active:scale-95"
-            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            <Icon name={isDark ? 'sun' : 'moon'} className="h-4 w-4" />
-          </button>
-
           <button
             type="button"
             onClick={togglePrivacyMode}
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 shadow-sm transition-all duration-150 hover:border-slate-300 dark:hover:border-slate-600 hover:text-slate-900 dark:hover:text-white active:scale-95"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-all duration-150 hover:border-slate-300 hover:text-slate-900 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-white"
             aria-label={privacyMode ? 'Show sensitive values' : 'Hide sensitive values'}
             title={privacyMode ? 'Show sensitive values' : 'Hide sensitive values'}
           >
             <Icon name={privacyMode ? 'viewOff' : 'view'} className="h-4 w-4" />
           </button>
+
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-all duration-150 hover:border-slate-300 hover:text-slate-900 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-white"
+            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            <Icon name={isDark ? 'sun' : 'moon'} className="h-4 w-4" />
+          </button>
+
+          {onLogout ? (
+            <button
+              type="button"
+              onClick={onLogout}
+              className="hidden h-10 shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 shadow-sm transition-all duration-150 hover:border-slate-300 hover:text-slate-900 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-white xl:inline-flex"
+              aria-label="Log out"
+              title="Log out"
+            >
+              <Icon name="logout" className="h-4 w-4" />
+              <span>Logout</span>
+            </button>
+          ) : null}
         </div>
       </div>
     </header>

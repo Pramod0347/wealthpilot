@@ -11,6 +11,12 @@ const shortInrFormatter = new Intl.NumberFormat('en-IN', {
   minimumFractionDigits: 0,
 })
 
+const usdFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  maximumFractionDigits: 2,
+})
+
 const pctFormatter = new Intl.NumberFormat('en-IN', {
   maximumFractionDigits: 2,
   minimumFractionDigits: 2,
@@ -26,6 +32,10 @@ export function formatINRShort(value: number) {
   const scaled = abs >= 10000000 ? value / 10000000 : abs >= 100000 ? value / 100000 : value
   const formatted = shortInrFormatter.format(scaled)
   return `${formatted}${suffix}`
+}
+
+export function formatUSD(value: number) {
+  return usdFormatter.format(value)
 }
 
 export function formatPct(value: number) {

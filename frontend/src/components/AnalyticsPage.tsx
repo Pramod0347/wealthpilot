@@ -5,6 +5,7 @@ import { formatINR, formatINRShort, formatPct, formatSignedPct, getTrendClass } 
 import { usePrivacyMode } from '../context/PrivacyContext'
 import { Icon } from './Icon'
 import PrivateValue from './ui/PrivateValue'
+import WealthBucketModal from './ui/WealthBucketModal'
 
 type PortfolioRange = '1M' | '3M' | '6M' | '1Y' | 'ALL'
 
@@ -39,6 +40,18 @@ type ApiCreditCard = {
   status: 'paid' | 'due_soon' | 'overdue'
 }
 
+type ApiHolding = {
+  id: number
+  symbol: string
+  company_name: string
+  asset_type: string
+  country: string
+  sector: string | null
+  current_value: string | number
+  pnl: string | number
+  return_pct: string | number
+}
+
 type ChartPoint = {
   label: string
   date: string
@@ -48,14 +61,6 @@ type ChartPoint = {
 
 type SeverityTone = 'healthy' | 'watch' | 'risk' | 'action' | 'neutral'
 
-type InsightCard = {
-  title: string
-  explanation: string
-  severity: SeverityTone
-  value?: string
-  nextStep?: string
-}
-
 type RiskItem = {
   title: string
   level: 'Low' | 'Medium' | 'High'
@@ -63,11 +68,26 @@ type RiskItem = {
   action: string
 }
 
-type ActionItem = {
+type ScanRow = {
+  key: string
+  label: string
+  value: number
+  percentage: number
+  icon: 'stocks' | 'pfepf' | 'banks' | 'cards'
+  subtitle: string
+}
+
+type TipItem = {
   title: string
-  why: string
-  nextStep: string
-  severity: SeverityTone
+  body: string
+  tone: SeverityTone
+}
+
+type AllocationRow = {
+  label: string
+  value: number
+  percentage: number
+  color: string
 }
 
 const sectionLabel = 't-micro text-slate-500 dark:text-slate-500'
@@ -80,14 +100,17 @@ const rangeFilters: Array<{ label: string; value: PortfolioRange }> = [
 ]
 
 const allocationColors: Record<string, string> = {
-  stock_in: '#14b8a6',
-  stock_us: '#38bdf8',
-  etf: '#0ea5e9',
-  gold: '#f59e0b',
-  mutual_fund: '#a78bfa',
+  ind_stocks: '#14b8a6',
+  us_stocks: '#38bdf8',
+  mutual_funds: '#a78bfa',
   banks: '#f97316',
-  pfepf: '#22c55e',
+  epf: '#22c55e',
   liabilities: '#fb7185',
+  equity: '#14b8a6',
+  funds: '#a78bfa',
+  gold: '#f59e0b',
+  cash: '#f97316',
+  fixed_retirement: '#22c55e',
 }
 
 function toNumber(value: string | number | null | undefined) {
@@ -131,6 +154,11 @@ function formatDateTime(value: string | null | undefined) {
     .format(date)
     .replace(' am', ' am')
     .replace(' pm', ' pm')
+}
+
+function isGoldHolding(holding: ApiHolding) {
+  const text = `${holding.symbol} ${holding.company_name} ${holding.sector ?? ''}`.toLowerCase()
+  return holding.asset_type === 'gold' || (holding.asset_type === 'other' && text.includes('gold')) || (holding.asset_type === 'etf' && text.includes('gold'))
 }
 
 function buildChartData(performance: ApiPortfolioPerformance | null): ChartPoint[] {
@@ -192,13 +220,6 @@ function severityClasses(severity: SeverityTone) {
   }
 }
 
-function allocationStatus(key: string, percentage: number) {
-  if (key === 'liabilities') return { label: 'Liability', tone: 'text-rose-300' }
-  if (percentage >= 40) return { label: 'High concentration', tone: 'text-amber-300' }
-  if (percentage <= 5) return { label: 'Underallocated', tone: 'text-sky-300' }
-  return { label: 'Balanced', tone: 'text-emerald-300' }
-}
-
 function SectionCard({ title, children, className = '', action }: { title?: string; children: ReactNode; className?: string; action?: ReactNode }) {
   return (
     <div className={['rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700/50 dark:bg-slate-900/80', className].join(' ')}>
@@ -243,13 +264,17 @@ export default function AnalyticsPage() {
   const [performance, setPerformance] = useState<ApiPortfolioPerformance | null>(null)
   const [dashboardSummary, setDashboardSummary] = useState<ApiDashboardSummary | null>(null)
   const [creditCards, setCreditCards] = useState<ApiCreditCard[]>([])
+  const [holdings, setHoldings] = useState<ApiHolding[]>([])
   const [activeRange, setActiveRange] = useState<PortfolioRange>('6M')
+  const [selectedBucketKey, setSelectedBucketKey] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [performanceLoading, setPerformanceLoading] = useState(true)
   const [creditHealthLoading, setCreditHealthLoading] = useState(true)
+  const [holdingsLoading, setHoldingsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [performanceError, setPerformanceError] = useState<string | null>(null)
   const [creditHealthError, setCreditHealthError] = useState<string | null>(null)
+  const [holdingsError, setHoldingsError] = useState<string | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -262,6 +287,20 @@ export default function AnalyticsPage() {
         setError(formatApiError(err))
       })
       .finally(() => setLoading(false))
+    return () => controller.abort()
+  }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setHoldingsLoading(true)
+    setHoldingsError(null)
+    apiFetch<ApiHolding[]>('/api/holdings', { signal: controller.signal })
+      .then(setHoldings)
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === 'AbortError') return
+        setHoldingsError(formatApiError(err))
+      })
+      .finally(() => setHoldingsLoading(false))
     return () => controller.abort()
   }, [])
 
@@ -321,75 +360,14 @@ export default function AnalyticsPage() {
     }
   }, [creditHealthError, dashboardSummary, error, intelligence, performance, performanceError, privacyMode])
 
-  const executiveCards = useMemo<InsightCard[]>(() => {
-    if (!intelligence) return []
-    const totalAssets = toNumber(intelligence.net_worth.total_assets)
-    const cashPct = totalAssets > 0 ? (toNumber(intelligence.net_worth.liquid_assets) / totalAssets) * 100 : 0
-    const liabilityPct = totalAssets > 0 ? (toNumber(intelligence.net_worth.total_liabilities) / totalAssets) * 100 : 0
-    const largest = intelligence.top_movers.largest_allocation
-    const usExposure = intelligence.asset_allocation.find((item) => item.key === 'stock_us')
-    const diversificationPct = largest ? toNumber(largest.percentage) : 0
-
-    const cards: InsightCard[] = []
-
-    cards.push({
-      title: diversificationPct >= 40 ? 'Diversification needs review' : 'Diversification looks reasonable',
-      explanation: privacyMode
-        ? diversificationPct >= 40
-          ? 'One allocation bucket is dominating the portfolio.'
-          : 'No single allocation bucket is dominating the portfolio.'
-        : largest
-          ? `${largest.label} currently has the largest allocation.`
-          : 'Portfolio mix is spread across multiple tracked asset buckets.',
-      severity: diversificationPct >= 40 ? 'watch' : 'healthy',
-      value: privacyMode || !largest ? undefined : formatPct(diversificationPct),
-      nextStep: diversificationPct >= 40 ? 'Review whether concentration is intentional or should be trimmed over time.' : 'Current allocation mix does not need urgent rebalance.',
-    })
-
-    cards.push({
-      title: liabilityPct >= 10 ? 'Credit dues need monitoring' : 'Credit card dues are low risk',
-      explanation: privacyMode
-        ? liabilityPct >= 10
-          ? 'Credit dues are becoming meaningful relative to assets.'
-          : 'Credit card dues are under control.'
-        : liabilityPct >= 10
-          ? 'Liabilities are a meaningful share of assets right now.'
-          : 'Card dues are a small share of your current asset base.',
-      severity: liabilityPct >= 10 ? 'risk' : 'healthy',
-      value: privacyMode ? undefined : formatPct(liabilityPct),
-      nextStep: liabilityPct >= 10 ? 'Pay down upcoming bills before adding new leverage.' : 'Keep utilization and due dates under control.',
-    })
-
-    cards.push({
-      title: cashPct < 10 ? 'Cash allocation is thin' : 'Cash buffer looks reasonable',
-      explanation: privacyMode
-        ? cashPct < 10
-          ? 'Immediate cash is limited relative to the rest of the portfolio.'
-          : 'Current cash buffer looks adequate.'
-        : cashPct < 10
-          ? 'Immediate cash is limited versus the rest of the portfolio.'
-          : 'You have enough immediate liquidity relative to assets.',
-      severity: cashPct < 10 ? 'watch' : 'healthy',
-      value: privacyMode ? undefined : formatPct(cashPct),
-      nextStep: cashPct < 10 ? 'Consider building a bigger emergency / operating cash buffer.' : 'Maintain this buffer unless near-term obligations rise.',
-    })
-
-    cards.push({
-      title: usExposure && toNumber(usExposure.percentage) > 0 ? 'US exposure is present' : 'US exposure is minimal',
-      explanation: privacyMode
-        ? usExposure && toNumber(usExposure.percentage) > 0
-          ? 'Foreign market exposure adds diversification and FX sensitivity.'
-          : 'Portfolio remains largely INR-linked today.'
-        : usExposure && toNumber(usExposure.percentage) > 0
-          ? 'Foreign market exposure adds diversification and FX sensitivity.'
-          : 'Portfolio remains largely INR-linked today.',
-      severity: usExposure && toNumber(usExposure.percentage) >= 15 ? 'watch' : 'neutral',
-      value: privacyMode || !usExposure ? undefined : formatPct(toNumber(usExposure.percentage)),
-      nextStep: usExposure && toNumber(usExposure.percentage) >= 15 ? 'Track USD/INR and keep FX assumptions current.' : 'Add only if you want more geographic diversification.',
-    })
-
-    return cards.slice(0, 4)
-  }, [intelligence, privacyMode])
+  const selectedBucket = useMemo(() => {
+    if (!intelligence || !selectedBucketKey) return null
+    return (
+      intelligence.asset_allocation.find((item) => item.key === selectedBucketKey) ??
+      intelligence.risk_allocation.find((item) => item.key === selectedBucketKey) ??
+      null
+    )
+  }, [intelligence, selectedBucketKey])
 
   const riskItems = useMemo<RiskItem[]>(() => {
     if (!intelligence || !dashboardSummary) return []
@@ -399,7 +377,7 @@ export default function AnalyticsPage() {
     const equityExposure = intelligence.risk_allocation
       .filter((item) => item.key === 'equity' || item.key === 'funds')
       .reduce((sum, item) => sum + toNumber(item.percentage), 0)
-    const usExposure = intelligence.asset_allocation.find((item) => item.key === 'stock_us')
+    const usExposure = intelligence.asset_allocation.find((item) => item.key === 'us_stocks')
     const utilization = toNumber(dashboardSummary.overall_card_utilization)
 
     return [
@@ -436,261 +414,353 @@ export default function AnalyticsPage() {
     ]
   }, [dashboardSummary, intelligence])
 
-  const actionPlan = useMemo<ActionItem[]>(() => {
-    if (!intelligence || !dashboardSummary) return []
-    const items: ActionItem[] = []
-    const totalAssets = toNumber(intelligence.net_worth.total_assets)
-    const cashPct = totalAssets > 0 ? (toNumber(intelligence.net_worth.liquid_assets) / totalAssets) * 100 : 0
-    const largest = intelligence.top_movers.largest_allocation
-    const utilization = toNumber(dashboardSummary.overall_card_utilization)
-
-    if (!intelligence.cashflow_context.has_data) {
-      items.push({
-        title: 'Add monthly cashflow data',
-        why: 'Savings rate and spending health remain incomplete without monthly inflow/outflow data.',
-        nextStep: 'Add this month’s income and expense summary from your Money Manager app.',
-        severity: 'action',
-      })
-    }
-
-    if (largest && toNumber(largest.percentage) >= 40) {
-      items.push({
-        title: `Review ${largest.label} concentration`,
-        why: 'One allocation bucket is dominating portfolio mix.',
-        nextStep: 'Check if this concentration is intentional or needs gradual rebalancing.',
-        severity: 'watch',
-      })
-    }
-
-    if (cashPct < 10) {
-      items.push({
-        title: 'Build a stronger cash buffer',
-        why: 'Immediate cash is low relative to total assets.',
-        nextStep: 'Increase bank cash or reduce near-term discretionary deployment.',
-        severity: 'watch',
-      })
-    }
-
-    if (utilization >= 50 || dashboardSummary.overdue_count > 0 || dashboardSummary.due_soon_count > 0) {
-      items.push({
-        title: 'Review credit card due schedule',
-        why: 'Utilization or payment timing could become a short-term drag.',
-        nextStep: 'Pay the nearest due card first and reduce utilization where possible.',
-        severity: dashboardSummary.overdue_count > 0 ? 'risk' : 'action',
-      })
-    }
-
-    if (intelligence.top_movers.attention.length > 0) {
-      items.push({
-        title: 'Resolve flagged holding issues',
-        why: `${intelligence.top_movers.attention.length} portfolio items need attention.`,
-        nextStep: intelligence.top_movers.attention[0]?.detail ?? 'Review stale, manual, or concentrated holdings.',
-        severity: 'action',
-      })
-    }
-
-    items.push({
-      title: 'Keep manual prices current',
-      why: 'Intelligence quality depends on up-to-date manual and stale holdings.',
-      nextStep: 'Refresh auto-supported prices and update manual holdings on review day.',
-      severity: 'neutral',
-    })
-
-    return items.slice(0, 6)
-  }, [dashboardSummary, intelligence])
-
   const performanceHeaderValue = intelligence?.performance.has_snapshots ? formatMoney(toNumber(intelligence.performance.latest_snapshot_value)) : '—'
-  const performanceHeaderTone = privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(intelligence?.performance.latest_snapshot_return_pct))
   const utilization = toNumber(dashboardSummary?.overall_card_utilization)
   const snapshotCount = performance?.actual.length ?? 0
   const firstSnapshotValue = snapshotCount > 0 ? toNumber(performance?.actual[0]?.current_value) : 0
   const latestSnapshotValue = snapshotCount > 0 ? toNumber(performance?.actual[snapshotCount - 1]?.current_value) : 0
   const changeSinceFirst = latestSnapshotValue - firstSnapshotValue
   const predictionReady = snapshotCount >= 3 && (performance?.predicted.length ?? 0) > 0
-  const creditStatus =
-    dashboardSummary?.overdue_count
-      ? { label: 'Overdue', tone: 'text-rose-300 bg-rose-500/15 border border-rose-500/20' }
-      : dashboardSummary?.due_soon_count
-        ? { label: 'Due soon', tone: 'text-amber-300 bg-amber-500/15 border border-amber-500/20' }
-        : { label: 'Clear', tone: 'text-emerald-300 bg-emerald-500/15 border border-emerald-500/20' }
+  const networthCards = useMemo(() => {
+    if (!intelligence) return []
+    return [
+      { label: 'Net Worth', value: formatMoney(toNumber(intelligence.net_worth.net_worth)), tone: privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(intelligence.net_worth.net_worth)), context: 'Assets minus liabilities' },
+      { label: 'Assets', value: formatMoney(toNumber(intelligence.net_worth.total_assets)), tone: 'text-slate-900 dark:text-white', context: 'Tracked asset base' },
+      { label: 'Liabilities', value: formatMoney(toNumber(intelligence.net_worth.total_liabilities)), tone: privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-rose-400', context: 'Credit dues only' },
+    ]
+  }, [intelligence, privacyMode])
+
+  const scanRows = useMemo<ScanRow[]>(() => {
+    if (!intelligence) return []
+    const iconByKey: Record<string, ScanRow['icon']> = {
+      ind_stocks: 'stocks',
+      mutual_funds: 'stocks',
+      epf: 'pfepf',
+      us_stocks: 'stocks',
+      banks: 'banks',
+      liabilities: 'cards',
+    }
+    const assetRows = intelligence.asset_allocation.map((item) => ({
+      key: item.key,
+      label: item.label,
+      value: toNumber(item.amount),
+      percentage: toNumber(item.percentage),
+      icon: iconByKey[item.key] ?? 'stocks',
+      subtitle: item.items.length === 1 ? '1 item' : `${item.items.length} items`,
+    }))
+    const liabilitiesValue = toNumber(intelligence.net_worth.total_liabilities)
+    if (liabilitiesValue > 0) {
+      assetRows.push({
+        key: 'liabilities',
+        label: 'Credit Cards / Liabilities',
+        value: liabilitiesValue,
+        percentage: toNumber(intelligence.net_worth.total_assets) > 0 ? (liabilitiesValue / toNumber(intelligence.net_worth.total_assets)) * 100 : 0,
+        icon: 'cards',
+        subtitle: `${dashboardSummary?.overdue_count ?? 0} overdue · ${dashboardSummary?.due_soon_count ?? 0} due soon`,
+      })
+    }
+    return assetRows
+  }, [dashboardSummary, intelligence])
+
+  const smartTips = useMemo<TipItem[]>(() => {
+    if (!intelligence) return []
+    const totalAssets = toNumber(intelligence.net_worth.total_assets)
+    const cashPct = totalAssets > 0 ? (toNumber(intelligence.net_worth.liquid_assets) / totalAssets) * 100 : 0
+    const largest = intelligence.top_movers.largest_allocation
+    const tips: TipItem[] = []
+
+    if (intelligence.top_movers.biggest_gainers.length > 0) {
+      const names = intelligence.top_movers.biggest_gainers.slice(0, 3).map((item) => item.symbol).join(', ')
+      tips.push({
+        title: 'Performance driver',
+        body: `${names} are contributing most to portfolio gains right now.`,
+        tone: 'healthy',
+      })
+    }
+
+    if (largest) {
+      tips.push({
+        title: 'Largest allocation',
+        body: `${largest.label} are your largest allocation.`,
+        tone: toNumber(largest.percentage) >= 40 ? 'watch' : 'neutral',
+      })
+    }
+
+    if (cashPct < 10) {
+      tips.push({
+        title: 'Cash buffer',
+        body: 'Cash buffer is low compared to total assets.',
+        tone: 'watch',
+      })
+    }
+
+    tips.push({
+      title: 'Credit health',
+      body: dashboardSummary && (dashboardSummary.overdue_count > 0 || dashboardSummary.due_soon_count > 0)
+        ? 'Upcoming credit card dues need attention.'
+        : 'Credit card dues are under control.',
+      tone: dashboardSummary && dashboardSummary.overdue_count > 0 ? 'risk' : dashboardSummary && dashboardSummary.due_soon_count > 0 ? 'watch' : 'healthy',
+    })
+
+    return tips.slice(0, 4)
+  }, [dashboardSummary, intelligence])
+
+  const sectorAllocation = useMemo<AllocationRow[]>(() => {
+    const eligible = holdings.filter((holding) => (['stock', 'etf', 'gold', 'mutual_fund'].includes(holding.asset_type) || isGoldHolding(holding)) && holding.sector)
+    const totals = eligible.reduce<Record<string, number>>((acc, holding) => {
+      const key = (holding.sector || '').trim()
+      if (!key) return acc
+      acc[key] = (acc[key] ?? 0) + toNumber(holding.current_value)
+      return acc
+    }, {})
+    const total = Object.values(totals).reduce((sum, value) => sum + value, 0)
+    return Object.entries(totals)
+      .map(([label, value]) => ({ label, value, percentage: total > 0 ? (value / total) * 100 : 0, color: '#14b8a6' }))
+      .sort((left, right) => right.value - left.value)
+      .slice(0, 6)
+  }, [holdings])
+
+  const marketCapAllocation = useMemo<AllocationRow[]>(() => {
+    const totals = holdings.reduce<Record<string, number>>((acc, holding) => {
+      if (holding.country !== 'IN' || !(['stock', 'etf', 'gold'].includes(holding.asset_type) || isGoldHolding(holding))) return acc
+      const sectorText = (holding.sector || '').toLowerCase()
+      let label: string | null = null
+      if (sectorText.includes('mega cap')) label = 'Mega Cap'
+      else if (sectorText.includes('large cap')) label = 'Large Cap'
+      else if (sectorText.includes('mid cap')) label = 'Mid Cap'
+      else if (sectorText.includes('small cap')) label = 'Small Cap'
+      if (!label) return acc
+      acc[label] = (acc[label] ?? 0) + toNumber(holding.current_value)
+      return acc
+    }, {})
+    const colors: Record<string, string> = {
+      'Mega Cap': '#0ea5e9',
+      'Large Cap': '#14b8a6',
+      'Mid Cap': '#f59e0b',
+      'Small Cap': '#fb7185',
+    }
+    const total = Object.values(totals).reduce((sum, value) => sum + value, 0)
+    return Object.entries(totals)
+      .map(([label, value]) => ({ label, value, percentage: total > 0 ? (value / total) * 100 : 0, color: colors[label] ?? '#64748b' }))
+      .sort((left, right) => right.value - left.value)
+  }, [holdings])
+
+  const latestChange = intelligence?.performance.has_snapshots ? toNumber(intelligence.performance.latest_snapshot_return_pct) : null
+
+  const refreshAnalytics = async () => {
+    setLoading(true)
+    setPerformanceLoading(true)
+    setCreditHealthLoading(true)
+    setHoldingsLoading(true)
+    try {
+      const [intel, perf, summary, cards, nextHoldings] = await Promise.all([
+        getPortfolioIntelligence(),
+        apiFetch<ApiPortfolioPerformance>(`/api/portfolio/performance?range=${activeRange}`),
+        apiFetch<ApiDashboardSummary>('/api/dashboard/summary'),
+        apiFetch<ApiCreditCard[]>('/api/credit-cards'),
+        apiFetch<ApiHolding[]>('/api/holdings'),
+      ])
+      setIntelligence(intel)
+      setPerformance(perf)
+      setDashboardSummary(summary)
+      setCreditCards(cards)
+      setHoldings(nextHoldings)
+      setError(null)
+      setPerformanceError(null)
+      setCreditHealthError(null)
+      setHoldingsError(null)
+    } catch (err) {
+      const message = formatApiError(err)
+      setError(message)
+    } finally {
+      setLoading(false)
+      setPerformanceLoading(false)
+      setCreditHealthLoading(false)
+      setHoldingsLoading(false)
+    }
+  }
 
   return (
     <div className="space-y-5">
+      <WealthBucketModal
+        bucket={
+          selectedBucket
+            ? {
+                key: selectedBucket.key,
+                label: selectedBucket.label,
+                value: toNumber(selectedBucket.amount),
+                percentage: toNumber(selectedBucket.percentage),
+                items: selectedBucket.items,
+              }
+            : null
+        }
+        onClose={() => setSelectedBucketKey(null)}
+      />
       {error ? <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{error}</div> : null}
 
-      <SectionCard className="p-5">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div>
+      <SectionCard className="overflow-hidden p-0">
+        <div className="flex flex-col gap-4 border-b border-slate-200 px-4 py-4 dark:border-slate-700/50 sm:px-6 sm:py-5 xl:flex-row xl:items-start xl:justify-between">
+          <div className="hidden md:block">
             <div className="t-title text-slate-900 dark:text-white">Financial Analytics</div>
-            <div className="mt-1 t-body text-slate-500 dark:text-slate-400">Net worth, risk, allocation, cashflow, and portfolio intelligence</div>
+            <div className="mt-1 t-body text-slate-500 dark:text-slate-400">Net worth, allocation, risk, and portfolio scan</div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="inline-flex items-center gap-2 rounded-full border border-slate-700/70 bg-slate-900/60 px-3 py-2 t-badge text-slate-300">
               <Icon name="calendar" className="h-3.5 w-3.5" />
               Last updated {statusMeta.lastUpdated}
             </div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-700/70 bg-slate-900/60 px-3 py-2 t-badge text-slate-300">
-              <Icon name="analytics" className="h-3.5 w-3.5" />
-              Data quality {statusMeta.completeness}%
-            </div>
             <div className={['inline-flex items-center gap-2 rounded-full px-3 py-2 t-badge', statusMeta.stale ? 'border border-amber-500/20 bg-amber-500/10 text-amber-300' : 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-300'].join(' ')}>
               <span className={['h-1.5 w-1.5 rounded-full', statusMeta.stale ? 'bg-amber-400' : 'bg-emerald-400'].join(' ')} />
               {statusMeta.stale ? 'Stale' : 'Live'}
             </div>
-            {statusMeta.valuesHidden ? (
+            <button
+              type="button"
+              onClick={refreshAnalytics}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-700/70 bg-slate-900/60 px-3 py-2 t-badge text-slate-300 transition-colors hover:border-slate-600 hover:text-white"
+            >
+              <Icon name="refresh" className="h-3.5 w-3.5" />
+              Refresh
+            </button>
+          </div>
+        </div>
+        <div className="grid gap-5 px-4 py-4 sm:px-6 sm:py-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+          <div className="space-y-4">
+            <div className="t-section text-slate-900 dark:text-white">Networth Intelligence</div>
+            {privacyMode ? <div className="rounded-lg border border-slate-700/70 bg-slate-900/60 px-3 py-2 t-meta text-slate-300">Privacy mode is on. Labels stay visible, values are masked.</div> : null}
+            <div className="grid gap-3 sm:grid-cols-3">
+              {loading || !intelligence
+                ? Array.from({ length: 3 }, (_, index) => (
+                    <div key={index} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
+                      <div className="animate-pulse space-y-3">
+                        <div className="h-3 w-16 rounded bg-slate-200 dark:bg-slate-700" />
+                        <div className="h-7 w-24 rounded bg-slate-200 dark:bg-slate-700" />
+                      </div>
+                    </div>
+                  ))
+                : networthCards.map((card) => (
+                    <MetricCard key={card.label} label={card.label} value={card.value} context={card.context} tone={card.tone} hideColor />
+                  ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
               <div className="inline-flex items-center gap-2 rounded-full border border-slate-700/70 bg-slate-900/60 px-3 py-2 t-badge text-slate-300">
-                <Icon name="viewOff" className="h-3.5 w-3.5" />
-                Values hidden
+                <Icon name="analytics" className="h-3.5 w-3.5" />
+                Latest change{' '}
+                <span className={privacyMode ? 'text-slate-300' : latestChange !== null && latestChange >= 0 ? 'text-emerald-300' : 'text-rose-300'}>
+                  <PrivateValue value={latestChange !== null ? formatSignedPct(latestChange) : 'Not available'} mask="••••" hideColor />
+                </span>
               </div>
-            ) : null}
-          </div>
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Executive Intelligence Summary" className="p-5">
-        {loading ? (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 4 }, (_, index) => (
-              <div key={index} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
-                <div className="animate-pulse space-y-3">
-                  <div className="h-3 w-24 rounded bg-slate-200 dark:bg-slate-700" />
-                  <div className="h-6 w-36 rounded bg-slate-200 dark:bg-slate-700" />
-                  <div className="h-3 w-full rounded bg-slate-200 dark:bg-slate-700" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {executiveCards.map((card, index) => {
-              const tone = severityClasses(card.severity)
-              return (
-                <div key={`${card.title}-${index}`} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className={['t-section', tone.title].join(' ')}>{card.title}</div>
-                    <span className={['inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 t-badge', tone.chip].join(' ')}>
-                      <Icon name={tone.icon} className="h-3.5 w-3.5" />
-                      {card.severity === 'healthy' ? 'Healthy' : card.severity === 'watch' ? 'Watch' : card.severity === 'risk' ? 'Risk' : card.severity === 'action' ? 'Action' : 'Neutral'}
-                    </span>
-                  </div>
-                  {card.value ? (
-                    <div className="mt-3 t-metric text-slate-900 dark:text-white">
-                      <PrivateValue value={card.value} mask="••••" hideColor />
-                    </div>
-                  ) : null}
-                  <div className="mt-3 t-body text-slate-500 dark:text-slate-400">{card.explanation}</div>
-                  {card.nextStep ? <div className="mt-3 t-meta text-slate-300 dark:text-slate-300">Next: {card.nextStep}</div> : null}
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </SectionCard>
-
-      <SectionCard title="Net Worth Snapshot" className="p-5">
-        {privacyMode ? <div className="mb-4 rounded-lg border border-slate-700/70 bg-slate-900/60 px-3 py-2 t-meta text-slate-300">Values hidden. Labels and health status remain visible.</div> : null}
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
-          {loading || !intelligence ? (
-            Array.from({ length: 5 }, (_, index) => (
-              <div key={index} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
-                <div className="animate-pulse space-y-3">
-                  <div className="h-3 w-24 rounded bg-slate-200 dark:bg-slate-700" />
-                  <div className="h-7 w-20 rounded bg-slate-200 dark:bg-slate-700" />
-                </div>
-              </div>
-            ))
-          ) : (
-            <>
-              <MetricCard label="Total Assets" value={formatMoney(toNumber(intelligence.net_worth.total_assets))} context="All tracked assets" />
-              <MetricCard label="Total Liabilities" value={formatMoney(toNumber(intelligence.net_worth.total_liabilities))} context="Credit dues only" tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-rose-400'} hideColor />
-              <MetricCard label="Net Worth" value={formatMoney(toNumber(intelligence.net_worth.net_worth))} context="Assets minus liabilities" tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(intelligence.net_worth.net_worth))} hideColor />
-              <MetricCard label="Liquid Assets" value={formatMoney(toNumber(intelligence.net_worth.liquid_assets))} context="Immediate bank cash" />
-              <MetricCard label="Long-term Assets" value={formatMoney(toNumber(intelligence.net_worth.long_term_assets))} context="Investments and retirement assets" />
-            </>
-          )}
-        </div>
-      </SectionCard>
-
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <SectionCard title="Allocation & Diversification" className="p-5">
-          {!intelligence || intelligence.asset_allocation.length === 0 ? (
-            <div className="t-body text-slate-500 dark:text-slate-400">Not added</div>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                {intelligence.asset_allocation.map((item) => (
-                  <div key={item.key} className="h-full" style={{ width: `${Math.max(toNumber(item.percentage), 0)}%`, backgroundColor: allocationColors[item.key] ?? '#64748b' }} />
-                ))}
-              </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                {intelligence.asset_allocation.map((item) => {
-                  const pct = toNumber(item.percentage)
-                  const status = allocationStatus(item.key, pct)
-                  return (
-                    <div key={item.key} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5 dark:border-slate-700/50 dark:bg-slate-900/40">
-                      <div className="inline-flex min-w-0 items-center gap-2">
-                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: allocationColors[item.key] ?? '#64748b' }} />
-                        <div>
-                          <div className="t-nav text-slate-900 dark:text-white">{item.label}</div>
-                          <div className={['t-meta', status.tone].join(' ')}>{status.label}</div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="t-amount text-slate-900 dark:text-white">
-                          <PrivateValue value={formatMoney(toNumber(item.amount))} mask="••••" hideColor />
-                        </div>
-                        <div className="t-meta text-slate-500 dark:text-slate-400">
-                          <PrivateValue value={formatPct(pct)} mask="••••" hideColor />
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
+              <div className="inline-flex items-center gap-2 rounded-full border border-slate-700/70 bg-slate-900/60 px-3 py-2 t-badge text-slate-300">
+                <Icon name="calendar" className="h-3.5 w-3.5" />
+                {statusMeta.lastUpdated}
               </div>
             </div>
-          )}
-        </SectionCard>
+          </div>
 
-        <SectionCard title="Risk Diagnostics" className="p-5">
-          {riskItems.length === 0 ? (
-            <div className="t-body text-slate-500 dark:text-slate-400">Not enough risk data yet.</div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <div className={sectionLabel}>Projected Net Worth</div>
+                <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Based on saved portfolio snapshots</div>
+              </div>
+              <span className="rounded-full bg-slate-800 px-2.5 py-1 t-badge text-slate-300">{snapshotCount} snapshots</span>
+            </div>
+            {hasPerformance ? (
+              <div className="space-y-3">
+                <div className="h-36">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+                      <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
+                      <Tooltip
+                        contentStyle={{ background: '#0f172a', border: '1px solid rgba(51,65,85,0.7)', borderRadius: '12px', color: '#fff' }}
+                        formatter={(value, name) => [
+                          privacyMode ? '••••' : formatINR(Number(Array.isArray(value) ? value[0] ?? 0 : value ?? 0)),
+                          name === 'actual_value' ? 'Actual' : 'Projected',
+                        ]}
+                      />
+                      <Line type="monotone" dataKey="actual_value" stroke="#14b8a6" strokeWidth={2.25} dot={false} />
+                      {performance?.predicted.length ? <Line type="monotone" dataKey="predicted_value" stroke="#f59e0b" strokeWidth={2} dot={false} strokeDasharray="6 4" /> : null}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="t-meta text-slate-500 dark:text-slate-400">
+                  {predictionReady ? 'Projection shown from existing snapshot trend.' : 'Save more snapshots to see projection'}
+                </div>
+              </div>
+            ) : (
+              <div className="flex h-36 items-center justify-center rounded-xl border border-dashed border-slate-200 px-6 text-center dark:border-slate-700">
+                <div>
+                  <div className="t-section text-slate-900 dark:text-white">Save more snapshots to see projection</div>
+                  <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">No fake projection is shown without enough history.</div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </SectionCard>
+
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+        <SectionCard title="Portfolio Scan" className="p-5">
+          {!intelligence ? (
+            <div className="t-body text-slate-500 dark:text-slate-400">Loading portfolio buckets...</div>
           ) : (
-            <div className="space-y-3">
-              {riskItems.map((item) => {
-                const severity: SeverityTone = item.level === 'High' ? 'risk' : item.level === 'Medium' ? 'watch' : 'healthy'
-                const tone = severityClasses(severity)
+            <div className="space-y-4">
+              {scanRows.map((row) => {
+                const hasLiability = row.key === 'liabilities'
+                const bucketColor = allocationColors[row.key] ?? '#64748b'
                 return (
-                  <div key={item.title} className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-slate-700/50 dark:bg-slate-900/40">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="t-section text-slate-900 dark:text-white">{item.title}</div>
-                      <span className={['inline-flex items-center rounded-full px-2.5 py-1 t-badge', tone.chip].join(' ')}>{item.level}</span>
+                  <button
+                    key={row.key}
+                    type="button"
+                    onClick={() => setSelectedBucketKey(row.key)}
+                    className="flex w-full items-center gap-4 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-left transition-colors duration-200 hover:border-slate-300 dark:border-slate-700/50 dark:bg-slate-900/40 dark:hover:border-slate-600/70"
+                  >
+                    <div
+                      className="grid h-11 w-11 shrink-0 place-items-center rounded-xl"
+                      style={{ backgroundColor: `${bucketColor}20`, color: bucketColor }}
+                    >
+                      <Icon name={row.icon} className="h-5 w-5" />
                     </div>
-                    <div className="mt-2 t-body text-slate-500 dark:text-slate-400">{item.reason}</div>
-                    <div className="mt-2 t-meta text-slate-300 dark:text-slate-300">Action: {item.action}</div>
-                  </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="t-section text-slate-900 dark:text-white">{row.label}</div>
+                      <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">{row.subtitle}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="t-amount text-slate-900 dark:text-white">
+                        <PrivateValue value={formatMoney(row.value)} mask="••••" hideColor />
+                      </div>
+                      <div className={['mt-1 t-meta', privacyMode ? 'text-slate-400' : hasLiability ? 'text-rose-300' : 'text-slate-500 dark:text-slate-400'].join(' ')}>
+                        <PrivateValue value={formatPct(row.percentage)} mask="••••" hideColor />
+                      </div>
+                    </div>
+                    <Icon name="chevronDown" className="-rotate-90 h-4 w-4 shrink-0 text-slate-500" />
+                  </button>
                 )
               })}
             </div>
           )}
         </SectionCard>
-        <SectionCard title="Action Plan" className="p-5">
-          {actionPlan.length === 0 ? (
-            <div className="t-body text-slate-500 dark:text-slate-400">No prioritized actions yet.</div>
+
+        <SectionCard title="Smart Tips" className="p-5">
+          {loading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }, (_, index) => (
+                <div key={index} className="h-20 rounded-xl bg-slate-100 dark:bg-slate-800" />
+              ))}
+            </div>
           ) : (
             <div className="space-y-3">
-              {actionPlan.map((item, index) => {
-                const tone = severityClasses(item.severity)
+              {smartTips.map((tip, index) => {
+                const tone = severityClasses(tip.tone)
                 return (
-                  <div key={`${item.title}-${index}`} className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-slate-700/50 dark:bg-slate-900/40">
+                  <div key={`${tip.title}-${index}`} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
                     <div className="flex items-start justify-between gap-3">
-                      <div className="t-section text-slate-900 dark:text-white">{item.title}</div>
+                      <div className={['t-section', tone.title].join(' ')}>{tip.title}</div>
                       <span className={['inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 t-badge', tone.chip].join(' ')}>
                         <Icon name={tone.icon} className="h-3.5 w-3.5" />
-                        {item.severity === 'healthy' ? 'Healthy' : item.severity === 'watch' ? 'Watch' : item.severity === 'risk' ? 'Risk' : item.severity === 'action' ? 'Action' : 'Neutral'}
+                        {tip.tone === 'healthy' ? 'Healthy' : tip.tone === 'watch' ? 'Watch' : tip.tone === 'risk' ? 'Risk' : tip.tone === 'action' ? 'Action' : 'Neutral'}
                       </span>
                     </div>
-                    <div className="mt-2 t-body text-slate-500 dark:text-slate-400">{item.why}</div>
-                    <div className="mt-2 t-meta text-slate-300 dark:text-slate-300">Next step: {item.nextStep}</div>
+                    <div className="mt-2 t-body text-slate-500 dark:text-slate-400">{tip.body}</div>
                   </div>
                 )
               })}
@@ -699,82 +769,111 @@ export default function AnalyticsPage() {
         </SectionCard>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-        <SectionCard title="Liquidity & Cashflow Health" className="p-5">
-          {!intelligence ? (
-            <div className="t-body text-slate-500 dark:text-slate-400">Loading liquidity...</div>
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <SectionCard title="Sector Allocation" className="p-5">
+          {holdingsLoading ? (
+            <div className="t-body text-slate-500 dark:text-slate-400">Loading sectors...</div>
+          ) : holdingsError ? (
+            <div className="text-sm text-rose-300">{holdingsError}</div>
+          ) : sectorAllocation.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 px-4 py-5 dark:border-slate-700">
+              <div className="t-section text-slate-900 dark:text-white">Add sectors to holdings to see sector allocation.</div>
+              <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Only investments with sector data are included here.</div>
+            </div>
           ) : (
             <div className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <MetricCard label="Immediate Cash" value={formatMoney(toNumber(intelligence.liquidity.immediate_cash))} context="Available in bank accounts" />
-                <MetricCard label="Market-linked" value={formatMoney(toNumber(intelligence.liquidity.market_linked))} context="Stocks, funds, ETFs, gold" />
-                <MetricCard label="Locked / Long-term" value={formatMoney(toNumber(intelligence.liquidity.locked_long_term))} context="PF / EPF and long-term savings" />
-                <MetricCard label="Liabilities Due" value={formatMoney(toNumber(intelligence.liquidity.liabilities))} context="Credit card obligations" tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-rose-400'} hideColor />
+              <div className="flex h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                {sectorAllocation.map((row) => (
+                  <div key={row.label} className="h-full" style={{ width: `${row.percentage}%`, backgroundColor: row.color }} />
+                ))}
               </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
-                <div className={sectionLabel}>Cashflow Summary</div>
-                {!intelligence.cashflow_context.has_data ? (
-                  <>
-                    <div className="mt-2 t-section text-slate-900 dark:text-white">Monthly cashflow not added for this month</div>
-                    <div className="mt-1 t-body text-slate-500 dark:text-slate-400">Add monthly income and expense summary to improve spending and buffer insights.</div>
-                  </>
-                ) : (
-                  <div className="mt-3 grid gap-3 sm:grid-cols-4">
-                    <MetricCard label="Income" value={formatMoney(toNumber(intelligence.cashflow_context.income))} context={`Month ${intelligence.cashflow_context.month ?? 'current'}`} tone="text-emerald-400" hideColor />
-                    <MetricCard label="Spend" value={formatMoney(toNumber(intelligence.cashflow_context.spend))} context="Monthly outflow" tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-rose-400'} hideColor />
-                    <MetricCard label="Savings" value={formatMoney(toNumber(intelligence.cashflow_context.savings))} context="Income minus spend" tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(intelligence.cashflow_context.savings))} hideColor />
-                    <MetricCard label="Savings Rate" value={formatPct(toNumber(intelligence.cashflow_context.savings_rate))} context="Based on monthly income" tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(intelligence.cashflow_context.savings_rate))} hideColor />
+              <div className="space-y-3">
+                {sectorAllocation.map((row) => (
+                  <div key={row.label} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5 dark:border-slate-700/50 dark:bg-slate-900/40">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: row.color }} />
+                      <div className="t-nav text-slate-900 dark:text-white">{row.label}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="t-amount text-slate-900 dark:text-white"><PrivateValue value={formatMoney(row.value)} mask="••••" hideColor /></div>
+                      <div className="t-meta text-slate-500 dark:text-slate-400"><PrivateValue value={formatPct(row.percentage)} mask="••••" hideColor /></div>
+                    </div>
                   </div>
-                )}
-                <div className="mt-3 t-meta text-slate-500 dark:text-slate-500">Cashflow is monthly summary only. Bank balances are manually managed.</div>
+                ))}
               </div>
             </div>
           )}
         </SectionCard>
 
-        <SectionCard title="Credit Card Health" className="p-5">
-          {creditHealthError ? (
-            <div className="text-sm text-rose-300">{creditHealthError}</div>
-          ) : creditHealthLoading ? (
-            <div className="animate-pulse space-y-3">
-              <div className="h-6 w-28 rounded bg-slate-200 dark:bg-slate-700" />
-              <div className="h-3 w-full rounded bg-slate-200 dark:bg-slate-700" />
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="h-20 rounded bg-slate-200 dark:bg-slate-700" />
-                <div className="h-20 rounded bg-slate-200 dark:bg-slate-700" />
-              </div>
+        <SectionCard title="MarketCap Allocation" className="p-5">
+          {holdingsLoading ? (
+            <div className="t-body text-slate-500 dark:text-slate-400">Loading market-cap view...</div>
+          ) : marketCapAllocation.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 px-4 py-5 dark:border-slate-700">
+              <div className="t-section text-slate-900 dark:text-white">Market cap classification not added yet</div>
+              <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Add market cap category to holdings to enable this view.</div>
             </div>
-          ) : !dashboardSummary ? (
-            <div className="t-body text-slate-500 dark:text-slate-400">Not added</div>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className={sectionLabel}>Due Status</div>
-                  <div className="mt-2 t-section text-slate-900 dark:text-white">Credit card exposure overview</div>
-                  <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">
-                    {dashboardSummary.overdue_count} overdue · {dashboardSummary.due_soon_count} due soon · {creditCards.length} cards
+              {marketCapAllocation.map((row) => (
+                <div key={row.label} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5 dark:border-slate-700/50 dark:bg-slate-900/40">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: row.color }} />
+                    <div className="t-nav text-slate-900 dark:text-white">{row.label}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="t-amount text-slate-900 dark:text-white"><PrivateValue value={formatMoney(row.value)} mask="••••" hideColor /></div>
+                    <div className="t-meta text-slate-500 dark:text-slate-400"><PrivateValue value={formatPct(row.percentage)} mask="••••" hideColor /></div>
                   </div>
                 </div>
-                <span className={['inline-flex items-center rounded-full px-2.5 py-1 t-badge', creditStatus.tone].join(' ')}>{creditStatus.label}</span>
-              </div>
-              <div>
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <span className="t-meta text-slate-500 dark:text-slate-400">Utilization</span>
-                  <span className={['t-badge', privacyMode ? 'text-slate-300 dark:text-slate-300' : utilization >= 80 ? 'text-rose-300' : utilization >= 50 ? 'text-amber-300' : 'text-emerald-300'].join(' ')}>
-                    <PrivateValue value={formatPct(utilization)} mask="••••" hideColor />
-                  </span>
-                </div>
-                <div className="h-2.5 overflow-hidden rounded-full bg-slate-800">
-                  <div
-                    className={utilization >= 80 ? 'h-full bg-rose-400' : utilization >= 50 ? 'h-full bg-amber-400' : 'h-full bg-emerald-400'}
-                    style={{ width: `${Math.min(Math.max(utilization, 0), 100)}%` }}
-                  />
-                </div>
-              </div>
+              ))}
+            </div>
+          )}
+        </SectionCard>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <SectionCard title="Risk Diagnostics" className="p-5">
+          {riskItems.length === 0 ? (
+            <div className="t-body text-slate-500 dark:text-slate-400">Not enough risk data yet.</div>
+          ) : (
+            <div className="space-y-3">
+              {riskItems.slice(0, 4).map((item) => {
+                const severity: SeverityTone = item.level === 'High' ? 'risk' : item.level === 'Medium' ? 'watch' : 'healthy'
+                const tone = severityClasses(severity)
+                return (
+                  <div key={item.title} className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-slate-700/50 dark:bg-slate-900/40">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="t-section text-slate-900 dark:text-white">{item.title}</div>
+                      <span className={['inline-flex items-center rounded-full px-2.5 py-1 t-badge', tone.chip].join(' ')}>{item.level === 'Low' ? 'Healthy' : item.level === 'Medium' ? 'Watch' : 'High'}</span>
+                    </div>
+                    <div className="mt-2 t-body text-slate-500 dark:text-slate-400">{privacyMode ? item.reason.replace(/[\d.,%₹$]+/g, 'this level') : item.reason}</div>
+                    <div className="mt-2 t-meta text-slate-300 dark:text-slate-300">Suggested action: {item.action}</div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </SectionCard>
+
+        <SectionCard title="Cashflow Snapshot" className="p-5">
+          {!intelligence ? (
+            <div className="t-body text-slate-500 dark:text-slate-400">Loading cashflow...</div>
+          ) : !intelligence.cashflow_context.has_data ? (
+            <div className="rounded-xl border border-dashed border-slate-200 px-4 py-5 dark:border-slate-700">
+              <div className="t-section text-slate-900 dark:text-white">Monthly cashflow not added for this month.</div>
+              <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Bank balances remain manually managed and are not affected by cashflow summaries.</div>
+            </div>
+          ) : (
+            <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">
-                <MetricCard label="Total Dues" value={formatMoney(toNumber(dashboardSummary.total_credit_card_dues))} context={`${dashboardSummary.overdue_count} overdue · ${dashboardSummary.due_soon_count} due soon`} tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-rose-400'} hideColor />
-                <MetricCard label="Total Limit" value={formatMoney(toNumber(dashboardSummary.total_card_limit))} context={privacyMode ? `${creditCards.length} cards tracked` : `Used ${formatMoney(toNumber(dashboardSummary.total_card_used))}`} />
+                <MetricCard label="Income" value={formatMoney(toNumber(intelligence.cashflow_context.income))} context={`Month ${intelligence.cashflow_context.month ?? 'current'}`} tone="text-emerald-400" hideColor />
+                <MetricCard label="Spend" value={formatMoney(toNumber(intelligence.cashflow_context.spend))} context="Monthly outflow" tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-rose-400'} hideColor />
+                <MetricCard label="Savings" value={formatMoney(toNumber(intelligence.cashflow_context.savings))} context="Income minus spend" tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(intelligence.cashflow_context.savings))} hideColor />
+                <MetricCard label="Savings Rate" value={formatPct(toNumber(intelligence.cashflow_context.savings_rate))} context="Current month summary" tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(intelligence.cashflow_context.savings_rate))} hideColor />
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
+                <div className="t-meta text-slate-500 dark:text-slate-400">Cashflow is monthly summary only. It does not auto-update bank balances.</div>
               </div>
             </div>
           )}
@@ -807,7 +906,7 @@ export default function AnalyticsPage() {
             <PrivateValue value={performanceHeaderValue} mask="••••" hideColor />
           </div>
           {intelligence?.performance.has_snapshots ? (
-            <div className={['t-nav', performanceHeaderTone].join(' ')}>
+            <div className={['t-nav', privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(intelligence.performance.latest_snapshot_return_pct))].join(' ')}>
               <PrivateValue value={formatSignedPct(toNumber(intelligence.performance.latest_snapshot_return_pct))} mask="••••" hideColor />
             </div>
           ) : (
@@ -874,80 +973,6 @@ export default function AnalyticsPage() {
           </>
         )}
       </SectionCard>
-
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <SectionCard title="Movers & Attention" className="p-5">
-          {!intelligence ? (
-            <div className="t-body text-slate-500 dark:text-slate-400">Loading analysis...</div>
-          ) : (
-            <div className="grid gap-5 lg:grid-cols-3">
-              <div>
-                <div className="mb-2 t-micro text-slate-500 dark:text-slate-500">Biggest Gainers</div>
-                <div className="space-y-2">
-                  {intelligence.top_movers.biggest_gainers.length === 0 ? (
-                    <div className="t-body text-slate-500 dark:text-slate-400">No gainers yet</div>
-                  ) : (
-                    intelligence.top_movers.biggest_gainers.slice(0, 4).map((item) => (
-                      <div key={item.id} className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-3 dark:border-slate-700/50 dark:bg-slate-900/40">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="t-section text-slate-900 dark:text-white">{item.symbol}</div>
-                            <div className="truncate t-meta text-slate-500 dark:text-slate-400">{item.company_name}</div>
-                          </div>
-                          <div className="text-right">
-                            <div className="t-amount text-emerald-400"><PrivateValue value={formatINR(toNumber(item.pnl))} mask="••••" hideColor /></div>
-                            <div className="t-meta text-emerald-300"><PrivateValue value={formatPct(toNumber(item.return_pct))} mask="••••" hideColor /></div>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <div className="mb-2 t-micro text-slate-500 dark:text-slate-500">Biggest Losers</div>
-                <div className="space-y-2">
-                  {intelligence.top_movers.biggest_losers.length === 0 ? (
-                    <div className="t-body text-slate-500 dark:text-slate-400">No losers yet</div>
-                  ) : (
-                    intelligence.top_movers.biggest_losers.slice(0, 4).map((item) => (
-                      <div key={item.id} className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-3 dark:border-slate-700/50 dark:bg-slate-900/40">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="t-section text-slate-900 dark:text-white">{item.symbol}</div>
-                            <div className="truncate t-meta text-slate-500 dark:text-slate-400">{item.company_name}</div>
-                          </div>
-                          <div className="text-right">
-                            <div className="t-amount text-rose-400"><PrivateValue value={formatINR(toNumber(item.pnl))} mask="••••" hideColor /></div>
-                            <div className="t-meta text-rose-300"><PrivateValue value={formatPct(toNumber(item.return_pct))} mask="••••" hideColor /></div>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <div className="mb-2 t-micro text-slate-500 dark:text-slate-500">Needs Attention</div>
-                <div className="space-y-2">
-                  {intelligence.top_movers.attention.length === 0 ? (
-                    <div className="t-body text-slate-500 dark:text-slate-400">All clear</div>
-                  ) : (
-                    intelligence.top_movers.attention.slice(0, 4).map((item, index) => (
-                      <div key={`${item.label}-${index}`} className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-3">
-                        <div className="t-section text-amber-200">{item.label}</div>
-                        <div className="mt-1 t-meta text-amber-100/80">{item.detail}</div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </SectionCard>
-      </div>
     </div>
   )
 }

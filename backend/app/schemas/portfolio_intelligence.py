@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
+from app.schemas.dashboard import WealthBucketItem
 
 
 class PortfolioMetricCard(BaseModel):
@@ -16,6 +17,7 @@ class PortfolioAllocationItem(BaseModel):
     amount: Decimal = Decimal("0")
     percentage: Decimal = Decimal("0")
     kind: str = "asset"
+    items: list[WealthBucketItem] = Field(default_factory=list)
 
 
 class PortfolioNetWorthOverview(BaseModel):

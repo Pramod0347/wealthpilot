@@ -3,11 +3,26 @@ from decimal import Decimal
 from pydantic import BaseModel, Field
 
 
+class WealthBucketItem(BaseModel):
+    id: int
+    type: str
+    name: str
+    symbol: str | None = None
+    value: Decimal = Decimal("0")
+    pnl: Decimal | None = None
+    return_pct: Decimal | None = None
+    meta: str | None = None
+    native_value: Decimal | None = None
+    native_currency: str | None = None
+    badge: str | None = None
+
+
 class AssetAllocationItem(BaseModel):
     asset_type: str
     label: str
     amount: Decimal = Decimal("0")
     percentage: Decimal = Decimal("0")
+    items: list[WealthBucketItem] = Field(default_factory=list)
 
 
 class DashboardSummary(BaseModel):

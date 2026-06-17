@@ -7,18 +7,10 @@ from app.models.bank_account import BankAccount
 from app.models.credit_card import CreditCard
 from app.models.fixed_savings_account import FixedSavingsAccount
 from app.models.holding import Holding
-from app.schemas.dashboard import AssetAllocationItem, DashboardSummary
+from app.schemas.dashboard import DashboardSummary
 from app.services.cashflow_service import build_cashflow_summary, current_month_string
 from app.services.holdings_service import serialize_holding
-
-
-def _allocation_entry(key: str, label: str, amount: Decimal, total: Decimal) -> AssetAllocationItem:
-    percentage = Decimal("0")
-    if total != 0:
-        percentage = (amount / total) * Decimal("100")
-    return AssetAllocationItem(asset_type=key, label=label, amount=amount, percentage=percentage)
-
-
+from app.services.wealth_bucket_service import build_wealth_buckets
 def build_dashboard_summary(db: Session) -> DashboardSummary:
     holdings = db.scalars(select(Holding).order_by(Holding.created_at.desc())).all()
     serialized_holdings = [serialize_holding(holding) for holding in holdings]
@@ -30,26 +22,6 @@ def build_dashboard_summary(db: Session) -> DashboardSummary:
     total_return_pct = Decimal("0")
     if total_invested != 0:
         total_return_pct = (total_pnl / total_invested) * Decimal("100")
-
-    indian_stocks = sum(
-        (holding.current_value for holding in serialized_holdings if holding.asset_type == "stock" and holding.country == "IN"),
-        Decimal("0"),
-    )
-    us_stocks = sum(
-        (holding.current_value for holding in serialized_holdings if holding.country == "US"),
-        Decimal("0"),
-    )
-    etfs = sum((holding.current_value for holding in serialized_holdings if holding.asset_type == "etf"), Decimal("0"))
-    mutual_funds = sum((holding.current_value for holding in serialized_holdings if holding.asset_type == "mutual_fund"), Decimal("0"))
-    cash = sum((holding.current_value for holding in serialized_holdings if holding.asset_type == "cash"), Decimal("0"))
-    other = sum(
-        (
-            holding.current_value
-            for holding in serialized_holdings
-            if holding.asset_type not in {"stock", "etf", "mutual_fund", "cash"} and holding.country != "US"
-        ),
-        Decimal("0"),
-    )
 
     bank_stats = db.execute(
         select(
@@ -70,25 +42,8 @@ def build_dashboard_summary(db: Session) -> DashboardSummary:
     fixed_savings_accounts_count = int(fixed_savings_stats[1])
 
     total_assets = current_value + total_bank_cash + total_fixed_savings_value
-
-    allocation_entries = [
-        ("stock_in", "Indian Stocks", indian_stocks),
-        ("stock_us", "US Stocks", us_stocks),
-        ("etf", "ETFs", etfs),
-        ("mutual_fund", "Mutual Funds", mutual_funds),
-        ("cash", "Cash", cash),
-        ("other", "Other Assets", other),
-    ]
-    if total_bank_cash > 0:
-        allocation_entries.append(("banks", "Banks", total_bank_cash))
-    if total_fixed_savings_value > 0:
-        allocation_entries.append(("pfepf", "PF / EPF", total_fixed_savings_value))
-
-    allocations = [
-        _allocation_entry(key, label, amount, total_assets)
-        for key, label, amount in allocation_entries
-        if amount != 0
-    ]
+    bank_accounts = db.scalars(select(BankAccount).order_by(BankAccount.updated_at.desc())).all()
+    fixed_savings_accounts = db.scalars(select(FixedSavingsAccount).order_by(FixedSavingsAccount.updated_at.desc())).all()
 
     card_stats = db.query(
         func.coalesce(func.sum(CreditCard.current_bill_amount), 0),
@@ -108,6 +63,14 @@ def build_dashboard_summary(db: Session) -> DashboardSummary:
         overall_card_utilization = (total_card_used / total_card_limit) * Decimal("100")
     total_liabilities = total_credit_card_dues
     net_worth = total_assets - total_liabilities
+    credit_cards = db.scalars(select(CreditCard).order_by(CreditCard.updated_at.desc())).all()
+    allocations, _ = build_wealth_buckets(
+        holdings=holdings,
+        bank_accounts=bank_accounts,
+        fixed_savings_accounts=fixed_savings_accounts,
+        credit_cards=credit_cards,
+        total_assets=total_assets,
+    )
     cashflow_month = current_month_string()
     cashflow_summary = build_cashflow_summary(db, cashflow_month)
 

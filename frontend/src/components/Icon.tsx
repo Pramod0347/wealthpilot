@@ -36,6 +36,7 @@ import {
   Plus,
   Download,
   Pencil,
+  LogOut,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -78,6 +79,7 @@ export const icons = {
   add: Plus,
   download: Download,
   edit: Pencil,
+  logout: LogOut,
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof icons

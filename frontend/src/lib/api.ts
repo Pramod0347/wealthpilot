@@ -2,6 +2,20 @@ const DEFAULT_API_BASE_URL = 'http://localhost:8000'
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
 
+export type WealthBucketItem = {
+  id: number
+  type: 'holding' | 'fixed_savings' | 'bank_account' | 'credit_card' | string
+  name: string
+  symbol: string | null
+  value: string | number
+  pnl: string | number | null
+  return_pct: string | number | null
+  meta: string | null
+  native_value: string | number | null
+  native_currency: string | null
+  badge: string | null
+}
+
 export type BankAccount = {
   id: number
   bank_name: string
@@ -134,6 +148,7 @@ export type PortfolioIntelligenceAllocationItem = {
   amount: string | number
   percentage: string | number
   kind: string
+  items: WealthBucketItem[]
 }
 
 export type PortfolioIntelligenceHoldingMover = {

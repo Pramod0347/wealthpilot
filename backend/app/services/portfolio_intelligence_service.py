@@ -21,6 +21,7 @@ from app.schemas.portfolio_intelligence import (
 )
 from app.services.cashflow_service import build_cashflow_summary, current_month_string
 from app.services.holdings_service import serialize_holding
+from app.services.wealth_bucket_service import build_wealth_buckets
 
 
 def _to_decimal(value: object | None) -> Decimal:
@@ -112,24 +113,27 @@ def build_portfolio_intelligence(db: Session) -> PortfolioIntelligenceResponse:
         credit_exposure=credit_exposure,
     )
 
-    asset_allocation_items: list[PortfolioAllocationItem] = []
-    for key, label, amount, kind in [
-        ("stock_in", "Indian Stocks", indian_stocks, "asset"),
-        ("stock_us", "US Stocks", us_stocks, "asset"),
-        ("etf", "ETFs", etfs, "asset"),
-        ("gold", "Gold", gold, "asset"),
-        ("mutual_fund", "Mutual Funds", mutual_funds, "asset"),
-        ("banks", "Bank Cash", total_bank_cash, "asset"),
-        ("pfepf", "PF / EPF", total_fixed_savings_value, "asset"),
-        ("other", "Other Assets", other_assets + holding_cash, "asset"),
-    ]:
-        if amount > 0:
-            asset_allocation_items.append(_allocation_item(key, label, amount, total_assets))
-
-    if total_credit_card_dues > 0:
-        asset_allocation_items.append(
-            _allocation_item("liabilities", "Credit Card Liabilities", total_credit_card_dues, total_assets, kind="liability")
+    bank_accounts = db.scalars(select(BankAccount).order_by(BankAccount.updated_at.desc())).all()
+    fixed_savings_accounts = db.scalars(select(FixedSavingsAccount).order_by(FixedSavingsAccount.updated_at.desc())).all()
+    credit_cards = db.scalars(select(CreditCard).order_by(CreditCard.updated_at.desc())).all()
+    dashboard_buckets, liability_bucket = build_wealth_buckets(
+        holdings=holdings,
+        bank_accounts=bank_accounts,
+        fixed_savings_accounts=fixed_savings_accounts,
+        credit_cards=credit_cards,
+        total_assets=total_assets,
+    )
+    asset_allocation_items: list[PortfolioAllocationItem] = [
+        PortfolioAllocationItem(
+            key=item.asset_type,
+            label=item.label,
+            amount=item.amount,
+            percentage=item.percentage,
+            kind="asset",
+            items=item.items,
         )
+        for item in dashboard_buckets
+    ]
 
     risk_total = total_assets + total_liabilities
     risk_allocation = [
@@ -138,7 +142,14 @@ def build_portfolio_intelligence(db: Session) -> PortfolioIntelligenceResponse:
         _allocation_item("gold", "Gold", gold, risk_total),
         _allocation_item("cash", "Cash", total_bank_cash + holding_cash, risk_total),
         _allocation_item("fixed_retirement", "Fixed / Retirement", total_fixed_savings_value, risk_total),
-        _allocation_item("liabilities", "Liabilities", total_credit_card_dues, risk_total, kind="liability"),
+        PortfolioAllocationItem(
+            key="liabilities",
+            label="Liabilities",
+            amount=total_credit_card_dues,
+            percentage=_safe_pct(total_credit_card_dues, risk_total),
+            kind="liability",
+            items=liability_bucket.items if liability_bucket else [],
+        ),
     ]
     risk_allocation = [item for item in risk_allocation if item.amount > 0]
 
