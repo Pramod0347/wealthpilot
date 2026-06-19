@@ -421,6 +421,10 @@ export function loginUser(email: string, phone: string) {
   })
 }
 
+export function checkServerHealth() {
+  return apiFetch<{ status: string }>('/health')
+}
+
 export function checkAuth() {
   return apiFetch<{ authenticated: boolean }>('/api/auth/me')
 }

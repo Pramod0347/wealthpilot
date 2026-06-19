@@ -19,11 +19,15 @@ _LOCAL_ORIGINS = [
 ]
 
 
+def _normalize_origin(url: str) -> str:
+    return url.strip().rstrip("/")
+
+
 def _build_allowed_origins() -> list[str]:
-    origins = list(_LOCAL_ORIGINS)
+    origins = [_normalize_origin(url) for url in _LOCAL_ORIGINS]
     if settings.frontend_url:
         for url in settings.frontend_url.split(","):
-            stripped = url.strip()
+            stripped = _normalize_origin(url)
             if stripped and stripped not in origins:
                 origins.append(stripped)
     return origins

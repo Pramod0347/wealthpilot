@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/wealthpilot"
     # Comma-separated list of allowed frontend origins, e.g. "https://money.pramodgoudar.com"
     frontend_url: str = ""
+    # Optional cookie overrides for production deployments.
+    cookie_samesite: str = ""
+    cookie_secure: str = ""
+    cookie_domain: str = ""
     # Owner credentials — keep server-side only, never in frontend env vars
     owner_email: str = ""
     owner_phone: str = ""

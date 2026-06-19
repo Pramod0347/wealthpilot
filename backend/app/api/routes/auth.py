@@ -14,25 +14,53 @@ def _production() -> bool:
     return settings.app_env == "production"
 
 
+def _cookie_secure() -> bool:
+    configured = settings.cookie_secure.strip().lower()
+    if configured in {"true", "1", "yes", "on"}:
+        return True
+    if configured in {"false", "0", "no", "off"}:
+        return False
+    return _production()
+
+
+def _cookie_samesite() -> str:
+    configured = settings.cookie_samesite.strip().lower()
+    if configured in {"lax", "strict", "none"}:
+        return configured
+    return "none" if _production() else "lax"
+
+
+def _cookie_domain() -> str | None:
+    configured = settings.cookie_domain.strip()
+    return configured or None
+
+
+def _cookie_kwargs() -> dict:
+    kwargs = {
+        "httponly": True,
+        "secure": _cookie_secure(),
+        "samesite": _cookie_samesite(),
+        "path": "/",
+    }
+    domain = _cookie_domain()
+    if domain:
+        kwargs["domain"] = domain
+    return kwargs
+
+
 def _set_cookie(response: Response, token: str) -> None:
     response.set_cookie(
         key=_COOKIE_NAME,
         value=token,
-        httponly=True,
-        secure=_production(),
-        samesite="none" if _production() else "lax",
         max_age=_SESSION_DAYS * 24 * 3600,
-        path="/",
+        **_cookie_kwargs(),
     )
 
 
 def _clear_cookie(response: Response) -> None:
     response.delete_cookie(
         key=_COOKIE_NAME,
-        path="/",
-        httponly=True,
-        secure=_production(),
-        samesite="none" if _production() else "lax",
+        **_cookie_kwargs(),
     )
 
 

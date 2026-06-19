@@ -9,11 +9,20 @@ import BanksPage from './components/BanksPage'
 import FixedSavingsPage from './components/FixedSavingsPage'
 import CashflowPage from './components/CashflowPage'
 import LoginPage from './components/auth/LoginPage'
+import ServerWakeScreen from './components/auth/ServerWakeScreen'
 import BottomSheet from './components/ui/BottomSheet'
 import { Icon, type IconName } from './components/Icon'
-import { checkAuth, loginUser, logoutUser } from './lib/api'
+import { ApiError, checkAuth, checkServerHealth, loginUser, logoutUser } from './lib/api'
 
 type PageKey = 'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards' | 'transactions' | 'analytics'
+type BootstrapState =
+  | 'checking_server'
+  | 'server_warming'
+  | 'server_ready'
+  | 'checking_auth'
+  | 'authenticated'
+  | 'unauthenticated'
+  | 'server_error'
 
 type NavItem = {
   key: PageKey | 'more' | 'reports' | 'settings'
@@ -41,25 +50,108 @@ function isPageKey(value: NavItem['key']): value is PageKey {
   return ['dashboard', 'stocks', 'banks', 'pfepf', 'cards', 'transactions', 'analytics'].includes(value)
 }
 
+const HEALTH_RETRY_MS = 3_000
+const HEALTH_TIMEOUT_MS = 90_000
+const SERVER_READY_DELAY_MS = 650
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms)
+  })
+}
+
 export default function App() {
   const [activePage, setActivePage] = useState<PageKey>('dashboard')
-  const [authStatus, setAuthStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading')
+  const [bootstrapState, setBootstrapState] = useState<BootstrapState>('checking_server')
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [isMoreSheetOpen, setIsMoreSheetOpen] = useState(false)
+  const [bootstrapNonce, setBootstrapNonce] = useState(0)
 
   useEffect(() => {
-    checkAuth()
-      .then((data) => setAuthStatus(data.authenticated ? 'authenticated' : 'unauthenticated'))
-      .catch(() => setAuthStatus('unauthenticated'))
-  }, [])
+    let cancelled = false
+    const startedAt = Date.now()
+
+    const updateElapsed = () => {
+      if (!cancelled) {
+        setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000))
+      }
+    }
+
+    const bootstrap = async () => {
+      setBootstrapState('checking_server')
+      setElapsedSeconds(0)
+
+      while (!cancelled) {
+        try {
+          updateElapsed()
+          await checkServerHealth()
+          if (cancelled) return
+
+          setBootstrapState('server_ready')
+          await wait(SERVER_READY_DELAY_MS)
+          if (cancelled) return
+
+          setBootstrapState('checking_auth')
+          const auth = await checkAuth()
+          if (cancelled) return
+
+          setBootstrapState(auth.authenticated ? 'authenticated' : 'unauthenticated')
+          return
+        } catch (error) {
+          if (cancelled) return
+
+          const elapsed = Date.now() - startedAt
+          updateElapsed()
+
+          if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+            setBootstrapState('unauthenticated')
+            return
+          }
+
+          if (elapsed >= HEALTH_TIMEOUT_MS) {
+            setBootstrapState('server_error')
+            return
+          }
+
+          setBootstrapState('server_warming')
+          await wait(HEALTH_RETRY_MS)
+        }
+      }
+    }
+
+    void bootstrap()
+
+    return () => {
+      cancelled = true
+    }
+  }, [bootstrapNonce])
 
   const handleLogin = async (email: string, phone: string): Promise<void> => {
-    await loginUser(email, phone)
-    setAuthStatus('authenticated')
+    setBootstrapState('checking_auth')
+    try {
+      await loginUser(email, phone)
+      const auth = await checkAuth()
+      setBootstrapState(auth.authenticated ? 'authenticated' : 'unauthenticated')
+      if (!auth.authenticated) {
+        throw new ApiError('Session could not be verified after login.', 401)
+      }
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 0) {
+        setBootstrapState('server_error')
+      } else {
+        setBootstrapState('unauthenticated')
+      }
+      throw error
+    }
   }
 
-  const handleLogout = () => {
-    logoutUser().catch(() => undefined)
-    setAuthStatus('unauthenticated')
+  const handleLogout = async () => {
+    try {
+      await logoutUser()
+    } catch {
+      // Best-effort cookie clear; frontend state should still move to login.
+    }
+    setBootstrapState('unauthenticated')
   }
 
   const pageConfig = {
@@ -109,15 +201,26 @@ export default function App() {
     setIsMoreSheetOpen(false)
   }
 
-  if (authStatus === 'loading') {
+  if (bootstrapState === 'checking_server' || bootstrapState === 'server_warming' || bootstrapState === 'server_ready' || bootstrapState === 'checking_auth') {
     return (
-      <div className="grid min-h-screen place-items-center bg-slate-50 dark:bg-slate-950">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-teal-500 border-t-transparent" />
-      </div>
+      <ServerWakeScreen
+        state={bootstrapState}
+        elapsedSeconds={elapsedSeconds}
+      />
     )
   }
 
-  if (authStatus === 'unauthenticated') {
+  if (bootstrapState === 'server_error') {
+    return (
+      <ServerWakeScreen
+        state="server_error"
+        elapsedSeconds={elapsedSeconds}
+        onRetry={() => setBootstrapNonce((current) => current + 1)}
+      />
+    )
+  }
+
+  if (bootstrapState === 'unauthenticated') {
     return <LoginPage onLogin={handleLogin} />
   }
 

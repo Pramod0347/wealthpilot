@@ -67,3 +67,65 @@ If PostgreSQL is not running or the database does not exist, Alembic will fail t
 - `PATCH /api/holdings/{holding_id}`
 - `DELETE /api/holdings/{holding_id}`
 - `GET /api/dashboard/summary`
+
+## Production Startup And Auth
+
+WealthPilot frontend is expected to run on Vercel and call this backend on Render.
+
+### Startup flow
+
+- Frontend calls `GET /health` first.
+- If Render is sleeping, frontend keeps retrying `/health` for up to 90 seconds.
+- While Render wakes up, frontend shows a dedicated server warming screen instead of the login page.
+- After `/health` is healthy, frontend calls `GET /api/auth/me`.
+- Only then does the frontend show either the app or the login screen.
+
+### Current cross-domain setup
+
+Frontend:
+
+```bash
+https://money.pramodgoudar.com
+```
+
+Backend:
+
+```bash
+https://wealthpilot-api.onrender.com
+```
+
+Recommended env:
+
+```bash
+FRONTEND_URL=https://money.pramodgoudar.com
+COOKIE_SAMESITE=none
+COOKIE_SECURE=true
+COOKIE_DOMAIN=
+```
+
+### Recommended iOS-stable setup
+
+If iOS Safari still drops the session on refresh, move the backend to a custom subdomain:
+
+Frontend:
+
+```bash
+https://money.pramodgoudar.com
+```
+
+Backend:
+
+```bash
+https://api.money.pramodgoudar.com
+```
+
+Recommended env:
+
+```bash
+FRONTEND_URL=https://money.pramodgoudar.com
+COOKIE_SAMESITE=lax
+COOKIE_SECURE=true
+COOKIE_DOMAIN=.money.pramodgoudar.com
+```
+
+In that setup the frontend and backend share the same parent site, which is generally more reliable on iOS Safari than a Vercel-to-Render cross-site cookie.
