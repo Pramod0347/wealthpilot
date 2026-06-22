@@ -1,16 +1,23 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Logo from '../Logo'
 import { ApiError } from '../../lib/api'
 
 type LoginPageProps = {
   onLogin: (email: string, phone: string) => Promise<void>
+  initialError?: string | null
 }
 
-export default function LoginPage({ onLogin }: LoginPageProps) {
+export default function LoginPage({ onLogin, initialError = null }: LoginPageProps) {
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(initialError)
   const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    if (!isLoading) {
+      setError(initialError)
+    }
+  }, [initialError, isLoading])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()

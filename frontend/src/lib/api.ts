@@ -1,4 +1,5 @@
 const DEFAULT_API_BASE_URL = 'http://localhost:8000'
+const AUTH_TOKEN_STORAGE_KEY = 'wealthpilot_auth_token'
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
 
@@ -297,6 +298,20 @@ export class ApiError extends Error {
   }
 }
 
+export function getStoredAuthToken() {
+  if (typeof window === 'undefined') return ''
+  return window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) ?? ''
+}
+
+export function setStoredAuthToken(token: string) {
+  if (typeof window === 'undefined') return
+  if (token) {
+    window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token)
+    return
+  }
+  window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY)
+}
+
 type FetchOptions = RequestInit & {
   signal?: AbortSignal
 }
@@ -309,11 +324,13 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
 
   let response: Response
   try {
+    const authToken = getStoredAuthToken()
     response = await fetch(url, {
       ...requestOptions,
       credentials: 'include',
       headers: {
         Accept: 'application/json',
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
         ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
         ...(optionHeaders ?? {}),
       },
@@ -491,7 +508,7 @@ export function getAnalyticsSummary(signal?: AbortSignal) {
 }
 
 export function loginUser(email: string, phone: string) {
-  return apiFetch<{ authenticated: boolean }>('/api/auth/login', {
+  return apiFetch<{ authenticated: boolean; token?: string }>('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, phone }),
   })

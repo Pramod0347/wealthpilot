@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel
 
+from app.api.deps import get_request_auth_token
 from app.core.config import settings
 from app.core.session import create_session_token, verify_session_token
 
@@ -94,12 +95,15 @@ def login(body: LoginRequest, response: Response) -> dict:
 
     token = create_session_token(settings.secret_key, _SESSION_DAYS)
     _set_cookie(response, token)
-    return {"authenticated": True}
+    return {
+        "authenticated": True,
+        "token": token,
+    }
 
 
 @router.get("/me")
 def me(request: Request) -> dict:
-    token = request.cookies.get(_COOKIE_NAME)
+    token = get_request_auth_token(request)
     if token and settings.secret_key and verify_session_token(token, settings.secret_key):
         return {"authenticated": True}
     return {"authenticated": False}

@@ -12,7 +12,7 @@ import LoginPage from './components/auth/LoginPage'
 import ServerWakeScreen from './components/auth/ServerWakeScreen'
 import BottomSheet from './components/ui/BottomSheet'
 import { Icon, type IconName } from './components/Icon'
-import { ApiError, checkAuth, checkServerHealth, loginUser, logoutUser } from './lib/api'
+import { ApiError, checkAuth, checkServerHealth, getStoredAuthToken, loginUser, logoutUser, setStoredAuthToken } from './lib/api'
 
 type PageKey = 'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards' | 'transactions' | 'analytics'
 type BootstrapState =
@@ -66,6 +66,7 @@ export default function App() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [isMoreSheetOpen, setIsMoreSheetOpen] = useState(false)
   const [bootstrapNonce, setBootstrapNonce] = useState(0)
+  const [authError, setAuthError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -80,6 +81,7 @@ export default function App() {
     const bootstrap = async () => {
       setBootstrapState('checking_server')
       setElapsedSeconds(0)
+      setAuthError(null)
 
       while (!cancelled) {
         try {
@@ -104,6 +106,10 @@ export default function App() {
           updateElapsed()
 
           if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+            if (getStoredAuthToken()) {
+              setStoredAuthToken('')
+              setAuthError('Your session could not be restored on this device. Please sign in again.')
+            }
             setBootstrapState('unauthenticated')
             return
           }
@@ -128,18 +134,31 @@ export default function App() {
 
   const handleLogin = async (email: string, phone: string): Promise<void> => {
     setBootstrapState('checking_auth')
+    setAuthError(null)
     try {
-      await loginUser(email, phone)
-      const auth = await checkAuth()
-      setBootstrapState(auth.authenticated ? 'authenticated' : 'unauthenticated')
-      if (!auth.authenticated) {
-        throw new ApiError('Session could not be verified after login.', 401)
+      const login = await loginUser(email, phone)
+      if (!login.authenticated || !login.token) {
+        setStoredAuthToken('')
+        setBootstrapState('unauthenticated')
+        throw new ApiError('Login succeeded but no session token was returned.', 401)
       }
+
+      setStoredAuthToken(login.token ?? '')
+      setBootstrapState('authenticated')
     } catch (error) {
+      setStoredAuthToken('')
       if (error instanceof ApiError && error.status === 0) {
         setBootstrapState('server_error')
+        setAuthError('Cannot reach the secure server right now. Try again in a moment.')
       } else {
         setBootstrapState('unauthenticated')
+        if (error instanceof ApiError && error.status === 401) {
+          setAuthError('Access denied. Check your email and phone number.')
+        } else if (error instanceof ApiError && error.status === 503) {
+          setAuthError(error.message)
+        } else {
+          setAuthError('Login failed. Please try again.')
+        }
       }
       throw error
     }
@@ -151,6 +170,8 @@ export default function App() {
     } catch {
       // Best-effort cookie clear; frontend state should still move to login.
     }
+    setStoredAuthToken('')
+    setAuthError(null)
     setBootstrapState('unauthenticated')
   }
 
@@ -221,7 +242,7 @@ export default function App() {
   }
 
   if (bootstrapState === 'unauthenticated') {
-    return <LoginPage onLogin={handleLogin} />
+    return <LoginPage onLogin={handleLogin} initialError={authError} />
   }
 
   return (
