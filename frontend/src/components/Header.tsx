@@ -248,7 +248,7 @@ export default function Header({
       </div>
 
       <div className="hidden min-h-[76px] items-center justify-between gap-6 py-3 lg:flex">
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0">
           <h1 className="truncate text-lg font-bold tracking-[-0.25px] leading-none text-slate-900 dark:text-white">
             {title}
           </h1>

@@ -8,9 +8,11 @@ from app.models.credit_card import CreditCard
 from app.models.fixed_savings_account import FixedSavingsAccount
 from app.models.holding import Holding
 from app.schemas.dashboard import DashboardSummary
-from app.services.cashflow_service import build_cashflow_summary, current_month_string
+from app.services.cashflow_service import build_cashflow_summary, build_dashboard_cashflow_metrics, current_month_string
 from app.services.holdings_service import serialize_holding
 from app.services.wealth_bucket_service import build_wealth_buckets
+
+
 def build_dashboard_summary(db: Session) -> DashboardSummary:
     holdings = db.scalars(select(Holding).order_by(Holding.created_at.desc())).all()
     serialized_holdings = [serialize_holding(holding) for holding in holdings]
@@ -73,6 +75,7 @@ def build_dashboard_summary(db: Session) -> DashboardSummary:
     )
     cashflow_month = current_month_string()
     cashflow_summary = build_cashflow_summary(db, cashflow_month)
+    cashflow_metrics = build_dashboard_cashflow_metrics(db, cashflow_month)
 
     return DashboardSummary(
         total_invested=total_invested,
@@ -94,10 +97,11 @@ def build_dashboard_summary(db: Session) -> DashboardSummary:
         overall_card_utilization=overall_card_utilization,
         due_soon_count=due_soon_count,
         overdue_count=overdue_count,
-        monthly_income=cashflow_summary.total_income,
-        monthly_expense=cashflow_summary.total_expense,
-        monthly_net_savings=cashflow_summary.net_savings,
-        monthly_savings_rate=cashflow_summary.savings_rate,
+        cashflow_metrics=cashflow_metrics,
+        monthly_income=cashflow_metrics.current.income,
+        monthly_expense=cashflow_metrics.current.expense,
+        monthly_net_savings=cashflow_metrics.current.net_savings,
+        monthly_savings_rate=cashflow_metrics.current.savings_rate,
         monthly_income_count=cashflow_summary.income_count,
         monthly_expense_count=cashflow_summary.expense_count,
         cashflow_month=cashflow_summary.month,

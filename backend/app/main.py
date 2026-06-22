@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.deps import require_auth
 from app.api.routes.auth import router as auth_router
+from app.api.routes.analytics import router as analytics_router
 from app.api.routes.bank_accounts import router as bank_accounts_router
 from app.api.routes.cashflow import router as cashflow_router
 from app.api.routes.dashboard import router as dashboard_router
@@ -52,6 +53,7 @@ app.add_middleware(
 _PROTECTED = [Depends(require_auth)]
 
 app.include_router(auth_router, prefix="/api")
+app.include_router(analytics_router, prefix="/api", dependencies=_PROTECTED)
 app.include_router(holdings_router, prefix="/api", dependencies=_PROTECTED)
 app.include_router(credit_cards_router, prefix="/api", dependencies=_PROTECTED)
 app.include_router(bank_accounts_router, prefix="/api", dependencies=_PROTECTED)

@@ -1392,7 +1392,7 @@ export default function StocksPage() {
         </div>
 
         {/* Actions toolbar */}
-        <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-row sm:items-center sm:justify-end">
+        <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-row sm:items-center sm:justify-end my-4">
           <button
             type="button"
             onClick={handleRefreshAllPrices}
@@ -1801,7 +1801,7 @@ export default function StocksPage() {
                     {isExpanded ? (
                       <div className="border-t border-slate-800 bg-slate-900/70 px-4 py-4 sm:px-5">
                         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
-                          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                          <div className="min-w-0 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                             <div>
                               <div className={sectionLabel}>Qty / Units</div>
                               <div className="mt-1 t-num text-slate-200">{toNumber(row.quantity)}</div>
@@ -1820,13 +1820,15 @@ export default function StocksPage() {
                               <div className={sectionLabel}>Current Value</div>
                               <div className="mt-1 t-num text-slate-200">{renderNativeAndInr(nativeCurrent, currentValue, row.currency)}</div>
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <div className={sectionLabel}>Exchange / Market</div>
-                              <div className="mt-1 t-nav text-slate-300">{getHoldingMarketSymbol(row)}</div>
+                              <div className="mt-1 truncate t-nav text-slate-300" title={getHoldingMarketSymbol(row)}>
+                                {getHoldingMarketSymbol(row)}
+                              </div>
                             </div>
                           </div>
 
-                          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:justify-end">
+                          <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:justify-end">
                             {refreshSupported ? (
                               <button
                                 type="button"

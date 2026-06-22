@@ -1,4 +1,16 @@
 from app.schemas.dashboard import AssetAllocationItem, DashboardSummary, WealthBucketItem
+from app.schemas.analytics import (
+    AnalyticsCategoryAverageItem,
+    AnalyticsFocusItem,
+    AnalyticsMetricWindow,
+    AnalyticsMonthlyTrendItem,
+    AnalyticsSummaryResponse,
+    AnalyticsTopCategoryItem,
+    CashflowAnalyticsSummary,
+    InvestmentAnalyticsSummary,
+    InvestmentBucketSummaryItem,
+    InvestmentTopHoldingItem,
+)
 from app.schemas.bank_account import BankAccountCreate, BankAccountRead, BankAccountsSummary, BankAccountUpdate
 from app.schemas.cashflow import (
     CashflowCategoryBreakdownItem,

@@ -208,6 +208,78 @@ export type PortfolioIntelligence = {
   }
 }
 
+export type AnalyticsMetricWindow = {
+  income: string | number
+  expense: string | number
+  net_savings: string | number
+  savings_rate: string | number | null
+  has_data: boolean
+}
+
+export type AnalyticsCategoryAverageItem = {
+  category: string
+  average_amount: string | number
+  total_amount: string | number
+  percentage_of_avg_spend: string | number | null
+  percentage_of_avg_income: string | number | null
+  months_present: number
+}
+
+export type AnalyticsMonthlyTrendItem = {
+  month: string
+  income: string | number
+  expense: string | number
+  net_savings: string | number
+  savings_rate: string | number | null
+}
+
+export type AnalyticsFocusItem = {
+  type: string
+  severity: 'healthy' | 'watch' | 'risk'
+  title: string
+  message: string
+  action: string
+}
+
+export type AnalyticsSummary = {
+  cashflow_analytics: {
+    months_count: number
+    tracked_months: string[]
+    current_month: string | null
+    current_month_summary: AnalyticsMetricWindow
+    average_monthly_summary: AnalyticsMetricWindow
+    average_expense_by_category: AnalyticsCategoryAverageItem[]
+    average_income_by_category: AnalyticsCategoryAverageItem[]
+    monthly_trend: AnalyticsMonthlyTrendItem[]
+    top_spending_categories: Array<{
+      category: string
+      average_amount: string | number
+      percentage_of_avg_spend: string | number
+    }>
+    focus_items: AnalyticsFocusItem[]
+  }
+  investment_analytics: {
+    total_assets: string | number
+    total_liabilities: string | number
+    net_worth: string | number
+    bucket_allocation: Array<{
+      key: string
+      label: string
+      value: string | number
+      percentage: string | number
+      items_count: number
+    }>
+    top_holdings: Array<{
+      name: string
+      symbol: string
+      value: string | number
+      percentage_of_portfolio: string | number
+      return_pct: string | number | null
+    }>
+    investment_focus_items: AnalyticsFocusItem[]
+  }
+}
+
 export type ApiValidationError = {
   path: string
   message: string
@@ -412,6 +484,10 @@ export function deleteCashflowEntry(entryId: number) {
 
 export function getPortfolioIntelligence(signal?: AbortSignal) {
   return apiFetch<PortfolioIntelligence>('/api/portfolio/intelligence', { signal })
+}
+
+export function getAnalyticsSummary(signal?: AbortSignal) {
+  return apiFetch<AnalyticsSummary>('/api/analytics/summary', { signal })
 }
 
 export function loginUser(email: string, phone: string) {

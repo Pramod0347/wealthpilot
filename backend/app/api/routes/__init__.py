@@ -1,4 +1,5 @@
 from app.api.routes.bank_accounts import router as bank_accounts_router
+from app.api.routes.analytics import router as analytics_router
 from app.api.routes.cashflow import router as cashflow_router
 from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.credit_cards import router as credit_cards_router

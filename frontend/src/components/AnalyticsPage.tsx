@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { ApiError, apiFetch, getPortfolioIntelligence, type PortfolioIntelligence } from '../lib/api'
+import {
+  ApiError,
+  apiFetch,
+  getAnalyticsSummary,
+  getPortfolioIntelligence,
+  type AnalyticsCategoryAverageItem,
+  type AnalyticsFocusItem,
+  type AnalyticsMonthlyTrendItem,
+  type AnalyticsSummary,
+  type PortfolioIntelligence,
+} from '../lib/api'
 import { formatINR, formatINRShort, formatPct, formatSignedPct, getTrendClass } from '../lib/format'
 import { usePrivacyMode } from '../context/PrivacyContext'
 import { Icon } from './Icon'
@@ -35,23 +45,6 @@ type ApiDashboardSummary = {
   overdue_count: number
 }
 
-type ApiCreditCard = {
-  id: number
-  status: 'paid' | 'due_soon' | 'overdue'
-}
-
-type ApiHolding = {
-  id: number
-  symbol: string
-  company_name: string
-  asset_type: string
-  country: string
-  sector: string | null
-  current_value: string | number
-  pnl: string | number
-  return_pct: string | number
-}
-
 type ChartPoint = {
   label: string
   date: string
@@ -59,14 +52,16 @@ type ChartPoint = {
   predicted_value: number | null
 }
 
-type SeverityTone = 'healthy' | 'watch' | 'risk' | 'action' | 'neutral'
-
-type RiskItem = {
-  title: string
-  level: 'Low' | 'Medium' | 'High'
-  reason: string
-  action: string
+type TrendPoint = {
+  label: string
+  month: string
+  income: number
+  expense: number
+  net_savings: number
+  savings_rate: number | null
 }
+
+type SeverityTone = 'healthy' | 'watch' | 'risk' | 'action' | 'neutral'
 
 type ScanRow = {
   key: string
@@ -75,19 +70,6 @@ type ScanRow = {
   percentage: number
   icon: 'stocks' | 'pfepf' | 'banks' | 'cards'
   subtitle: string
-}
-
-type TipItem = {
-  title: string
-  body: string
-  tone: SeverityTone
-}
-
-type AllocationRow = {
-  label: string
-  value: number
-  percentage: number
-  color: string
 }
 
 const sectionLabel = 't-micro text-slate-500 dark:text-slate-500'
@@ -106,11 +88,6 @@ const allocationColors: Record<string, string> = {
   banks: '#f97316',
   epf: '#22c55e',
   liabilities: '#fb7185',
-  equity: '#14b8a6',
-  funds: '#a78bfa',
-  gold: '#f59e0b',
-  cash: '#f97316',
-  fixed_retirement: '#22c55e',
 }
 
 function toNumber(value: string | number | null | undefined) {
@@ -138,6 +115,12 @@ function formatChartDate(value: string) {
   return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short' }).format(date)
 }
 
+function formatMonthLabel(value: string) {
+  const date = new Date(`${value}-01T00:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('en-IN', { month: 'short', year: '2-digit' }).format(date)
+}
+
 function formatDateTime(value: string | null | undefined) {
   if (!value) return 'Not available'
   const date = new Date(value.includes('T') ? value : `${value}T00:00:00`)
@@ -156,12 +139,7 @@ function formatDateTime(value: string | null | undefined) {
     .replace(' pm', ' pm')
 }
 
-function isGoldHolding(holding: ApiHolding) {
-  const text = `${holding.symbol} ${holding.company_name} ${holding.sector ?? ''}`.toLowerCase()
-  return holding.asset_type === 'gold' || (holding.asset_type === 'other' && text.includes('gold')) || (holding.asset_type === 'etf' && text.includes('gold'))
-}
-
-function buildChartData(performance: ApiPortfolioPerformance | null): ChartPoint[] {
+function buildPerformanceChartData(performance: ApiPortfolioPerformance | null): ChartPoint[] {
   if (!performance) return []
   const rows = new Map<string, ChartPoint>()
   performance.actual.forEach((point) => {
@@ -182,6 +160,17 @@ function buildChartData(performance: ApiPortfolioPerformance | null): ChartPoint
     })
   })
   return Array.from(rows.values()).sort((left, right) => new Date(left.date).getTime() - new Date(right.date).getTime())
+}
+
+function buildTrendChartData(items: AnalyticsMonthlyTrendItem[]): TrendPoint[] {
+  return items.map((item) => ({
+    label: formatMonthLabel(item.month),
+    month: item.month,
+    income: toNumber(item.income),
+    expense: toNumber(item.expense),
+    net_savings: toNumber(item.net_savings),
+    savings_rate: item.savings_rate === null ? null : toNumber(item.savings_rate),
+  }))
 }
 
 function severityClasses(severity: SeverityTone) {
@@ -224,8 +213,8 @@ function SectionCard({ title, children, className = '', action }: { title?: stri
   return (
     <div className={['rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700/50 dark:bg-slate-900/80', className].join(' ')}>
       {title ? (
-        <div className="flex items-center justify-between gap-3 border-b border-slate-200 pr-5 py-4 pl-5 dark:border-slate-700/50">
-          <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">{title}</div>
+        <div className="flex gap-3 py-2 px-5">
+          <div className="text-base font-bold tracking-[-0.02em] text-slate-900 dark:text-white">{title}</div>
           {action}
         </div>
       ) : null}
@@ -258,30 +247,86 @@ function MetricCard({
   )
 }
 
+function CategoryBars({
+  items,
+  percentageKey,
+  emptyTitle,
+  emptyBody,
+}: {
+  items: AnalyticsCategoryAverageItem[]
+  percentageKey: 'percentage_of_avg_spend' | 'percentage_of_avg_income'
+  emptyTitle: string
+  emptyBody: string
+}) {
+  const { privacyMode } = usePrivacyMode()
+
+  if (items.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-slate-200 px-4 py-5 dark:border-slate-700">
+        <div className="t-section text-slate-900 dark:text-white">{emptyTitle}</div>
+        <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">{emptyBody}</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      {items.map((item) => {
+        const pct = toNumber(item[percentageKey])
+        return (
+          <div key={item.category} className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700/50 dark:bg-slate-900/40">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="truncate t-nav text-slate-900 dark:text-white">{item.category}</div>
+                <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">{item.months_present} tracked month{item.months_present === 1 ? '' : 's'}</div>
+              </div>
+              <div className="text-right">
+                <div className="t-amount text-slate-900 dark:text-white">
+                  <PrivateValue value={`${formatMoney(toNumber(item.average_amount))}/month`} mask="••••" hideColor />
+                </div>
+                <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">
+                  <PrivateValue value={formatPct(pct)} mask="••••" hideColor />
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200/70 dark:bg-slate-800">
+              <div className="h-full rounded-full bg-teal-500" style={{ width: `${Math.max(4, Math.min(100, pct))}%` }} />
+            </div>
+            {privacyMode ? null : <div className="mt-2 t-meta text-slate-500 dark:text-slate-400">Total: {formatMoney(toNumber(item.total_amount))}</div>}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function AnalyticsPage() {
   const { privacyMode } = usePrivacyMode()
   const [intelligence, setIntelligence] = useState<PortfolioIntelligence | null>(null)
+  const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null)
   const [performance, setPerformance] = useState<ApiPortfolioPerformance | null>(null)
   const [dashboardSummary, setDashboardSummary] = useState<ApiDashboardSummary | null>(null)
-  const [creditCards, setCreditCards] = useState<ApiCreditCard[]>([])
-  const [holdings, setHoldings] = useState<ApiHolding[]>([])
   const [activeRange, setActiveRange] = useState<PortfolioRange>('6M')
   const [selectedBucketKey, setSelectedBucketKey] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [analyticsLoading, setAnalyticsLoading] = useState(true)
   const [performanceLoading, setPerformanceLoading] = useState(true)
-  const [creditHealthLoading, setCreditHealthLoading] = useState(true)
-  const [holdingsLoading, setHoldingsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null)
   const [performanceError, setPerformanceError] = useState<string | null>(null)
-  const [creditHealthError, setCreditHealthError] = useState<string | null>(null)
-  const [holdingsError, setHoldingsError] = useState<string | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
     setLoading(true)
     setError(null)
-    getPortfolioIntelligence(controller.signal)
-      .then(setIntelligence)
+    Promise.all([
+      getPortfolioIntelligence(controller.signal),
+      apiFetch<ApiDashboardSummary>('/api/dashboard/summary', { signal: controller.signal }),
+    ])
+      .then(([intel, summary]) => {
+        setIntelligence(intel)
+        setDashboardSummary(summary)
+      })
       .catch((err) => {
         if (err instanceof DOMException && err.name === 'AbortError') return
         setError(formatApiError(err))
@@ -292,15 +337,15 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     const controller = new AbortController()
-    setHoldingsLoading(true)
-    setHoldingsError(null)
-    apiFetch<ApiHolding[]>('/api/holdings', { signal: controller.signal })
-      .then(setHoldings)
+    setAnalyticsLoading(true)
+    setAnalyticsError(null)
+    getAnalyticsSummary(controller.signal)
+      .then(setAnalytics)
       .catch((err) => {
         if (err instanceof DOMException && err.name === 'AbortError') return
-        setHoldingsError(formatApiError(err))
+        setAnalyticsError(formatApiError(err))
       })
-      .finally(() => setHoldingsLoading(false))
+      .finally(() => setAnalyticsLoading(false))
     return () => controller.abort()
   }, [])
 
@@ -318,115 +363,74 @@ export default function AnalyticsPage() {
     return () => controller.abort()
   }, [activeRange])
 
-  useEffect(() => {
-    const controller = new AbortController()
-    setCreditHealthLoading(true)
-    setCreditHealthError(null)
-    Promise.all([
-      apiFetch<ApiDashboardSummary>('/api/dashboard/summary', { signal: controller.signal }),
-      apiFetch<ApiCreditCard[]>('/api/credit-cards', { signal: controller.signal }),
-    ])
-      .then(([summary, cards]) => {
-        setDashboardSummary(summary)
-        setCreditCards(cards)
-      })
-      .catch((err) => {
-        if (err instanceof DOMException && err.name === 'AbortError') return
-        setCreditHealthError(formatApiError(err))
-      })
-      .finally(() => setCreditHealthLoading(false))
-    return () => controller.abort()
-  }, [])
-
-  const chartData = useMemo(() => buildChartData(performance), [performance])
+  const chartData = useMemo(() => buildPerformanceChartData(performance), [performance])
+  const trendData = useMemo(() => buildTrendChartData(analytics?.cashflow_analytics.monthly_trend ?? []), [analytics])
   const hasPerformance = (performance?.actual.length ?? 0) > 0
 
   const statusMeta = useMemo(() => {
     const latestSnapshotDate = intelligence?.performance.latest_snapshot_date ?? performance?.actual.at(-1)?.date ?? null
     const modules = [
       !!intelligence?.asset_allocation.length,
+      !!analytics?.cashflow_analytics.months_count,
       !!dashboardSummary,
-      !!intelligence?.cashflow_context.has_data,
       !!intelligence?.performance.has_snapshots,
-      !error && !performanceError && !creditHealthError,
+      !error && !analyticsError && !performanceError,
     ]
     const availableModules = modules.filter(Boolean).length
     const completeness = Math.round((availableModules / modules.length) * 100)
     return {
       lastUpdated: latestSnapshotDate ? formatDateTime(latestSnapshotDate) : 'Live backend data',
       completeness,
-      stale: Boolean(error || performanceError || creditHealthError),
+      stale: Boolean(error || analyticsError || performanceError),
       valuesHidden: privacyMode,
     }
-  }, [creditHealthError, dashboardSummary, error, intelligence, performance, performanceError, privacyMode])
+  }, [analytics, analyticsError, dashboardSummary, error, intelligence, performance, performanceError, privacyMode])
 
   const selectedBucket = useMemo(() => {
     if (!intelligence || !selectedBucketKey) return null
-    return (
-      intelligence.asset_allocation.find((item) => item.key === selectedBucketKey) ??
-      intelligence.risk_allocation.find((item) => item.key === selectedBucketKey) ??
-      null
-    )
+    return intelligence.asset_allocation.find((item) => item.key === selectedBucketKey) ?? intelligence.risk_allocation.find((item) => item.key === selectedBucketKey) ?? null
   }, [intelligence, selectedBucketKey])
 
-  const riskItems = useMemo<RiskItem[]>(() => {
-    if (!intelligence || !dashboardSummary) return []
-    const totalAssets = toNumber(intelligence.net_worth.total_assets)
-    const immediateCash = toNumber(intelligence.net_worth.liquid_assets)
-    const largest = intelligence.top_movers.largest_allocation
-    const equityExposure = intelligence.risk_allocation
-      .filter((item) => item.key === 'equity' || item.key === 'funds')
-      .reduce((sum, item) => sum + toNumber(item.percentage), 0)
-    const usExposure = intelligence.asset_allocation.find((item) => item.key === 'us_stocks')
-    const utilization = toNumber(dashboardSummary.overall_card_utilization)
-
-    return [
-      {
-        title: 'Concentration risk',
-        level: largest && toNumber(largest.percentage) >= 40 ? 'High' : largest && toNumber(largest.percentage) >= 25 ? 'Medium' : 'Low',
-        reason: largest ? `${largest.label} is ${formatPct(toNumber(largest.percentage))} of current allocation.` : 'No single bucket dominates current allocation.',
-        action: largest && toNumber(largest.percentage) >= 40 ? 'Consider trimming concentration over time.' : 'No rebalance urgency right now.',
-      },
-      {
-        title: 'Liquidity risk',
-        level: totalAssets > 0 && immediateCash / totalAssets < 0.1 ? 'High' : totalAssets > 0 && immediateCash / totalAssets < 0.2 ? 'Medium' : 'Low',
-        reason: `Immediate cash is ${formatPct(totalAssets > 0 ? (immediateCash / totalAssets) * 100 : 0)} of assets.`,
-        action: totalAssets > 0 && immediateCash / totalAssets < 0.1 ? 'Strengthen your cash buffer for near-term flexibility.' : 'Liquidity position looks manageable.',
-      },
-      {
-        title: 'Credit / liability risk',
-        level: utilization >= 80 ? 'High' : utilization >= 50 ? 'Medium' : 'Low',
-        reason: `Overall card utilization is ${formatPct(utilization)} with dues of ${formatMoney(toNumber(dashboardSummary.total_credit_card_dues))}.`,
-        action: utilization >= 50 ? 'Reduce revolving usage and watch upcoming due dates.' : 'Credit exposure is currently under control.',
-      },
-      {
-        title: 'Market exposure risk',
-        level: equityExposure >= 70 ? 'High' : equityExposure >= 45 ? 'Medium' : 'Low',
-        reason: `Equity and fund-linked assets account for ${formatPct(equityExposure)} of risk exposure.`,
-        action: equityExposure >= 70 ? 'Make sure this matches your drawdown tolerance.' : 'Exposure mix is within a moderate range.',
-      },
-      {
-        title: 'Currency exposure risk',
-        level: usExposure && toNumber(usExposure.percentage) >= 15 ? 'Medium' : 'Low',
-        reason: usExposure ? `US holdings contribute ${formatPct(toNumber(usExposure.percentage))} of allocation.` : 'No meaningful foreign-currency exposure right now.',
-        action: usExposure ? 'Keep FX rates updated for a realistic INR view.' : 'No FX-specific action needed.',
-      },
-    ]
-  }, [dashboardSummary, intelligence])
-
   const performanceHeaderValue = intelligence?.performance.has_snapshots ? formatMoney(toNumber(intelligence.performance.latest_snapshot_value)) : '—'
-  const utilization = toNumber(dashboardSummary?.overall_card_utilization)
   const snapshotCount = performance?.actual.length ?? 0
   const firstSnapshotValue = snapshotCount > 0 ? toNumber(performance?.actual[0]?.current_value) : 0
   const latestSnapshotValue = snapshotCount > 0 ? toNumber(performance?.actual[snapshotCount - 1]?.current_value) : 0
   const changeSinceFirst = latestSnapshotValue - firstSnapshotValue
   const predictionReady = snapshotCount >= 3 && (performance?.predicted.length ?? 0) > 0
+
   const networthCards = useMemo(() => {
     if (!intelligence) return []
     return [
-      { label: 'Net Worth', value: formatMoney(toNumber(intelligence.net_worth.net_worth)), tone: privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(intelligence.net_worth.net_worth)), context: 'Assets minus liabilities' },
-      { label: 'Assets', value: formatMoney(toNumber(intelligence.net_worth.total_assets)), tone: 'text-slate-900 dark:text-white', context: 'Tracked asset base' },
-      { label: 'Liabilities', value: formatMoney(toNumber(intelligence.net_worth.total_liabilities)), tone: privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-rose-400', context: 'Credit dues only' },
+      {
+        label: 'Net Worth',
+        value: formatMoney(toNumber(intelligence.net_worth.net_worth)),
+        tone: privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(intelligence.net_worth.net_worth)),
+        context: 'Assets minus liabilities',
+      },
+      {
+        label: 'Assets',
+        value: formatMoney(toNumber(intelligence.net_worth.total_assets)),
+        tone: 'text-slate-900 dark:text-white',
+        context: 'Tracked asset base',
+      },
+      {
+        label: 'Liabilities',
+        value: formatMoney(toNumber(intelligence.net_worth.total_liabilities)),
+        tone: privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-rose-400',
+        context: 'Credit dues only',
+      },
+      {
+        label: 'Liquid Assets',
+        value: formatMoney(toNumber(intelligence.net_worth.liquid_assets)),
+        tone: 'text-slate-900 dark:text-white',
+        context: 'Immediate cash access',
+      },
+      {
+        label: 'Long-Term Assets',
+        value: formatMoney(toNumber(intelligence.net_worth.long_term_assets)),
+        tone: 'text-slate-900 dark:text-white',
+        context: 'Investments plus retirement',
+      },
     ]
   }, [intelligence, privacyMode])
 
@@ -440,6 +444,7 @@ export default function AnalyticsPage() {
       banks: 'banks',
       liabilities: 'cards',
     }
+
     const assetRows = intelligence.asset_allocation.map((item) => ({
       key: item.key,
       label: item.label,
@@ -448,6 +453,7 @@ export default function AnalyticsPage() {
       icon: iconByKey[item.key] ?? 'stocks',
       subtitle: item.items.length === 1 ? '1 item' : `${item.items.length} items`,
     }))
+
     const liabilitiesValue = toNumber(intelligence.net_worth.total_liabilities)
     if (liabilitiesValue > 0) {
       assetRows.push({
@@ -462,123 +468,85 @@ export default function AnalyticsPage() {
     return assetRows
   }, [dashboardSummary, intelligence])
 
-  const smartTips = useMemo<TipItem[]>(() => {
-    if (!intelligence) return []
-    const totalAssets = toNumber(intelligence.net_worth.total_assets)
-    const cashPct = totalAssets > 0 ? (toNumber(intelligence.net_worth.liquid_assets) / totalAssets) * 100 : 0
-    const largest = intelligence.top_movers.largest_allocation
-    const tips: TipItem[] = []
+  const cashflowMetrics = analytics?.cashflow_analytics
+  const investmentAnalytics = analytics?.investment_analytics
 
-    if (intelligence.top_movers.biggest_gainers.length > 0) {
-      const names = intelligence.top_movers.biggest_gainers.slice(0, 3).map((item) => item.symbol).join(', ')
-      tips.push({
-        title: 'Performance driver',
-        body: `${names} are contributing most to portfolio gains right now.`,
-        tone: 'healthy',
-      })
+  const monthsTrackedNote = useMemo(() => {
+    if (!cashflowMetrics) return 'Loading tracked months'
+    if (cashflowMetrics.months_count === 0) return 'No cashflow data'
+    if (cashflowMetrics.months_count === 1) return 'Add more months to improve averages'
+    return `${cashflowMetrics.months_count} months tracked`
+  }, [cashflowMetrics])
+
+  const savingsHealth = useMemo(() => {
+    const avgRate = cashflowMetrics?.average_monthly_summary.savings_rate
+    if (!cashflowMetrics || !cashflowMetrics.average_monthly_summary.has_data) {
+      return {
+        label: 'Unknown',
+        tone: 'neutral' as SeverityTone,
+        text: 'Monthly cashflow not added for this month',
+      }
     }
-
-    if (largest) {
-      tips.push({
-        title: 'Largest allocation',
-        body: `${largest.label} are your largest allocation.`,
-        tone: toNumber(largest.percentage) >= 40 ? 'watch' : 'neutral',
-      })
+    if (avgRate === null) {
+      return {
+        label: 'Unknown',
+        tone: 'neutral' as SeverityTone,
+        text: 'No income data yet',
+      }
     }
+    const rate = toNumber(avgRate)
+    if (rate >= 40) return { label: 'Excellent', tone: 'healthy' as SeverityTone, text: privacyMode ? 'Your savings trend is healthy.' : 'You are saving strongly across tracked months.' }
+    if (rate >= 25) return { label: 'Good', tone: 'healthy' as SeverityTone, text: privacyMode ? 'Your savings trend is healthy.' : 'Your average savings trend is healthy.' }
+    if (rate >= 10) return { label: 'Watch', tone: 'watch' as SeverityTone, text: privacyMode ? 'Your savings trend needs attention.' : 'Your savings rate needs attention.' }
+    return { label: 'Risk', tone: 'risk' as SeverityTone, text: privacyMode ? 'Your savings trend needs attention.' : 'Spending is taking too much of monthly income.' }
+  }, [cashflowMetrics, privacyMode])
 
-    if (cashPct < 10) {
-      tips.push({
-        title: 'Cash buffer',
-        body: 'Cash buffer is low compared to total assets.',
-        tone: 'watch',
-      })
-    }
-
-    tips.push({
-      title: 'Credit health',
-      body: dashboardSummary && (dashboardSummary.overdue_count > 0 || dashboardSummary.due_soon_count > 0)
-        ? 'Upcoming credit card dues need attention.'
-        : 'Credit card dues are under control.',
-      tone: dashboardSummary && dashboardSummary.overdue_count > 0 ? 'risk' : dashboardSummary && dashboardSummary.due_soon_count > 0 ? 'watch' : 'healthy',
+  const combinedFocusItems = useMemo(() => {
+    const seen = new Set<string>()
+    const items: AnalyticsFocusItem[] = []
+    ;[...(cashflowMetrics?.focus_items ?? []), ...(investmentAnalytics?.investment_focus_items ?? [])].forEach((item) => {
+      if (seen.has(item.title)) return
+      seen.add(item.title)
+      items.push(item)
     })
+    return items.slice(0, 5)
+  }, [cashflowMetrics, investmentAnalytics])
 
-    return tips.slice(0, 4)
-  }, [dashboardSummary, intelligence])
-
-  const sectorAllocation = useMemo<AllocationRow[]>(() => {
-    const eligible = holdings.filter((holding) => (['stock', 'etf', 'gold', 'mutual_fund'].includes(holding.asset_type) || isGoldHolding(holding)) && holding.sector)
-    const totals = eligible.reduce<Record<string, number>>((acc, holding) => {
-      const key = (holding.sector || '').trim()
-      if (!key) return acc
-      acc[key] = (acc[key] ?? 0) + toNumber(holding.current_value)
-      return acc
-    }, {})
-    const total = Object.values(totals).reduce((sum, value) => sum + value, 0)
-    return Object.entries(totals)
-      .map(([label, value]) => ({ label, value, percentage: total > 0 ? (value / total) * 100 : 0, color: '#14b8a6' }))
-      .sort((left, right) => right.value - left.value)
-      .slice(0, 6)
-  }, [holdings])
-
-  const marketCapAllocation = useMemo<AllocationRow[]>(() => {
-    const totals = holdings.reduce<Record<string, number>>((acc, holding) => {
-      if (holding.country !== 'IN' || !(['stock', 'etf', 'gold'].includes(holding.asset_type) || isGoldHolding(holding))) return acc
-      const sectorText = (holding.sector || '').toLowerCase()
-      let label: string | null = null
-      if (sectorText.includes('mega cap')) label = 'Mega Cap'
-      else if (sectorText.includes('large cap')) label = 'Large Cap'
-      else if (sectorText.includes('mid cap')) label = 'Mid Cap'
-      else if (sectorText.includes('small cap')) label = 'Small Cap'
-      if (!label) return acc
-      acc[label] = (acc[label] ?? 0) + toNumber(holding.current_value)
-      return acc
-    }, {})
-    const colors: Record<string, string> = {
-      'Mega Cap': '#0ea5e9',
-      'Large Cap': '#14b8a6',
-      'Mid Cap': '#f59e0b',
-      'Small Cap': '#fb7185',
-    }
-    const total = Object.values(totals).reduce((sum, value) => sum + value, 0)
-    return Object.entries(totals)
-      .map(([label, value]) => ({ label, value, percentage: total > 0 ? (value / total) * 100 : 0, color: colors[label] ?? '#64748b' }))
-      .sort((left, right) => right.value - left.value)
-  }, [holdings])
-
-  const latestChange = intelligence?.performance.has_snapshots ? toNumber(intelligence.performance.latest_snapshot_return_pct) : null
+  const topHoldings = useMemo(() => investmentAnalytics?.top_holdings ?? [], [investmentAnalytics])
 
   const refreshAnalytics = async () => {
     setLoading(true)
+    setAnalyticsLoading(true)
     setPerformanceLoading(true)
-    setCreditHealthLoading(true)
-    setHoldingsLoading(true)
     try {
-      const [intel, perf, summary, cards, nextHoldings] = await Promise.all([
+      const [intel, summary, analyticsSummary, perf] = await Promise.all([
         getPortfolioIntelligence(),
-        apiFetch<ApiPortfolioPerformance>(`/api/portfolio/performance?range=${activeRange}`),
         apiFetch<ApiDashboardSummary>('/api/dashboard/summary'),
-        apiFetch<ApiCreditCard[]>('/api/credit-cards'),
-        apiFetch<ApiHolding[]>('/api/holdings'),
+        getAnalyticsSummary(),
+        apiFetch<ApiPortfolioPerformance>(`/api/portfolio/performance?range=${activeRange}`),
       ])
       setIntelligence(intel)
-      setPerformance(perf)
       setDashboardSummary(summary)
-      setCreditCards(cards)
-      setHoldings(nextHoldings)
+      setAnalytics(analyticsSummary)
+      setPerformance(perf)
       setError(null)
+      setAnalyticsError(null)
       setPerformanceError(null)
-      setCreditHealthError(null)
-      setHoldingsError(null)
     } catch (err) {
       const message = formatApiError(err)
       setError(message)
     } finally {
       setLoading(false)
+      setAnalyticsLoading(false)
       setPerformanceLoading(false)
-      setCreditHealthLoading(false)
-      setHoldingsLoading(false)
     }
   }
+
+  const currentCashflow = cashflowMetrics?.current_month_summary
+  const averageCashflow = cashflowMetrics?.average_monthly_summary
+  const utilization = toNumber(dashboardSummary?.overall_card_utilization)
+  const creditCardsTone = dashboardSummary?.overdue_count ? 'risk' : dashboardSummary?.due_soon_count ? 'watch' : 'healthy'
+  const creditToneMeta = severityClasses(creditCardsTone)
 
   return (
     <div className="space-y-5">
@@ -596,14 +564,16 @@ export default function AnalyticsPage() {
         }
         onClose={() => setSelectedBucketKey(null)}
       />
+
       {error ? <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{error}</div> : null}
+      {analyticsError ? <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">{analyticsError}</div> : null}
 
       <SectionCard className="overflow-hidden p-0">
         <div className="flex flex-col gap-4 border-b border-slate-200 px-4 py-4 dark:border-slate-700/50 sm:px-6 sm:py-5 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 px-5 py-3 shadow-sm">
+          <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3 shadow-sm dark:border-slate-700/50 dark:bg-slate-900/80">
             <Icon name="analytics" className="h-4 w-4 shrink-0 text-slate-400" />
             <span className="text-sm font-semibold text-slate-900 dark:text-white">Financial Analytics</span>
-            <span className="hidden sm:inline text-sm text-slate-500 dark:text-slate-400">· Net worth, allocation, risk, and portfolio scan</span>
+            <span className="hidden text-sm text-slate-500 dark:text-slate-400 sm:inline">· Net worth, risk, allocation, cashflow, and credit health</span>
             <div className="ml-auto flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
               <span className="text-xs font-medium text-emerald-500 dark:text-emerald-400">Live</span>
@@ -628,13 +598,14 @@ export default function AnalyticsPage() {
             </button>
           </div>
         </div>
+
         <div className="grid gap-5 px-4 py-4 sm:px-6 sm:py-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
           <div className="space-y-4">
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Networth Intelligence</div>
+            <div className="text-base font-bold tracking-[-0.02em] text-slate-900 dark:text-white">Net Worth Intelligence</div>
             {privacyMode ? <div className="rounded-lg border border-slate-700/70 bg-slate-900/60 px-3 py-2 t-meta text-slate-300">Privacy mode is on. Labels stay visible, values are masked.</div> : null}
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               {loading || !intelligence
-                ? Array.from({ length: 3 }, (_, index) => (
+                ? Array.from({ length: 5 }, (_, index) => (
                     <div key={index} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
                       <div className="animate-pulse space-y-3">
                         <div className="h-3 w-16 rounded bg-slate-200 dark:bg-slate-700" />
@@ -642,22 +613,7 @@ export default function AnalyticsPage() {
                       </div>
                     </div>
                   ))
-                : networthCards.map((card) => (
-                    <MetricCard key={card.label} label={card.label} value={card.value} context={card.context} tone={card.tone} hideColor />
-                  ))}
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="inline-flex items-center gap-2 rounded-full border border-slate-700/70 bg-slate-900/60 px-3 py-2 t-badge text-slate-300">
-                <Icon name="analytics" className="h-3.5 w-3.5" />
-                Latest change{' '}
-                <span className={privacyMode ? 'text-slate-300' : latestChange !== null && latestChange >= 0 ? 'text-emerald-300' : 'text-rose-300'}>
-                  <PrivateValue value={latestChange !== null ? formatSignedPct(latestChange) : 'Not available'} mask="••••" hideColor />
-                </span>
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-slate-700/70 bg-slate-900/60 px-3 py-2 t-badge text-slate-300">
-                <Icon name="calendar" className="h-3.5 w-3.5" />
-                {statusMeta.lastUpdated}
-              </div>
+                : networthCards.map((card) => <MetricCard key={card.label} label={card.label} value={card.value} context={card.context} tone={card.tone} hideColor />)}
             </div>
           </div>
 
@@ -687,9 +643,7 @@ export default function AnalyticsPage() {
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="t-meta text-slate-500 dark:text-slate-400">
-                  {predictionReady ? 'Projection shown from existing snapshot trend.' : 'Save more snapshots to see projection'}
-                </div>
+                <div className="t-meta text-slate-500 dark:text-slate-400">{predictionReady ? 'Projection shown from existing snapshot trend.' : 'Save more snapshots to see projection'}</div>
               </div>
             ) : (
               <div className="flex h-36 items-center justify-center rounded-xl border border-dashed border-slate-200 px-6 text-center dark:border-slate-700">
@@ -703,12 +657,12 @@ export default function AnalyticsPage() {
         </div>
       </SectionCard>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-        <SectionCard title="Portfolio Scan" className="p-5">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)]">
+        <SectionCard title="Portfolio Scan" className="p-5 pl-0">
           {!intelligence ? (
-            <div className="t-body text-slate-500 dark:text-slate-400">Loading portfolio buckets...</div>
+            <div className="px-5 t-body text-slate-500 dark:text-slate-400">Loading portfolio buckets...</div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-4 px-5">
               {scanRows.map((row) => {
                 const hasLiability = row.key === 'liabilities'
                 const bucketColor = allocationColors[row.key] ?? '#64748b'
@@ -719,10 +673,7 @@ export default function AnalyticsPage() {
                     onClick={() => setSelectedBucketKey(row.key)}
                     className="flex w-full items-center gap-4 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-left transition-colors duration-200 hover:border-slate-300 dark:border-slate-700/50 dark:bg-slate-900/40 dark:hover:border-slate-600/70"
                   >
-                    <div
-                      className="grid h-11 w-11 shrink-0 place-items-center rounded-xl"
-                      style={{ backgroundColor: `${bucketColor}20`, color: bucketColor }}
-                    >
+                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: `${bucketColor}20`, color: bucketColor }}>
                       <Icon name={row.icon} className="h-5 w-5" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -745,151 +696,337 @@ export default function AnalyticsPage() {
           )}
         </SectionCard>
 
-        <SectionCard title="Smart Tips" className="p-5">
-          {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 3 }, (_, index) => (
-                <div key={index} className="h-20 rounded-xl bg-slate-100 dark:bg-slate-800" />
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {smartTips.map((tip, index) => {
-                const tone = severityClasses(tip.tone)
-                return (
-                  <div key={`${tip.title}-${index}`} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className={['t-section', tone.title].join(' ')}>{tip.title}</div>
-                      <span className={['inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 t-badge', tone.chip].join(' ')}>
-                        <Icon name={tone.icon} className="h-3.5 w-3.5" />
-                        {tip.tone === 'healthy' ? 'Healthy' : tip.tone === 'watch' ? 'Watch' : tip.tone === 'risk' ? 'Risk' : tip.tone === 'action' ? 'Action' : 'Neutral'}
-                      </span>
+        <SectionCard title="Credit Card Health" className="p-5 pl-0">
+          <div className="space-y-4 px-5">
+            {!dashboardSummary ? (
+              <div className="t-body text-slate-500 dark:text-slate-400">Loading credit health...</div>
+            ) : (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <MetricCard label="Total Dues" value={formatMoney(toNumber(dashboardSummary.total_credit_card_dues))} context="Current card bills" tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-rose-400'} hideColor />
+                  <MetricCard label="Utilization" value={formatPct(utilization)} context="Across all active cards" tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : utilization >= 50 ? 'text-amber-300' : 'text-emerald-300'} hideColor />
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="t-section text-slate-900 dark:text-white">Status</div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="rounded-full border border-slate-700/70 bg-slate-900/60 px-2.5 py-1 t-badge text-slate-300">{dashboardSummary.overdue_count} overdue</span>
+                        <span className="rounded-full border border-slate-700/70 bg-slate-900/60 px-2.5 py-1 t-badge text-slate-300">{dashboardSummary.due_soon_count} due soon</span>
+                      </div>
                     </div>
-                    <div className="mt-2 t-body text-slate-500 dark:text-slate-400">{tip.body}</div>
+                    <span className={['inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 t-badge', creditToneMeta.chip].join(' ')}>
+                      <Icon name={creditToneMeta.icon} className="h-3.5 w-3.5" />
+                      {creditCardsTone === 'healthy' ? 'Healthy' : creditCardsTone === 'watch' ? 'Watch' : 'Risk'}
+                    </span>
                   </div>
-                )
-              })}
-            </div>
-          )}
+                  <div className="mt-3 t-body text-slate-500 dark:text-slate-400">
+                    {dashboardSummary.overdue_count > 0
+                      ? 'Overdue card bills need immediate attention.'
+                      : dashboardSummary.due_soon_count > 0
+                        ? 'Upcoming card dues should be planned this cycle.'
+                        : 'Credit dues are currently under control.'}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </SectionCard>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        <SectionCard title="Sector Allocation" className="p-5">
-          {holdingsLoading ? (
-            <div className="t-body text-slate-500 dark:text-slate-400">Loading sectors...</div>
-          ) : holdingsError ? (
-            <div className="text-sm text-rose-300">{holdingsError}</div>
-          ) : sectorAllocation.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-200 px-4 py-5 dark:border-slate-700">
-              <div className="t-section text-slate-900 dark:text-white">Add sectors to holdings to see sector allocation.</div>
-              <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Only investments with sector data are included here.</div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                {sectorAllocation.map((row) => (
-                  <div key={row.label} className="h-full" style={{ width: `${row.percentage}%`, backgroundColor: row.color }} />
-                ))}
-              </div>
-              <div className="space-y-3">
-                {sectorAllocation.map((row) => (
-                  <div key={row.label} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5 dark:border-slate-700/50 dark:bg-slate-900/40">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: row.color }} />
-                      <div className="t-nav text-slate-900 dark:text-white">{row.label}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="t-amount text-slate-900 dark:text-white"><PrivateValue value={formatMoney(row.value)} mask="••••" hideColor /></div>
-                      <div className="t-meta text-slate-500 dark:text-slate-400"><PrivateValue value={formatPct(row.percentage)} mask="••••" hideColor /></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </SectionCard>
-
-        <SectionCard title="MarketCap Allocation" className="p-5">
-          {holdingsLoading ? (
-            <div className="t-body text-slate-500 dark:text-slate-400">Loading market-cap view...</div>
-          ) : marketCapAllocation.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-200 px-4 py-5 dark:border-slate-700">
-              <div className="t-section text-slate-900 dark:text-white">Market cap classification not added yet</div>
-              <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Add market cap category to holdings to enable this view.</div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {marketCapAllocation.map((row) => (
-                <div key={row.label} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5 dark:border-slate-700/50 dark:bg-slate-900/40">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: row.color }} />
-                    <div className="t-nav text-slate-900 dark:text-white">{row.label}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="t-amount text-slate-900 dark:text-white"><PrivateValue value={formatMoney(row.value)} mask="••••" hideColor /></div>
-                    <div className="t-meta text-slate-500 dark:text-slate-400"><PrivateValue value={formatPct(row.percentage)} mask="••••" hideColor /></div>
+      <SectionCard title="Money Flow Intelligence" className="p-5 pl-0">
+        <div className="space-y-4 px-5">
+          {analyticsLoading ? (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {Array.from({ length: 4 }, (_, index) => (
+                <div key={index} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
+                  <div className="animate-pulse space-y-3">
+                    <div className="h-3 w-20 rounded bg-slate-200 dark:bg-slate-700" />
+                    <div className="h-7 w-24 rounded bg-slate-200 dark:bg-slate-700" />
                   </div>
                 </div>
               ))}
             </div>
+          ) : !cashflowMetrics || cashflowMetrics.months_count === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 px-4 py-5 dark:border-slate-700">
+              <div className="t-section text-slate-900 dark:text-white">Monthly cashflow is not added yet.</div>
+              <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Add income and expense entries from Transactions to unlock money flow analytics.</div>
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <MetricCard label="Average Income" value={formatMoney(toNumber(averageCashflow?.income))} context={monthsTrackedNote} tone="text-emerald-400" hideColor />
+                <MetricCard label="Average Spend" value={formatMoney(toNumber(averageCashflow?.expense))} context="Across tracked months" tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-rose-400'} hideColor />
+                <MetricCard label="Average Net Savings" value={formatMoney(toNumber(averageCashflow?.net_savings))} context="Income minus spend" tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(averageCashflow?.net_savings))} hideColor />
+                <MetricCard
+                  label="Avg Savings Rate"
+                  value={averageCashflow?.savings_rate === null ? 'Not available' : formatPct(toNumber(averageCashflow?.savings_rate))}
+                  context={cashflowMetrics.months_count === 1 ? 'Single month only' : `${cashflowMetrics.months_count} months averaged`}
+                  tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(averageCashflow?.savings_rate))}
+                  hideColor
+                />
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="t-section text-slate-900 dark:text-white">Current Month</div>
+                    <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">{cashflowMetrics.current_month}</div>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-4">
+                    <div>
+                      <div className={sectionLabel}>Income</div>
+                      <div className="mt-1 t-nav text-slate-900 dark:text-white">
+                        <PrivateValue value={currentCashflow?.has_data ? formatMoney(toNumber(currentCashflow.income)) : 'Not added'} mask="••••" hideColor />
+                      </div>
+                    </div>
+                    <div>
+                      <div className={sectionLabel}>Spend</div>
+                      <div className="mt-1 t-nav text-slate-900 dark:text-white">
+                        <PrivateValue value={currentCashflow?.has_data ? formatMoney(toNumber(currentCashflow.expense)) : 'Not added'} mask="••••" hideColor />
+                      </div>
+                    </div>
+                    <div>
+                      <div className={sectionLabel}>Savings</div>
+                      <div className="mt-1 t-nav text-slate-900 dark:text-white">
+                        <PrivateValue value={currentCashflow?.has_data ? formatMoney(toNumber(currentCashflow.net_savings)) : 'Not added'} mask="••••" hideColor />
+                      </div>
+                    </div>
+                    <div>
+                      <div className={sectionLabel}>Savings Rate</div>
+                      <div className="mt-1 t-nav text-slate-900 dark:text-white">
+                        <PrivateValue value={currentCashflow?.savings_rate === null ? 'Not available' : formatPct(toNumber(currentCashflow?.savings_rate))} mask="••••" hideColor />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
           )}
+        </div>
+      </SectionCard>
+
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <SectionCard title="Where Your Money Goes" className="p-5 pl-0">
+          <div className="px-5">
+            <CategoryBars
+              items={cashflowMetrics?.average_expense_by_category ?? []}
+              percentageKey="percentage_of_avg_spend"
+              emptyTitle="No expenses added for tracked months."
+              emptyBody="Add expense summaries in Transactions to see category averages."
+            />
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Income Sources" className="p-5 pl-0">
+          <div className="px-5">
+            <CategoryBars
+              items={cashflowMetrics?.average_income_by_category ?? []}
+              percentageKey="percentage_of_avg_income"
+              emptyTitle="No income entries added yet."
+              emptyBody="Add income entries in Transactions to see source mix."
+            />
+          </div>
         </SectionCard>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        <SectionCard title="Risk Diagnostics" className="p-5">
-          {riskItems.length === 0 ? (
-            <div className="t-body text-slate-500 dark:text-slate-400">Not enough risk data yet.</div>
-          ) : (
-            <div className="space-y-3">
-              {riskItems.slice(0, 4).map((item) => {
-                const severity: SeverityTone = item.level === 'High' ? 'risk' : item.level === 'Medium' ? 'watch' : 'healthy'
-                const tone = severityClasses(severity)
-                return (
-                  <div key={item.title} className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-slate-700/50 dark:bg-slate-900/40">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="t-section text-slate-900 dark:text-white">{item.title}</div>
-                      <span className={['inline-flex items-center rounded-full px-2.5 py-1 t-badge', tone.chip].join(' ')}>{item.level === 'Low' ? 'Healthy' : item.level === 'Medium' ? 'Watch' : 'High'}</span>
-                    </div>
-                    <div className="mt-2 t-body text-slate-500 dark:text-slate-400">{privacyMode ? item.reason.replace(/[\d.,%₹$]+/g, 'this level') : item.reason}</div>
-                    <div className="mt-2 t-meta text-slate-300 dark:text-slate-300">Suggested action: {item.action}</div>
-                  </div>
-                )
-              })}
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <SectionCard title="Savings Health" className="p-5 pl-0">
+          <div className="space-y-4 px-5">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <MetricCard
+                label="Current Savings Rate"
+                value={currentCashflow?.savings_rate === null ? 'Not available' : formatPct(toNumber(currentCashflow?.savings_rate))}
+                context={currentCashflow?.has_data ? 'Current month summary' : 'No current month data'}
+                tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(currentCashflow?.savings_rate))}
+                hideColor
+              />
+              <MetricCard
+                label="Average Savings Rate"
+                value={averageCashflow?.savings_rate === null ? 'Not available' : formatPct(toNumber(averageCashflow?.savings_rate))}
+                context={monthsTrackedNote}
+                tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(averageCashflow?.savings_rate))}
+                hideColor
+              />
             </div>
-          )}
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="t-section text-slate-900 dark:text-white">{savingsHealth.label}</div>
+                  <div className="mt-2 t-body text-slate-500 dark:text-slate-400">{savingsHealth.text}</div>
+                </div>
+                <span className={['inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 t-badge', severityClasses(savingsHealth.tone).chip].join(' ')}>
+                  <Icon name={severityClasses(savingsHealth.tone).icon} className="h-3.5 w-3.5" />
+                  {savingsHealth.label}
+                </span>
+              </div>
+            </div>
+          </div>
         </SectionCard>
 
-        <SectionCard title="Cashflow Snapshot" className="p-5">
-          {!intelligence ? (
-            <div className="t-body text-slate-500 dark:text-slate-400">Loading cashflow...</div>
-          ) : !intelligence.cashflow_context.has_data ? (
+        <SectionCard title="What to Focus On" className="p-5 pl-0">
+          <div className="space-y-3 px-5">
+            {combinedFocusItems.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 px-4 py-5 dark:border-slate-700">
+                <div className="t-section text-slate-900 dark:text-white">No immediate focus items.</div>
+                <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Add more tracked data to deepen analytics.</div>
+              </div>
+            ) : (
+              combinedFocusItems.map((item) => {
+                const tone = severityClasses(item.severity as SeverityTone)
+                return (
+                  <div key={`${item.type}-${item.title}`} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className={['t-section', tone.title].join(' ')}>{item.title}</div>
+                      <span className={['inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 t-badge', tone.chip].join(' ')}>
+                        <Icon name={tone.icon} className="h-3.5 w-3.5" />
+                        {item.severity === 'healthy' ? 'Healthy' : item.severity === 'watch' ? 'Watch' : 'Risk'}
+                      </span>
+                    </div>
+                    <div className="mt-2 t-body text-slate-500 dark:text-slate-400">{item.message}</div>
+                    <div className="mt-2 t-meta text-slate-300 dark:text-slate-300">Action: {item.action}</div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </SectionCard>
+      </div>
+
+      <SectionCard title="Income vs Spend Trend" className="p-5 pl-0">
+        <div className="space-y-4 px-5">
+          {!cashflowMetrics || cashflowMetrics.months_count === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-200 px-4 py-5 dark:border-slate-700">
-              <div className="t-section text-slate-900 dark:text-white">Monthly cashflow not added for this month.</div>
-              <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Bank balances remain manually managed and are not affected by cashflow summaries.</div>
+              <div className="t-section text-slate-900 dark:text-white">Monthly cashflow is not added yet.</div>
+              <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Add income and expense entries from Transactions to unlock monthly trend analytics.</div>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <MetricCard label="Income" value={formatMoney(toNumber(intelligence.cashflow_context.income))} context={`Month ${intelligence.cashflow_context.month ?? 'current'}`} tone="text-emerald-400" hideColor />
-                <MetricCard label="Spend" value={formatMoney(toNumber(intelligence.cashflow_context.spend))} context="Monthly outflow" tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-rose-400'} hideColor />
-                <MetricCard label="Savings" value={formatMoney(toNumber(intelligence.cashflow_context.savings))} context="Income minus spend" tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(intelligence.cashflow_context.savings))} hideColor />
-                <MetricCard label="Savings Rate" value={formatPct(toNumber(intelligence.cashflow_context.savings_rate))} context="Current month summary" tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(intelligence.cashflow_context.savings_rate))} hideColor />
+            <>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={trendData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                    <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
+                    <YAxis tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 11 }} width={76} tickFormatter={(value: number) => (privacyMode ? '••••' : formatINRShort(value))} />
+                    <Tooltip
+                      contentStyle={{ background: '#0f172a', border: '1px solid rgba(51,65,85,0.7)', borderRadius: '12px', color: '#fff' }}
+                      formatter={(value, name) => [
+                        privacyMode ? '••••' : formatINR(Number(Array.isArray(value) ? value[0] ?? 0 : value ?? 0)),
+                        name === 'income' ? 'Income' : name === 'expense' ? 'Spend' : 'Net Savings',
+                      ]}
+                      labelFormatter={(label) => `Month: ${label}`}
+                    />
+                    <Line type="monotone" dataKey="income" stroke="#10b981" strokeWidth={2.25} dot={{ r: 0 }} activeDot={{ r: 4 }} />
+                    <Line type="monotone" dataKey="expense" stroke="#f43f5e" strokeWidth={2.25} dot={{ r: 0 }} activeDot={{ r: 4 }} />
+                    <Line type="monotone" dataKey="net_savings" stroke="#14b8a6" strokeWidth={2.25} dot={{ r: 0 }} activeDot={{ r: 4 }} />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
-                <div className="t-meta text-slate-500 dark:text-slate-400">Cashflow is monthly summary only. It does not auto-update bank balances.</div>
+
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {trendData.slice(-6).map((point) => (
+                  <div key={point.month} className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700/50 dark:bg-slate-900/40">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="t-section text-slate-900 dark:text-white">{point.label}</div>
+                      <div className="t-meta text-slate-500 dark:text-slate-400">
+                        <PrivateValue value={point.savings_rate === null ? 'Not available' : formatPct(point.savings_rate)} mask="••••" hideColor />
+                      </div>
+                    </div>
+                    <div className="mt-3 space-y-1.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="t-meta text-slate-500 dark:text-slate-400">Income</span>
+                        <span className="t-nav text-emerald-300">
+                          <PrivateValue value={formatMoney(point.income)} mask="••••" hideColor />
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="t-meta text-slate-500 dark:text-slate-400">Spend</span>
+                        <span className={privacyMode ? 't-nav text-slate-300' : 't-nav text-rose-300'}>
+                          <PrivateValue value={formatMoney(point.expense)} mask="••••" hideColor />
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="t-meta text-slate-500 dark:text-slate-400">Savings</span>
+                        <span className={privacyMode ? 't-nav text-slate-300' : ['t-nav', getTrendClass(point.net_savings)].join(' ')}>
+                          <PrivateValue value={formatMoney(point.net_savings)} mask="••••" hideColor />
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
+            </>
           )}
+        </div>
+      </SectionCard>
+
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <SectionCard title="Investment Focus" className="p-5 pl-0">
+          <div className="space-y-3 px-5">
+            {investmentAnalytics?.investment_focus_items.length ? (
+              investmentAnalytics.investment_focus_items.map((item) => {
+                const tone = severityClasses(item.severity as SeverityTone)
+                return (
+                  <div key={item.title} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className={['t-section', tone.title].join(' ')}>{item.title}</div>
+                      <span className={['inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 t-badge', tone.chip].join(' ')}>
+                        <Icon name={tone.icon} className="h-3.5 w-3.5" />
+                        {item.severity === 'healthy' ? 'Healthy' : item.severity === 'watch' ? 'Watch' : 'Risk'}
+                      </span>
+                    </div>
+                    <div className="mt-2 t-body text-slate-500 dark:text-slate-400">{item.message}</div>
+                    <div className="mt-2 t-meta text-slate-300 dark:text-slate-300">Action: {item.action}</div>
+                  </div>
+                )
+              })
+            ) : (
+              <div className="rounded-xl border border-dashed border-slate-200 px-4 py-5 dark:border-slate-700">
+                <div className="t-section text-slate-900 dark:text-white">No investment focus items yet.</div>
+                <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Add more holdings and snapshots to deepen investment diagnostics.</div>
+              </div>
+            )}
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Top Holdings" className="p-5 pl-0">
+          <div className="space-y-3 px-5">
+            {topHoldings.length ? (
+              topHoldings.map((item) => (
+                <div key={item.symbol} className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-slate-700/50 dark:bg-slate-900/40">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate t-section text-slate-900 dark:text-white">{item.symbol}</div>
+                      <div className="mt-1 truncate t-meta text-slate-500 dark:text-slate-400">{item.name}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="t-amount text-slate-900 dark:text-white">
+                        <PrivateValue value={formatMoney(toNumber(item.value))} mask="••••" hideColor />
+                      </div>
+                      <div className={['mt-1 t-meta', privacyMode ? 'text-slate-400' : getTrendClass(toNumber(item.return_pct))].join(' ')}>
+                        <PrivateValue value={item.return_pct === null ? '—' : formatSignedPct(toNumber(item.return_pct))} mask="••••" hideColor />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200/70 dark:bg-slate-800">
+                    <div className="h-full rounded-full bg-teal-500" style={{ width: `${Math.max(4, Math.min(100, toNumber(item.percentage_of_portfolio)))}%` }} />
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-xl border border-dashed border-slate-200 px-4 py-5 dark:border-slate-700">
+                <div className="t-section text-slate-900 dark:text-white">No holdings added yet.</div>
+                <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Add investments in Stocks to populate top holdings analytics.</div>
+              </div>
+            )}
+          </div>
         </SectionCard>
       </div>
 
       <SectionCard
         title="Portfolio Performance"
-        className="p-5"
+        className="p-5 pl-0"
         action={
-          <div className="flex items-center rounded-xl bg-slate-100 p-1 gap-0.5 dark:bg-slate-800">
+          <div className="flex items-center gap-0.5 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
             {rangeFilters.map((filter) => (
               <button
                 key={filter.value}
@@ -906,7 +1043,7 @@ export default function AnalyticsPage() {
           </div>
         }
       >
-        <div className="mb-5 flex flex-wrap items-center gap-3 px-0">
+        <div className="mb-5 flex flex-wrap items-center gap-3 px-5">
           <div className="t-metric text-slate-900 dark:text-white">
             <PrivateValue value={performanceHeaderValue} mask="••••" hideColor />
           </div>
@@ -918,7 +1055,7 @@ export default function AnalyticsPage() {
             <div className="t-body text-slate-500 dark:text-slate-400">Not enough history yet</div>
           )}
         </div>
-        <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mb-5 grid gap-3 px-5 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard label="Latest Value" value={performanceHeaderValue} context="Most recent snapshot" />
           <MetricCard label="Snapshot Count" value={String(snapshotCount)} context="Saved portfolio history points" />
           <MetricCard
@@ -938,45 +1075,47 @@ export default function AnalyticsPage() {
             </div>
           </div>
         </div>
-        {performanceLoading ? (
-          <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/40">
-            <span className="t-body text-slate-400">Loading chart…</span>
-          </div>
-        ) : performanceError ? (
-          <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{performanceError}</div>
-        ) : !hasPerformance ? (
-          <div className="flex h-64 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 text-center dark:border-slate-700 dark:bg-slate-800/40">
-            <div className="t-section text-slate-900 dark:text-white">Not enough history yet</div>
-            <div className="t-body text-slate-500 dark:text-slate-400">{performance?.message ?? 'More snapshot history needed for prediction.'}</div>
-          </div>
-        ) : (
-          <>
-            <div className="mb-3 flex items-center gap-4 t-badge text-slate-500 dark:text-slate-400">
-              <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-teal-400" />Actual</span>
-              {performance?.predicted.length ? <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-400" />Projected</span> : null}
+        <div className="px-5">
+          {performanceLoading ? (
+            <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/40">
+              <span className="t-body text-slate-400">Loading chart…</span>
             </div>
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 11 }} width={76} tickFormatter={(value: number) => (privacyMode ? '••••' : formatINRShort(value))} />
-                  <Tooltip
-                    contentStyle={{ background: '#0f172a', border: '1px solid rgba(51,65,85,0.7)', borderRadius: '12px', color: '#fff' }}
-                    formatter={(value, name) => [
-                      privacyMode ? '••••' : formatINR(Number(Array.isArray(value) ? value[0] ?? 0 : value ?? 0)),
-                      name === 'actual_value' ? 'Actual' : 'Projected',
-                    ]}
-                    labelFormatter={(label) => `Date: ${label}`}
-                  />
-                  <Line type="monotone" dataKey="actual_value" stroke="#14b8a6" strokeWidth={2.25} dot={{ r: 0 }} activeDot={{ r: 4 }} connectNulls={false} />
-                  {performance?.predicted.length ? <Line type="monotone" dataKey="predicted_value" stroke="#f59e0b" strokeWidth={2} dot={{ r: 0 }} strokeDasharray="6 4" activeDot={{ r: 4 }} connectNulls={false} /> : null}
-                </LineChart>
-              </ResponsiveContainer>
+          ) : performanceError ? (
+            <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{performanceError}</div>
+          ) : !hasPerformance ? (
+            <div className="flex h-64 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 text-center dark:border-slate-700 dark:bg-slate-800/40">
+              <div className="t-section text-slate-900 dark:text-white">Not enough history yet</div>
+              <div className="t-body text-slate-500 dark:text-slate-400">{performance?.message ?? 'More snapshot history needed for prediction.'}</div>
             </div>
-            {performance?.message ? <div className="mt-3 t-meta text-slate-500 dark:text-slate-400">{performance.message}</div> : null}
-          </>
-        )}
+          ) : (
+            <>
+              <div className="mb-3 flex items-center gap-4 t-badge text-slate-500 dark:text-slate-400">
+                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-teal-400" />Actual</span>
+                {performance?.predicted.length ? <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-400" />Projected</span> : null}
+              </div>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                    <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
+                    <YAxis tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 11 }} width={76} tickFormatter={(value: number) => (privacyMode ? '••••' : formatINRShort(value))} />
+                    <Tooltip
+                      contentStyle={{ background: '#0f172a', border: '1px solid rgba(51,65,85,0.7)', borderRadius: '12px', color: '#fff' }}
+                      formatter={(value, name) => [
+                        privacyMode ? '••••' : formatINR(Number(Array.isArray(value) ? value[0] ?? 0 : value ?? 0)),
+                        name === 'actual_value' ? 'Actual' : 'Projected',
+                      ]}
+                      labelFormatter={(label) => `Date: ${label}`}
+                    />
+                    <Line type="monotone" dataKey="actual_value" stroke="#14b8a6" strokeWidth={2.25} dot={{ r: 0 }} activeDot={{ r: 4 }} connectNulls={false} />
+                    {performance?.predicted.length ? <Line type="monotone" dataKey="predicted_value" stroke="#f59e0b" strokeWidth={2} dot={{ r: 0 }} strokeDasharray="6 4" activeDot={{ r: 4 }} connectNulls={false} /> : null}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              {performance?.message ? <div className="mt-3 t-meta text-slate-500 dark:text-slate-400">{performance.message}</div> : null}
+            </>
+          )}
+        </div>
       </SectionCard>
     </div>
   )

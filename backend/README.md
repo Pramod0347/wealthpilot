@@ -102,30 +102,3 @@ COOKIE_SAMESITE=none
 COOKIE_SECURE=true
 COOKIE_DOMAIN=
 ```
-
-### Recommended iOS-stable setup
-
-If iOS Safari still drops the session on refresh, move the backend to a custom subdomain:
-
-Frontend:
-
-```bash
-https://money.pramodgoudar.com
-```
-
-Backend:
-
-```bash
-https://api.money.pramodgoudar.com
-```
-
-Recommended env:
-
-```bash
-FRONTEND_URL=https://money.pramodgoudar.com
-COOKIE_SAMESITE=lax
-COOKIE_SECURE=true
-COOKIE_DOMAIN=.money.pramodgoudar.com
-```
-
-In that setup the frontend and backend share the same parent site, which is generally more reliable on iOS Safari than a Vercel-to-Render cross-site cookie.

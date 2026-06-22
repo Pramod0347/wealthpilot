@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models.cashflow_entry import CashflowEntry
 from app.schemas.cashflow import CashflowCategoryBreakdownItem, CashflowEntryRead, CashflowSummary
+from app.schemas.dashboard import CashflowAverageMetrics, CashflowMetricWindow, DashboardCashflowMetrics
 
 
 def current_month_string() -> str:
@@ -89,3 +90,69 @@ def build_cashflow_summary(db: Session, month: str | None = None) -> CashflowSum
 def list_cashflow_months(db: Session) -> list[str]:
     rows = db.scalars(select(CashflowEntry.month).distinct().order_by(CashflowEntry.month.desc())).all()
     return list(rows)
+
+
+def build_dashboard_cashflow_metrics(db: Session, month: str | None = None) -> DashboardCashflowMetrics:
+    selected_month = month or current_month_string()
+
+    monthly_rows = db.execute(
+        select(
+            CashflowEntry.month,
+            func.coalesce(func.sum(case((CashflowEntry.entry_type == "income", CashflowEntry.amount), else_=0)), 0),
+            func.coalesce(func.sum(case((CashflowEntry.entry_type == "expense", CashflowEntry.amount), else_=0)), 0),
+            func.count(CashflowEntry.id),
+        )
+        .group_by(CashflowEntry.month)
+        .order_by(CashflowEntry.month.desc())
+    ).all()
+
+    current = CashflowMetricWindow()
+    if monthly_rows:
+        monthly_map: dict[str, tuple[Decimal, Decimal, int]] = {
+            month_key: (_to_decimal(income), _to_decimal(expense), int(entries_count))
+            for month_key, income, expense, entries_count in monthly_rows
+        }
+
+        current_income, current_expense, current_entries = monthly_map.get(
+            selected_month,
+            (Decimal("0"), Decimal("0"), 0),
+        )
+        current_net_savings = current_income - current_expense
+        current_savings_rate: Decimal | None = None
+        if current_income != 0:
+            current_savings_rate = (current_net_savings / current_income) * Decimal("100")
+
+        current = CashflowMetricWindow(
+            income=current_income,
+            expense=current_expense,
+            net_savings=current_net_savings,
+            savings_rate=current_savings_rate,
+            has_data=current_entries > 0,
+        )
+
+        months_count = len(monthly_rows)
+        total_income = sum((_to_decimal(row[1]) for row in monthly_rows), Decimal("0"))
+        total_expense = sum((_to_decimal(row[2]) for row in monthly_rows), Decimal("0"))
+        average_income = total_income / Decimal(months_count)
+        average_expense = total_expense / Decimal(months_count)
+        average_net_savings = average_income - average_expense
+        average_savings_rate: Decimal | None = None
+        if average_income != 0:
+            average_savings_rate = (average_net_savings / average_income) * Decimal("100")
+
+        average = CashflowAverageMetrics(
+            months_count=months_count,
+            income=average_income,
+            expense=average_expense,
+            net_savings=average_net_savings,
+            savings_rate=average_savings_rate,
+            has_data=True,
+        )
+    else:
+        average = CashflowAverageMetrics()
+
+    return DashboardCashflowMetrics(
+        current_month=selected_month,
+        current=current,
+        average=average,
+    )

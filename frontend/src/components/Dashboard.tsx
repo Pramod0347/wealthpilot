@@ -37,13 +37,24 @@ type ApiDashboardSummary = {
   overall_card_utilization: string | number
   due_soon_count: number
   overdue_count: number
-  monthly_income: string | number
-  monthly_expense: string | number
-  monthly_net_savings: string | number
-  monthly_savings_rate: string | number
-  monthly_income_count: number
-  monthly_expense_count: number
-  cashflow_month: string | null
+  cashflow_metrics?: {
+    current_month: string | null
+    current: {
+      income: string | number
+      expense: string | number
+      net_savings: string | number
+      savings_rate: string | number | null
+      has_data: boolean
+    }
+    average: {
+      months_count: number
+      income: string | number
+      expense: string | number
+      net_savings: string | number
+      savings_rate: string | number | null
+      has_data: boolean
+    }
+  }
   allocations?: Array<{
     asset_type: string
     label: string
@@ -473,7 +484,16 @@ export default function Dashboard({
   const latestSnapshotValue = portfolioPerformance?.actual.at(-1)?.current_value
   const latestSnapshotReturn = portfolioPerformance?.actual.at(-1)?.total_return_pct
   const netWorth = toNumber(summary?.net_worth)
-  const monthlyHasData = ((summary?.monthly_income_count ?? 0) + (summary?.monthly_expense_count ?? 0)) > 0
+  const cashflowMetrics = summary?.cashflow_metrics
+  const currentCashflow = cashflowMetrics?.current
+  const averageCashflow = cashflowMetrics?.average
+  const monthlyHasData = Boolean(currentCashflow?.has_data)
+  const averageCashflowHasData = Boolean(averageCashflow?.has_data)
+  const formatAverageMeta = (label: string, value: number | null, kind: 'money' | 'pct') => {
+    if (!averageCashflowHasData || value === null) return 'No cashflow data'
+    const displayValue = kind === 'money' ? formatMoney(value) : formatPct(value)
+    return privacyMode ? `Avg: ${maskSensitiveText(displayValue, true)}` : `Avg: ${displayValue}${kind === 'money' ? ' / month' : ''}`
+  }
   const portfolioHasSnapshots = (portfolioPerformance?.actual.length ?? 0) > 0
   const chartMessage = portfolioPerformance?.message
   const portfolioEmptyState = !portfolioLoading && !portfolioHasSnapshots && chartMessage?.includes('No portfolio snapshots yet')
@@ -746,10 +766,10 @@ export default function Dashboard({
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm">
           <div className={LABEL}>Monthly Spend</div>
           <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', monthlyHasData ? (privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-rose-400') : 'text-slate-400 dark:text-slate-500'].join(' ')}>
-            {summaryLoading ? '—' : monthlyHasData ? <PrivateValue value={formatMoney(toNumber(summary?.monthly_expense))} mask="••••" hideColor /> : 'Not added'}
+            {summaryLoading ? '—' : monthlyHasData ? <PrivateValue value={formatMoney(toNumber(currentCashflow?.expense))} mask="••••" hideColor /> : 'Not added'}
           </div>
           <div className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-            {summaryLoading ? 'Loading...' : monthlyHasData ? `${summary?.monthly_expense_count ?? 0} expense entries` : 'No cashflow data'}
+            {summaryLoading ? 'Loading...' : formatAverageMeta('Avg', averageCashflowHasData ? toNumber(averageCashflow?.expense) : null, 'money')}
           </div>
           <div className="mt-3 grid h-7 w-7 place-items-center rounded-lg bg-rose-500/15">
             <Icon name="transactions" className="h-3.5 w-3.5 text-rose-400" />
@@ -761,30 +781,30 @@ export default function Dashboard({
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm">
           <div className={LABEL}>Monthly Income</div>
           <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', monthlyHasData ? (privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-emerald-400') : 'text-slate-400 dark:text-slate-500'].join(' ')}>
-            {summaryLoading ? '—' : monthlyHasData ? <PrivateValue value={formatMoney(toNumber(summary?.monthly_income))} mask="••••" hideColor /> : 'Not added'}
+            {summaryLoading ? '—' : monthlyHasData ? <PrivateValue value={formatMoney(toNumber(currentCashflow?.income))} mask="••••" hideColor /> : 'Not added'}
           </div>
           <div className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-            {summaryLoading ? 'Loading...' : monthlyHasData ? `${summary?.monthly_income_count ?? 0} income entries` : 'No cashflow data'}
+            {summaryLoading ? 'Loading...' : formatAverageMeta('Avg', averageCashflowHasData ? toNumber(averageCashflow?.income) : null, 'money')}
           </div>
         </div>
 
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm">
           <div className={LABEL}>Net Savings</div>
-          <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', !monthlyHasData ? 'text-slate-400 dark:text-slate-500' : privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(summary?.monthly_net_savings))].join(' ')}>
-            {summaryLoading ? '—' : monthlyHasData ? <PrivateValue value={formatMoney(toNumber(summary?.monthly_net_savings))} mask="••••" hideColor /> : 'Not added'}
+          <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', !monthlyHasData ? 'text-slate-400 dark:text-slate-500' : privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(currentCashflow?.net_savings))].join(' ')}>
+            {summaryLoading ? '—' : monthlyHasData ? <PrivateValue value={formatMoney(toNumber(currentCashflow?.net_savings))} mask="••••" hideColor /> : 'Not added'}
           </div>
           <div className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-            {summary?.cashflow_month ? `For ${summary.cashflow_month}` : 'Current month'}
+            {summaryLoading ? 'Loading...' : formatAverageMeta('Avg', averageCashflowHasData ? toNumber(averageCashflow?.net_savings) : null, 'money')}
           </div>
         </div>
 
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm">
           <div className={LABEL}>Savings Rate</div>
-          <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', !monthlyHasData ? 'text-slate-400 dark:text-slate-500' : privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(summary?.monthly_savings_rate))].join(' ')}>
-            {summaryLoading ? '—' : monthlyHasData ? <PrivateValue value={formatPct(toNumber(summary?.monthly_savings_rate))} mask="••••" hideColor /> : 'Not added'}
+          <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', !monthlyHasData || currentCashflow?.savings_rate == null ? 'text-slate-400 dark:text-slate-500' : privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(currentCashflow?.savings_rate))].join(' ')}>
+            {summaryLoading ? '—' : monthlyHasData && currentCashflow?.savings_rate != null ? <PrivateValue value={formatPct(toNumber(currentCashflow?.savings_rate))} mask="••••" hideColor /> : 'Not added'}
           </div>
           <div className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-            {monthlyHasData ? 'Current month savings rate' : 'No cashflow data'}
+            {summaryLoading ? 'Loading...' : formatAverageMeta('Avg', averageCashflowHasData && averageCashflow?.savings_rate != null ? toNumber(averageCashflow?.savings_rate) : null, 'pct')}
           </div>
         </div>
       </div>

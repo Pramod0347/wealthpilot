@@ -25,6 +25,24 @@ class AssetAllocationItem(BaseModel):
     items: list[WealthBucketItem] = Field(default_factory=list)
 
 
+class CashflowMetricWindow(BaseModel):
+    income: Decimal = Decimal("0")
+    expense: Decimal = Decimal("0")
+    net_savings: Decimal = Decimal("0")
+    savings_rate: Decimal | None = None
+    has_data: bool = False
+
+
+class CashflowAverageMetrics(CashflowMetricWindow):
+    months_count: int = 0
+
+
+class DashboardCashflowMetrics(BaseModel):
+    current_month: str | None = None
+    current: CashflowMetricWindow = Field(default_factory=CashflowMetricWindow)
+    average: CashflowAverageMetrics = Field(default_factory=CashflowAverageMetrics)
+
+
 class DashboardSummary(BaseModel):
     total_invested: Decimal = Decimal("0")
     current_value: Decimal = Decimal("0")
@@ -45,10 +63,11 @@ class DashboardSummary(BaseModel):
     overall_card_utilization: Decimal = Decimal("0")
     due_soon_count: int = 0
     overdue_count: int = 0
+    cashflow_metrics: DashboardCashflowMetrics = Field(default_factory=DashboardCashflowMetrics)
     monthly_income: Decimal = Decimal("0")
     monthly_expense: Decimal = Decimal("0")
     monthly_net_savings: Decimal = Decimal("0")
-    monthly_savings_rate: Decimal = Decimal("0")
+    monthly_savings_rate: Decimal | None = None
     monthly_income_count: int = 0
     monthly_expense_count: int = 0
     cashflow_month: str | None = None
