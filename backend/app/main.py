@@ -6,6 +6,7 @@ from app.api.routes.auth import router as auth_router
 from app.api.routes.analytics import router as analytics_router
 from app.api.routes.bank_accounts import router as bank_accounts_router
 from app.api.routes.cashflow import router as cashflow_router
+from app.api.routes.credit_card_bills import router as credit_card_bills_router
 from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.credit_cards import router as credit_cards_router
 from app.api.routes.fixed_savings import router as fixed_savings_router
@@ -56,6 +57,7 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(analytics_router, prefix="/api", dependencies=_PROTECTED)
 app.include_router(holdings_router, prefix="/api", dependencies=_PROTECTED)
 app.include_router(credit_cards_router, prefix="/api", dependencies=_PROTECTED)
+app.include_router(credit_card_bills_router, prefix="/api", dependencies=_PROTECTED)
 app.include_router(bank_accounts_router, prefix="/api", dependencies=_PROTECTED)
 app.include_router(cashflow_router, prefix="/api", dependencies=_PROTECTED)
 app.include_router(fixed_savings_router, prefix="/api", dependencies=_PROTECTED)

@@ -1,170 +1,363 @@
 # WealthPilot — Deployment Guide
 
-Stack: **Vercel** (frontend) · **Render** (backend) · **Neon** (PostgreSQL)
+Stack: **Vercel** (frontend) · **Cloudflare Tunnel** (backend ingress) · **Home Server** (FastAPI + PostgreSQL)
 
 ---
 
-## How authentication works
+## Architecture
+
+- `https://money.pramodgoudar.com` → Vercel frontend
+- `https://api.money.pramodgoudar.com` → Cloudflare Tunnel → old laptop → FastAPI backend on `127.0.0.1:8000`
+- PostgreSQL runs locally on the laptop
+
+Do not expose PostgreSQL publicly.  
+Do not use router port forwarding.  
+Do not bind FastAPI to `0.0.0.0` if Cloudflare Tunnel is forwarding only to localhost.
+
+---
+
+## Authentication and cookie behavior
 
 WealthPilot uses backend-protected session auth:
 
-- Credentials (`OWNER_EMAIL`, `OWNER_PHONE`, `SECRET_KEY`) live only in backend env vars — never in the frontend bundle.
-- Login submits email + phone to `POST /api/auth/login`. The backend validates them server-side and sets an **HttpOnly signed session cookie** (`wp_session`).
-- Every API route (`/api/holdings`, `/api/bank-accounts`, etc.) requires a valid cookie. Unauthenticated requests get `401`.
-- The frontend calls `GET /api/auth/me` on load to check session state. If no valid session, the login page is shown.
-- `/health`, `/api/auth/login`, `/api/auth/me`, and `/api/auth/logout` are the only unprotected endpoints.
-- `/docs` and `/redoc` are disabled in production (`APP_ENV=production`).
+- Credentials (`OWNER_EMAIL`, `OWNER_PHONE`, `SECRET_KEY`) live only in backend env vars.
+- Login submits email + phone to `POST /api/auth/login`.
+- Backend validates them server-side and sets an **HttpOnly signed session cookie** (`wp_session`).
+- Every protected API requires a valid session.
+- Frontend also supports a bearer-token fallback for devices that do not persist cross-site cookies reliably.
 
-Cookie settings in production: `HttpOnly`, `Secure`, `SameSite=None` (required for cross-domain Vercel ↔ Render).
+For production with the same parent domain:
 
----
+- Frontend: `https://money.pramodgoudar.com`
+- Backend: `https://api.money.pramodgoudar.com`
 
-## Step 1 — Neon PostgreSQL
-
-1. Create a free project at [neon.tech](https://neon.tech).
-2. Copy the **connection string** from the Neon dashboard. It looks like:
-   ```
-   postgresql://user:password@ep-xxx.region.aws.neon.tech/dbname?sslmode=require
-   ```
-3. Keep this string — you will paste it as `DATABASE_URL` in Render.
-
----
-
-## Step 2 — Render (backend)
-
-1. Push this repo to GitHub (or connect an existing repo).
-2. Go to [render.com](https://render.com) → **New → Web Service**.
-3. Connect your GitHub repo. Set:
-   - **Root directory:** `backend`
-   - **Runtime:** Python 3
-   - **Build command:** `pip install -r requirements.txt`
-   - **Start command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-4. Under **Environment Variables**, add:
-
-   | Key | Value |
-   |-----|-------|
-   | `DATABASE_URL` | your Neon connection string (postgresql+psycopg:// prefix — see note below) |
-   | `FRONTEND_URL` | `https://money.pramodgoudar.com` (fill in after Step 3) |
-   | `APP_ENV` | `production` |
-   | `OWNER_EMAIL` | your login email |
-   | `OWNER_PHONE` | your login phone (digits only, e.g. `8296090286`) |
-   | `SECRET_KEY` | run `python -c "import secrets; print(secrets.token_hex(32))"` and paste the output |
-
-   > **URL prefix note:** Neon gives you `postgresql://...`. The app's `normalize_database_url()` function automatically converts this to `postgresql+psycopg://...` so you can paste the Neon URL directly. SSL (`?sslmode=require`) is handled by psycopg3 natively — no extra config needed.
-
-5. Click **Create Web Service**. Note the service URL (e.g. `https://wealthpilot-api.onrender.com`).
-
-### Run database migrations on Render
-
-After the first deploy succeeds, open a **Shell** in the Render dashboard for your service and run:
+Cookie settings:
 
 ```bash
+COOKIE_SAMESITE=lax
+COOKIE_SECURE=true
+COOKIE_DOMAIN=.money.pramodgoudar.com
+```
+
+Expected cookie behavior:
+
+- `httponly=True`
+- `secure=True`
+- `samesite=lax`
+- `domain=.money.pramodgoudar.com`
+- `path=/`
+
+---
+
+## Backend CORS requirements
+
+Backend must allow the frontend origin only, not wildcard origins with credentials.
+
+Required backend env:
+
+```bash
+FRONTEND_URL=https://money.pramodgoudar.com
+```
+
+Backend CORS should support:
+
+- `allow_credentials=True`
+- methods: `GET, POST, PUT, PATCH, DELETE, OPTIONS`
+- headers: `Content-Type, Authorization, Accept`
+
+Current backend already matches this model.
+
+---
+
+## Home Server Deployment with Cloudflare Tunnel
+
+### 1. Install PostgreSQL on the laptop
+
+Install PostgreSQL using your OS package manager.
+
+Example verification:
+
+```bash
+psql --version
+```
+
+Create the DB user and database:
+
+```bash
+createuser wealthpilot_user --pwprompt
+createdb -O wealthpilot_user wealthpilot_db
+```
+
+Test connection:
+
+```bash
+psql postgresql://wealthpilot_user:<password>@localhost:5432/wealthpilot_db
+```
+
+### 2. Configure backend environment
+
+Create `backend/.env`:
+
+```bash
+APP_ENV=production
+DATABASE_URL=postgresql+psycopg://wealthpilot_user:<password>@localhost:5432/wealthpilot_db
+FRONTEND_URL=https://money.pramodgoudar.com
+OWNER_EMAIL=<my-email>
+OWNER_PHONE=<my-phone>
+SECRET_KEY=<64-char-secret>
+COOKIE_SAMESITE=lax
+COOKIE_SECURE=true
+COOKIE_DOMAIN=.money.pramodgoudar.com
+```
+
+Notes:
+
+- `SECRET_KEY` should be a long random secret, for example:
+
+```bash
+python3 -c "import secrets; print(secrets.token_hex(32))"
+```
+
+### 3. Install backend dependencies and run migrations
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 alembic upgrade head
 ```
 
-Or add it to the build command if you prefer automatic migrations:
+### 4. Run FastAPI locally on the laptop
 
+```bash
+cd backend
+source .venv/bin/activate
+uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
-pip install -r requirements.txt && alembic upgrade head
+
+Health check:
+
+```bash
+curl http://127.0.0.1:8000/health
 ```
 
----
-
-## Step 3 — Vercel (frontend)
-
-1. Go to [vercel.com](https://vercel.com) → **New Project** → import your GitHub repo.
-2. Set **Root directory** to `frontend`.
-3. Framework preset: **Vite** (auto-detected).
-4. Under **Environment Variables**, add:
-
-   | Key | Value |
-   |-----|-------|
-   | `VITE_API_BASE_URL` | your Render URL, e.g. `https://wealthpilot-api.onrender.com` |
-
-   > Credentials are no longer in Vercel env vars — they live only in the Render backend.
-
-5. Click **Deploy**.
-6. Note the deployed URL. Your custom domain is `https://money.pramodgoudar.com` — add it in Vercel under **Settings → Domains** and point your DNS to Vercel.
-
-### SPA routing
-
-`frontend/vercel.json` already contains the rewrite rule so client-side routes (React Router) work on hard reload:
+Expected:
 
 ```json
-{
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
-}
+{"status":"ok"}
+```
+
+### 5. Install Cloudflare Tunnel
+
+Install `cloudflared` on the laptop.
+
+Authenticate:
+
+```bash
+cloudflared tunnel login
+```
+
+Create a tunnel:
+
+```bash
+cloudflared tunnel create wealthpilot-api
+```
+
+Create a tunnel config similar to:
+
+```yaml
+tunnel: <tunnel-id>
+credentials-file: /home/<user>/.cloudflared/<tunnel-id>.json
+
+ingress:
+  - hostname: api.money.pramodgoudar.com
+    service: http://localhost:8000
+  - service: http_status:404
+```
+
+Create the DNS route:
+
+```bash
+cloudflared tunnel route dns wealthpilot-api api.money.pramodgoudar.com
+```
+
+Run the tunnel:
+
+```bash
+cloudflared tunnel run wealthpilot-api
+```
+
+Result:
+
+- `https://api.money.pramodgoudar.com` → Cloudflare Tunnel → `http://localhost:8000`
+
+### 6. Update Vercel frontend env
+
+Set this in Vercel:
+
+```bash
+VITE_API_BASE_URL=https://api.money.pramodgoudar.com
+```
+
+Then redeploy frontend.
+
+---
+
+## systemd service example for backend
+
+Example file: `/etc/systemd/system/wealthpilot-backend.service`
+
+```ini
+[Unit]
+Description=WealthPilot FastAPI backend
+After=network.target postgresql.service
+
+[Service]
+User=<your-user>
+Group=<your-user>
+WorkingDirectory=/home/<your-user>/WealthPilot/backend
+EnvironmentFile=/home/<your-user>/WealthPilot/backend/.env
+ExecStart=/home/<your-user>/WealthPilot/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable wealthpilot-backend
+sudo systemctl start wealthpilot-backend
+sudo systemctl status wealthpilot-backend
 ```
 
 ---
 
-## Step 4 — Wire CORS
+## Optional systemd service for Cloudflare Tunnel
 
-After both services are deployed:
+If you want the tunnel to survive reboot:
 
-1. Go back to Render → your backend service → **Environment**.
-2. Set `FRONTEND_URL` to your exact Vercel URL (no trailing slash):
-   ```
-   https://money.pramodgoudar.com
-   ```
-   If you have a custom domain, add both separated by a comma:
-   ```
-   https://money.pramodgoudar.com,https://yourcustomdomain.com
-   ```
-3. Render will redeploy automatically. CORS will now allow requests from your frontend.
+```bash
+sudo cloudflared service install
+sudo systemctl enable cloudflared
+sudo systemctl start cloudflared
+```
+
+Or run it via your own service definition tied to the tunnel config.
 
 ---
 
-## Step 5 — Smoke test
+## Backup instructions
 
-1. Open your Vercel URL → login with your email + phone → verify the dashboard loads.
-2. Check `https://wealthpilot-api.onrender.com/health` → should return `{"status":"ok"}`.
-3. Check `https://wealthpilot-api.onrender.com/api/auth/me` → should return `{"authenticated":false}` (no session cookie yet).
-4. Check `https://wealthpilot-api.onrender.com/api/holdings` → should return `401` (protected route).
-5. `/docs` and `/redoc` return 404 in production — this is expected.
-6. Add a bank account or stock holding and confirm it persists on reload.
+Create a local backups folder:
+
+```bash
+mkdir -p backups
+```
+
+Daily backup command:
+
+```bash
+pg_dump wealthpilot_db > backups/wealthpilot_$(date +%F).sql
+```
+
+Recommended:
+
+- keep backups outside the laptop as well
+- example destinations:
+  - external drive
+  - private cloud folder
+  - encrypted archive on another machine
+
+You can later automate this with `cron` or a systemd timer.
+
+---
+
+## Migration from Neon to local PostgreSQL
+
+### Export Neon
+
+From any machine that can access Neon:
+
+```bash
+pg_dump "postgresql://user:password@ep-xxx.region.aws.neon.tech/dbname?sslmode=require" > wealthpilot_neon_export.sql
+```
+
+### Restore into local PostgreSQL
+
+```bash
+psql postgresql://wealthpilot_user:<password>@localhost:5432/wealthpilot_db < wealthpilot_neon_export.sql
+```
+
+If you use a custom-format dump instead:
+
+```bash
+pg_restore -d postgresql://wealthpilot_user:<password>@localhost:5432/wealthpilot_db wealthpilot_neon_export.dump
+```
+
+### Run Alembic after restore
+
+```bash
+cd backend
+source .venv/bin/activate
+alembic upgrade head
+```
+
+Reason:
+
+- ensures the restored DB is aligned with the latest code migrations
+
+---
+
+## Final production test checklist
+
+- `https://api.money.pramodgoudar.com/health` returns `{"status":"ok"}`
+- Vercel frontend uses:
+
+```bash
+VITE_API_BASE_URL=https://api.money.pramodgoudar.com
+```
+
+- login works with owner email + phone
+- refresh stays logged in on iOS Safari
+- protected API without cookie or bearer token returns `401`
+- dashboard loads data
+- backend starts automatically after laptop reboot
+- Cloudflare Tunnel reconnects after reboot
+- PostgreSQL is reachable locally only
 
 ---
 
 ## Local development
 
-Nothing changes for local dev. Run as before:
+Nothing changes for local development:
 
 ```bash
 # Frontend
-cd frontend && npm install && npm run dev
+cd frontend
+npm install
+npm run dev
 
-# Backend (in a separate terminal)
+# Backend
 cd backend
-source .venv/bin/activate   # or: source venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-Local `.env` files:
+Local frontend env:
 
 ```bash
-cp backend/.env.example backend/.env   # fill in DATABASE_URL, OWNER_EMAIL, OWNER_PHONE, SECRET_KEY
-cp frontend/.env.example frontend/.env # VITE_API_BASE_URL only
+VITE_API_BASE_URL=http://localhost:8000
 ```
 
-For local dev the backend `.env` needs `APP_ENV=development` (or leave it unset — development is the default). This ensures cookies are set with `SameSite=Lax; Secure=false`, which works on localhost without HTTPS.
+Local backend env can stay in development mode:
 
----
-
-## Updating after deploy
-
-- **Frontend changes:** push to GitHub → Vercel redeploys automatically.
-- **Backend changes:** push to GitHub → Render redeploys automatically.
-- **Schema migrations:** after a backend redeploy that includes new Alembic revisions, run `alembic upgrade head` via the Render Shell.
-
----
-
-## Free-tier limits (as of 2025)
-
-| Service | Limit |
-|---------|-------|
-| Neon | 0.5 GB storage, 1 branch, compute pauses after inactivity |
-| Render | Spins down after 15 min inactivity; cold start ~30 s |
-| Vercel | 100 GB bandwidth/month, unlimited deployments |
-
-Render's free tier sleeps the service when idle. The first request after a period of inactivity will take ~30 seconds. This is normal.
+```bash
+APP_ENV=development
+```

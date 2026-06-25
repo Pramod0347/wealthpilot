@@ -1412,7 +1412,7 @@ export default function StocksPage() {
           </button>
         </div>
 
-        <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4 mb-4">
           {summaryCards.map((card) => (
             <MetricCardView
               key={card.label}
@@ -1438,7 +1438,7 @@ export default function StocksPage() {
           ))}
         </section>
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 mb-4">
           <SectionCard className="px-4 py-5 sm:px-6 sm:py-6">
             <div className="t-micro text-slate-500 dark:text-slate-500">Investment Breakdown</div>
             <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Asset mix by current value</div>

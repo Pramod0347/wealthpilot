@@ -70,17 +70,16 @@ If PostgreSQL is not running or the database does not exist, Alembic will fail t
 
 ## Production Startup And Auth
 
-WealthPilot frontend is expected to run on Vercel and call this backend on Render.
+WealthPilot frontend is expected to run on Vercel and call this backend through Cloudflare Tunnel on your home server.
 
 ### Startup flow
 
 - Frontend calls `GET /health` first.
-- If Render is sleeping, frontend keeps retrying `/health` for up to 90 seconds.
-- While Render wakes up, frontend shows a dedicated server warming screen instead of the login page.
-- After `/health` is healthy, frontend calls `GET /api/auth/me`.
-- Only then does the frontend show either the app or the login screen.
+- If the home server backend is reachable, frontend proceeds to `GET /api/auth/me`.
+- If no valid session exists, the login page is shown.
+- After login, the backend sets an HttpOnly signed session cookie and also returns a signed token fallback for devices that are unreliable with cross-site cookie persistence.
 
-### Current cross-domain setup
+### Production domain setup
 
 Frontend:
 
@@ -91,14 +90,14 @@ https://money.pramodgoudar.com
 Backend:
 
 ```bash
-https://wealthpilot-api.onrender.com
+https://api.money.pramodgoudar.com
 ```
 
 Recommended env:
 
 ```bash
 FRONTEND_URL=https://money.pramodgoudar.com
-COOKIE_SAMESITE=none
+COOKIE_SAMESITE=lax
 COOKIE_SECURE=true
-COOKIE_DOMAIN=
+COOKIE_DOMAIN=.money.pramodgoudar.com
 ```

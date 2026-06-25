@@ -37,6 +37,51 @@ export type BankAccountsSummary = {
   currency: string
 }
 
+export type CreditCardBill = {
+  id: number
+  credit_card_id: number
+  billing_cycle_start: string | null
+  billing_cycle_end: string | null
+  bill_generated_date: string | null
+  due_date: string | null
+  bill_amount: string | number
+  paid_amount: string | number | null
+  paid_date: string | null
+  status: 'generated' | 'paid' | 'partial' | 'waived' | 'missed'
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type MarkCreditCardPaidPayload = {
+  paid_amount: string | null
+  paid_date: string | null
+  notes: string | null
+}
+
+export type MarkCreditCardPaidResponse = {
+  credit_card: {
+    id: number
+    card_name: string
+    bank_name: string
+    last4: string
+    total_limit: string | number
+    used_amount: string | number
+    current_bill_amount: string | number
+    billing_cycle_start: string
+    billing_cycle_end: string
+    due_date: string
+    status: 'paid' | 'due_soon' | 'overdue'
+    notes: string | null
+    created_at: string
+    updated_at: string
+    available_limit: string | number
+    utilization_pct: string | number
+    days_until_due: number
+  }
+  bill_record: CreditCardBill
+}
+
 export type BankAccountPayload = {
   bank_name: string
   account_name: string | null
@@ -421,6 +466,45 @@ export function createBankAccount(payload: BankAccountPayload) {
   return apiFetch<BankAccount>('/api/bank-accounts', {
     method: 'POST',
     body: JSON.stringify(payload),
+  })
+}
+
+export function getCreditCardBills(filters?: {
+  cardId?: number
+  status?: CreditCardBill['status']
+  fromDate?: string
+  toDate?: string
+}, signal?: AbortSignal) {
+  const params = new URLSearchParams()
+  if (filters?.cardId !== undefined) params.set('card_id', String(filters.cardId))
+  if (filters?.status) params.set('status', filters.status)
+  if (filters?.fromDate) params.set('from_date', filters.fromDate)
+  if (filters?.toDate) params.set('to_date', filters.toDate)
+  const query = params.toString()
+  return apiFetch<CreditCardBill[]>(`/api/credit-card-bills${query ? `?${query}` : ''}`, { signal })
+}
+
+export function getCreditCardBillHistory(cardId: number, signal?: AbortSignal) {
+  return apiFetch<CreditCardBill[]>(`/api/credit-cards/${cardId}/bills`, { signal })
+}
+
+export function markCreditCardPaid(cardId: number, payload: MarkCreditCardPaidPayload) {
+  return apiFetch<MarkCreditCardPaidResponse>(`/api/credit-cards/${cardId}/mark-paid`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateCreditCardBill(billId: number, payload: Partial<CreditCardBill>) {
+  return apiFetch<CreditCardBill>(`/api/credit-card-bills/${billId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteCreditCardBill(billId: number) {
+  return apiFetch<void>(`/api/credit-card-bills/${billId}`, {
+    method: 'DELETE',
   })
 }
 

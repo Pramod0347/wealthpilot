@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 're
 import { Icon } from './Icon'
 import PrivateValue from './ui/PrivateValue'
 import BottomSheet from './ui/BottomSheet'
-import { ApiError, apiFetch } from '../lib/api'
+import { ApiError, apiFetch, getCreditCardBillHistory, getCreditCardBills, markCreditCardPaid, type CreditCardBill } from '../lib/api'
 import { formatINR, formatINRShort, formatPct } from '../lib/format'
 import { usePrivacyMode } from '../context/PrivacyContext'
 
@@ -51,6 +51,14 @@ type CreditCardFormState = {
 
 type FormErrors = Partial<Record<keyof CreditCardFormState, string>>
 
+type MarkPaidFormState = {
+  paid_amount: string
+  paid_date: string
+  notes: string
+}
+
+type MarkPaidFormErrors = Partial<Record<keyof MarkPaidFormState, string>>
+
 const defaultCreditCardForm: CreditCardFormState = {
   card_name: '',
   bank_name: '',
@@ -62,6 +70,12 @@ const defaultCreditCardForm: CreditCardFormState = {
   billing_cycle_end: '',
   due_date: '',
   status: 'due_soon',
+  notes: '',
+}
+
+const defaultMarkPaidForm: MarkPaidFormState = {
+  paid_amount: '',
+  paid_date: '',
   notes: '',
 }
 
@@ -142,6 +156,38 @@ function buildStatusTone(status: ApiCreditCard['status']) {
   }
 }
 
+function buildBillStatusTone(status: CreditCardBill['status']) {
+  if (status === 'paid') {
+    return 'bg-emerald-50 text-emerald-700 ring-emerald-500/20 dark:bg-emerald-500/15 dark:text-emerald-300'
+  }
+  if (status === 'partial') {
+    return 'bg-amber-50 text-amber-700 ring-amber-500/20 dark:bg-amber-500/15 dark:text-amber-300'
+  }
+  if (status === 'missed') {
+    return 'bg-rose-50 text-rose-700 ring-rose-500/20 dark:bg-rose-500/15 dark:text-rose-300'
+  }
+  return 'bg-slate-100 text-slate-700 ring-slate-500/20 dark:bg-slate-700/70 dark:text-slate-200'
+}
+
+function formatDisplayDate(value: string | null | undefined) {
+  if (!value) return '—'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(parsed)
+}
+
+function formatBillingCycle(start: string | null | undefined, end: string | null | undefined) {
+  if (!start && !end) return 'Billing cycle not recorded'
+  if (start && end) {
+    return `${formatDisplayDate(start)} – ${formatDisplayDate(end)}`
+  }
+  return formatDisplayDate(start ?? end)
+}
+
 function buildSummaryCards(summary: ApiDashboardSummary | null, loading: boolean, error: string | null) {
   if (loading) {
     return [
@@ -200,10 +246,14 @@ export default function CreditCardsPage() {
   const { privacyMode } = usePrivacyMode()
   const [summary, setSummary] = useState<ApiDashboardSummary | null>(null)
   const [cards, setCards] = useState<ApiCreditCard[]>([])
+  const [recentBills, setRecentBills] = useState<CreditCardBill[]>([])
+  const [billsByCard, setBillsByCard] = useState<Record<number, CreditCardBill[]>>({})
   const [summaryLoading, setSummaryLoading] = useState(true)
   const [cardsLoading, setCardsLoading] = useState(true)
+  const [billsLoading, setBillsLoading] = useState(true)
   const [summaryError, setSummaryError] = useState<string | null>(null)
   const [cardsError, setCardsError] = useState<string | null>(null)
+  const [billsError, setBillsError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | ApiCreditCard['status']>('all')
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -217,16 +267,24 @@ export default function CreditCardsPage() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [statusTone, setStatusTone] = useState<'emerald' | 'rose' | 'amber' | 'slate'>('emerald')
   const [selectedCard, setSelectedCard] = useState<ApiCreditCard | null>(null)
+  const [markPaidCard, setMarkPaidCard] = useState<ApiCreditCard | null>(null)
+  const [markPaidForm, setMarkPaidForm] = useState<MarkPaidFormState>(defaultMarkPaidForm)
+  const [markPaidErrors, setMarkPaidErrors] = useState<MarkPaidFormErrors>({})
+  const [markPaidErrorMessage, setMarkPaidErrorMessage] = useState<string | null>(null)
+  const [isMarkingPaid, setIsMarkingPaid] = useState(false)
 
   const loadData = async (signal?: AbortSignal) => {
     setSummaryLoading(true)
     setCardsLoading(true)
+    setBillsLoading(true)
     setSummaryError(null)
     setCardsError(null)
+    setBillsError(null)
 
-    const [summaryResult, cardsResult] = await Promise.allSettled([
+    const [summaryResult, cardsResult, billsResult] = await Promise.allSettled([
       apiFetch<ApiDashboardSummary>('/api/dashboard/summary', { signal }),
       apiFetch<ApiCreditCard[]>('/api/credit-cards', { signal }),
+      getCreditCardBills(undefined, signal),
     ])
 
     if (summaryResult.status === 'fulfilled') {
@@ -244,6 +302,23 @@ export default function CreditCardsPage() {
       setCards([])
     }
     setCardsLoading(false)
+
+    if (billsResult.status === 'fulfilled') {
+      const bills = billsResult.value
+      setRecentBills(bills.slice(0, 10))
+      setBillsByCard(
+        bills.reduce<Record<number, CreditCardBill[]>>((accumulator, bill) => {
+          if (!accumulator[bill.credit_card_id]) accumulator[bill.credit_card_id] = []
+          accumulator[bill.credit_card_id].push(bill)
+          return accumulator
+        }, {})
+      )
+    } else if (billsResult.reason?.name !== 'AbortError') {
+      setBillsError(formatApiError(billsResult.reason))
+      setRecentBills([])
+      setBillsByCard({})
+    }
+    setBillsLoading(false)
   }
 
   useEffect(() => {
@@ -253,8 +328,10 @@ export default function CreditCardsPage() {
       const message = formatApiError(error)
       setSummaryError(message)
       setCardsError(message)
+      setBillsError(message)
       setSummaryLoading(false)
       setCardsLoading(false)
+      setBillsLoading(false)
     })
     return () => controller.abort()
   }, [])
@@ -284,6 +361,14 @@ export default function CreditCardsPage() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [isDrawerMounted])
 
+  useEffect(() => {
+    if (!selectedCard) return
+    const nextCard = cards.find((card) => card.id === selectedCard.id)
+    if (nextCard) {
+      setSelectedCard(nextCard)
+    }
+  }, [cards, selectedCard])
+
   const summaryCards = useMemo(() => buildSummaryCards(summary, summaryLoading, summaryError), [summary, summaryLoading, summaryError])
 
   const filteredCards = useMemo(() => {
@@ -311,6 +396,38 @@ export default function CreditCardsPage() {
     const paid = cards.filter((card) => card.status === 'paid').length
     return { overdue, dueSoon, paid }
   }, [cards])
+
+  const selectedCardBills = useMemo(() => {
+    if (!selectedCard) return []
+    return billsByCard[selectedCard.id] ?? []
+  }, [billsByCard, selectedCard])
+
+  async function loadCardHistory(cardId: number) {
+    const bills = await getCreditCardBillHistory(cardId)
+    setBillsByCard((current) => ({ ...current, [cardId]: bills }))
+    return bills
+  }
+
+  function openCardDetail(card: ApiCreditCard) {
+    setSelectedCard(card)
+    if (!billsByCard[card.id]) {
+      void loadCardHistory(card.id).catch(() => {
+        setStatusTone('rose')
+        setStatusMessage('Unable to load payment history.')
+      })
+    }
+  }
+
+  function openMarkPaidModal(card: ApiCreditCard) {
+    setMarkPaidCard(card)
+    setMarkPaidForm({
+      paid_amount: String(card.current_bill_amount),
+      paid_date: new Date().toISOString().slice(0, 10),
+      notes: '',
+    })
+    setMarkPaidErrors({})
+    setMarkPaidErrorMessage(null)
+  }
 
   function openCreateModal() {
     setEditingId(null)
@@ -440,6 +557,9 @@ export default function CreditCardsPage() {
       if (selectedCard?.id === card.id) {
         setSelectedCard(null)
       }
+      if (markPaidCard?.id === card.id) {
+        setMarkPaidCard(null)
+      }
       setStatusTone('emerald')
       setStatusMessage(`Deleted ${card.card_name}.`)
       await refreshData()
@@ -449,33 +569,48 @@ export default function CreditCardsPage() {
     }
   }
 
-  async function handleMarkPaid(card: ApiCreditCard) {
+  async function handleMarkPaidSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!markPaidCard) return
+
+    setMarkPaidErrors({})
+    setMarkPaidErrorMessage(null)
+
+    const nextErrors: MarkPaidFormErrors = {}
+    const paidAmount = markPaidForm.paid_amount.trim()
+    const paidDate = markPaidForm.paid_date.trim()
+
+    if (!paidAmount) nextErrors.paid_amount = 'Paid amount is required.'
+    if (paidAmount && Number.isNaN(Number(paidAmount))) nextErrors.paid_amount = 'Enter a valid decimal number.'
+    if (!paidDate) nextErrors.paid_date = 'Paid date is required.'
+
+    if (Object.keys(nextErrors).length > 0) {
+      setMarkPaidErrors(nextErrors)
+      return
+    }
+
+    setIsMarkingPaid(true)
     try {
-      await apiFetch(`/api/credit-cards/${card.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          card_name: card.card_name,
-          bank_name: card.bank_name,
-          last4: card.last4,
-          total_limit: String(card.total_limit),
-          used_amount: String(card.used_amount),
-          current_bill_amount: String(card.current_bill_amount),
-          billing_cycle_start: card.billing_cycle_start,
-          billing_cycle_end: card.billing_cycle_end,
-          due_date: card.due_date,
-          status: 'paid',
-          notes: card.notes,
-        }),
+      const response = await markCreditCardPaid(markPaidCard.id, {
+        paid_amount: paidAmount || null,
+        paid_date: paidDate || null,
+        notes: markPaidForm.notes.trim() || null,
       })
-      if (selectedCard?.id === card.id) {
-        setSelectedCard(null)
-      }
+      setSelectedCard(response.credit_card)
+      setBillsByCard((current) => ({
+        ...current,
+        [markPaidCard.id]: [response.bill_record, ...(current[markPaidCard.id] ?? [])],
+      }))
+      setRecentBills((current) => [response.bill_record, ...current.filter((bill) => bill.id !== response.bill_record.id)].slice(0, 10))
+      setMarkPaidCard(null)
       setStatusTone('emerald')
-      setStatusMessage(`Marked ${card.card_name} as paid.`)
+      setStatusMessage('Bill payment logged.')
       await refreshData()
     } catch (error) {
-      setStatusTone('rose')
-      setStatusMessage(formatApiError(error))
+      setMarkPaidErrorMessage(formatApiError(error))
+    }
+    finally {
+      setIsMarkingPaid(false)
     }
   }
 
@@ -582,7 +717,7 @@ export default function CreditCardsPage() {
               type="button"
               onClick={() => {
                 const target = cards.find((card) => card.status !== 'paid')
-                if (target) setSelectedCard(target)
+                if (target) openMarkPaidModal(target)
               }}
               disabled={!cards.some((card) => card.status !== 'paid')}
               className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-900/80 text-sm font-semibold text-slate-200 disabled:opacity-50"
@@ -643,7 +778,7 @@ export default function CreditCardsPage() {
                           </div>
                           <button
                             type="button"
-                            onClick={() => setSelectedCard(card)}
+                            onClick={() => openCardDetail(card)}
                             className="grid h-10 w-10 place-items-center rounded-xl border border-slate-700 bg-slate-800 text-slate-300"
                           >
                             <Icon name="more" className="h-4 w-4" />
@@ -820,6 +955,22 @@ export default function CreditCardsPage() {
                     <div className="mt-5 flex items-center gap-2">
                       <button
                         type="button"
+                        onClick={() => openCardDetail(card)}
+                        className="rounded-lg p-2 text-slate-400 dark:text-slate-500 transition-all duration-150 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-700 dark:hover:text-slate-300 active:scale-95"
+                      >
+                        History
+                      </button>
+                      {toNumber(card.current_bill_amount) > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => openMarkPaidModal(card)}
+                          className="rounded-lg p-2 text-slate-400 dark:text-slate-500 transition-all duration-150 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-emerald-600 dark:hover:text-emerald-400 active:scale-95"
+                        >
+                          Mark Paid
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
                         onClick={() => openEditModal(card)}
                         className="rounded-lg p-2 text-slate-400 dark:text-slate-500 transition-all duration-150 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-700 dark:hover:text-slate-300 active:scale-95"
                       >
@@ -839,6 +990,63 @@ export default function CreditCardsPage() {
             </div>
           )}
         </SectionCard>
+
+          <SectionCard title="Recent Bill Payments">
+            <div className="px-4 py-4 sm:px-6">
+              {billsLoading ? (
+                <div className="text-sm text-slate-500 dark:text-slate-400">Loading payment history...</div>
+              ) : billsError ? (
+                <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+                  {billsError}
+                </div>
+              ) : recentBills.length === 0 ? (
+                <div className="text-sm text-slate-500 dark:text-slate-400">No bill payments logged yet.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-left text-sm">
+                    <thead className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-500">
+                      <tr>
+                        <th className="pb-3 font-medium">Card</th>
+                        <th className="pb-3 font-medium">Cycle</th>
+                        <th className="pb-3 font-medium">Bill</th>
+                        <th className="pb-3 font-medium">Paid</th>
+                        <th className="pb-3 font-medium">Paid Date</th>
+                        <th className="pb-3 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                      {recentBills.map((bill) => {
+                        const card = cards.find((item) => item.id === bill.credit_card_id)
+                        return (
+                          <tr key={bill.id}>
+                            <td className="py-3 pr-4">
+                              <button type="button" onClick={() => card && openCardDetail(card)} className="text-left">
+                                <div className="font-medium text-slate-900 dark:text-slate-100">{card?.card_name ?? `Card #${bill.credit_card_id}`}</div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400">{card ? `${card.bank_name} ••${card.last4}` : 'Deleted card'}</div>
+                              </button>
+                            </td>
+                            <td className="py-3 pr-4 text-slate-600 dark:text-slate-300">{formatBillingCycle(bill.billing_cycle_start, bill.billing_cycle_end)}</td>
+                            <td className="py-3 pr-4 text-slate-900 dark:text-slate-100">
+                              <PrivateValue value={formatINR(toNumber(bill.bill_amount))} mask="••••" hideColor />
+                            </td>
+                            <td className="py-3 pr-4 text-slate-900 dark:text-slate-100">
+                              <PrivateValue value={formatINR(toNumber(bill.paid_amount))} mask="••••" hideColor />
+                            </td>
+                            <td className="py-3 pr-4 text-slate-600 dark:text-slate-300">{formatDisplayDate(bill.paid_date)}</td>
+                            <td className="py-3">
+                              <span className={['inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ring-1 ring-inset', buildBillStatusTone(bill.status)].join(' ')}>
+                                {bill.status}
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </SectionCard>
       </div>
       </div>
 
@@ -853,7 +1061,7 @@ export default function CreditCardsPage() {
               {selectedCard.status !== 'paid' ? (
                 <button
                   type="button"
-                  onClick={() => void handleMarkPaid(selectedCard)}
+                  onClick={() => openMarkPaidModal(selectedCard)}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-semibold text-white"
                 >
                   <Icon name="paid" className="h-4 w-4" />
@@ -923,7 +1131,129 @@ export default function CreditCardsPage() {
                 {selectedCard.days_until_due < 0 ? `${Math.abs(selectedCard.days_until_due)} days overdue` : `${selectedCard.days_until_due} days left`}
               </div>
             </div>
+
+            <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Payment History</div>
+                <button
+                  type="button"
+                  onClick={() => void loadCardHistory(selectedCard.id)}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent-600 dark:text-accent-400"
+                >
+                  <Icon name="refresh" className="h-3.5 w-3.5" />
+                  Refresh
+                </button>
+              </div>
+
+              {selectedCardBills.length === 0 ? (
+                <div className="text-xs text-slate-500 dark:text-slate-400">No bill payments logged yet.</div>
+              ) : (
+                <div className="space-y-2">
+                  {selectedCardBills.map((bill) => (
+                    <div key={bill.id} className="rounded-xl border border-slate-200 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-900/60">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-slate-800 dark:text-slate-100">{formatBillingCycle(bill.billing_cycle_start, bill.billing_cycle_end)}</div>
+                          <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Due {formatDisplayDate(bill.due_date)} · Paid {formatDisplayDate(bill.paid_date)}</div>
+                        </div>
+                        <span className={['inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ring-1 ring-inset', buildBillStatusTone(bill.status)].join(' ')}>
+                          {bill.status}
+                        </span>
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <div className="text-slate-500 dark:text-slate-500">Bill</div>
+                          <div className="font-semibold text-slate-900 dark:text-slate-100">
+                            <PrivateValue value={formatINR(toNumber(bill.bill_amount))} mask="••••" hideColor />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-slate-500 dark:text-slate-500">Paid</div>
+                          <div className="font-semibold text-slate-900 dark:text-slate-100">
+                            <PrivateValue value={formatINR(toNumber(bill.paid_amount))} mask="••••" hideColor />
+                          </div>
+                        </div>
+                      </div>
+                      {bill.notes ? <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">{bill.notes}</div> : null}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
+        ) : null}
+      </BottomSheet>
+
+      <BottomSheet
+        open={Boolean(markPaidCard)}
+        onClose={() => setMarkPaidCard(null)}
+        title="Mark Bill Paid"
+        subtitle={markPaidCard ? `${markPaidCard.card_name} • ${markPaidCard.bank_name}` : 'Log this bill payment'}
+        footer={
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setMarkPaidCard(null)}
+              className="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              disabled={isMarkingPaid}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="mark-paid-form"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-semibold text-white disabled:opacity-60"
+              disabled={isMarkingPaid}
+            >
+              <Icon name="paid" className="h-4 w-4" />
+              {isMarkingPaid ? 'Saving...' : 'Mark Paid'}
+            </button>
+          </div>
+        }
+      >
+        {markPaidCard ? (
+          <form id="mark-paid-form" onSubmit={handleMarkPaidSubmit} className="space-y-4">
+            {markPaidErrorMessage ? (
+              <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+                {markPaidErrorMessage}
+              </div>
+            ) : null}
+
+            <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+              <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Bill Amount</div>
+              <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                <PrivateValue value={formatINR(toNumber(markPaidCard.current_bill_amount))} mask="••••" hideColor />
+              </div>
+            </div>
+
+            <FormField label="Paid Amount" error={markPaidErrors.paid_amount}>
+              <input
+                value={markPaidForm.paid_amount}
+                onChange={(event) => setMarkPaidForm((current) => ({ ...current, paid_amount: event.target.value }))}
+                inputMode="decimal"
+                className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              />
+            </FormField>
+
+            <FormField label="Paid Date" error={markPaidErrors.paid_date}>
+              <input
+                type="date"
+                value={markPaidForm.paid_date}
+                onChange={(event) => setMarkPaidForm((current) => ({ ...current, paid_date: event.target.value }))}
+                className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              />
+            </FormField>
+
+            <FormField label="Notes" error={markPaidErrors.notes}>
+              <textarea
+                value={markPaidForm.notes}
+                onChange={(event) => setMarkPaidForm((current) => ({ ...current, notes: event.target.value }))}
+                rows={3}
+                placeholder="Optional payment note"
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              />
+            </FormField>
+          </form>
         ) : null}
       </BottomSheet>
 

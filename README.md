@@ -12,7 +12,7 @@ Private personal finance dashboard for manual portfolio, credit card, spend, and
 
 Fully functional personal finance dashboard with: Portfolio, Stocks, Banks, Credit Cards, Cashflow, Fixed Savings, and Analytics pages. Dark/light theme, privacy mode, and mobile-first responsive layout.
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for Vercel + Render + Neon PostgreSQL deployment.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the home server deployment setup using Vercel + Cloudflare Tunnel + local PostgreSQL.
 
 ## Run
 
