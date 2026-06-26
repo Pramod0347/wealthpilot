@@ -1,11 +1,9 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react'
 import {
   ApiError,
   createCashflowEntry,
   deleteCashflowEntry,
-  getCashflowEntries,
-  getCashflowMonths,
-  getCashflowSummary,
   type CashflowEntry,
   type CashflowEntryPayload,
   type CashflowSummary,
@@ -15,6 +13,8 @@ import { formatINR, formatINRShort, formatPct, getTrendClass } from '../lib/form
 import { usePrivacyMode } from '../context/PrivacyContext'
 import { Icon } from './Icon'
 import PrivateValue from './ui/PrivateValue'
+import { useCashflowEntriesQuery, useCashflowMonthsQuery, useCashflowSummaryQuery } from '../queries/hooks'
+import { queryKeys } from '../queries/queryKeys'
 
 const incomeCategories = ['Salary', 'Freelance', 'Bonus', 'Interest', 'Other'] as const
 const expenseCategories = ['Food', 'Grocery', 'Bike', 'Social Life', 'House Rent', 'Personal Exp', 'Utilities', 'Subscription', 'Other', 'Going Home', 'Home'] as const
@@ -169,15 +169,8 @@ function BreakdownList({
 
 export default function CashflowPage() {
   const { privacyMode } = usePrivacyMode()
+  const queryClient = useQueryClient()
   const [selectedMonth, setSelectedMonth] = useState(currentMonthString())
-  const [months, setMonths] = useState<string[]>([])
-  const [entries, setEntries] = useState<CashflowEntry[]>([])
-  const [summary, setSummary] = useState<CashflowSummary | null>(null)
-  const [monthsLoading, setMonthsLoading] = useState(true)
-  const [entriesLoading, setEntriesLoading] = useState(true)
-  const [summaryLoading, setSummaryLoading] = useState(true)
-  const [entriesError, setEntriesError] = useState<string | null>(null)
-  const [summaryError, setSummaryError] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDrawerMounted, setIsDrawerMounted] = useState(false)
   const [isDrawerVisible, setIsDrawerVisible] = useState(false)
@@ -189,67 +182,24 @@ export default function CashflowPage() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [statusTone, setStatusTone] = useState<'emerald' | 'rose' | 'amber' | 'slate'>('emerald')
 
+  const monthsQuery = useCashflowMonthsQuery()
+  const entriesQuery = useCashflowEntriesQuery(selectedMonth)
+  const summaryQuery = useCashflowSummaryQuery(selectedMonth)
+  const months = monthsQuery.data ?? []
+  const entries = (entriesQuery.data as CashflowEntry[] | undefined) ?? []
+  const summary = (summaryQuery.data as CashflowSummary | undefined) ?? null
+  const monthsLoading = monthsQuery.isLoading
+  const entriesLoading = entriesQuery.isLoading
+  const summaryLoading = summaryQuery.isLoading
+  const entriesError = entriesQuery.error ? formatApiError(entriesQuery.error) : null
+  const summaryError = summaryQuery.error ? formatApiError(summaryQuery.error) : null
+
   const availableMonths = useMemo(() => {
     const set = new Set([selectedMonth, currentMonthString(), ...months])
     return Array.from(set).sort((left, right) => right.localeCompare(left))
   }, [months, selectedMonth])
 
   const categoryOptions = useMemo(() => getCategories(form.entry_type), [form.entry_type])
-
-  async function loadMonths(signal?: AbortSignal) {
-    setMonthsLoading(true)
-    try {
-      const response = await getCashflowMonths(signal)
-      setMonths(response)
-    } finally {
-      setMonthsLoading(false)
-    }
-  }
-
-  async function loadMonthData(month: string, signal?: AbortSignal) {
-    setEntriesLoading(true)
-    setSummaryLoading(true)
-    setEntriesError(null)
-    setSummaryError(null)
-
-    const [entriesResult, summaryResult] = await Promise.allSettled([
-      getCashflowEntries(month, signal),
-      getCashflowSummary(month, signal),
-    ])
-
-    if (entriesResult.status === 'fulfilled') setEntries(entriesResult.value)
-    else if (entriesResult.reason?.name !== 'AbortError') {
-      setEntriesError(formatApiError(entriesResult.reason))
-      setEntries([])
-    }
-    setEntriesLoading(false)
-
-    if (summaryResult.status === 'fulfilled') setSummary(summaryResult.value)
-    else if (summaryResult.reason?.name !== 'AbortError') {
-      setSummaryError(formatApiError(summaryResult.reason))
-      setSummary(null)
-    }
-    setSummaryLoading(false)
-  }
-
-  useEffect(() => {
-    const controller = new AbortController()
-    loadMonths(controller.signal).catch(() => setMonthsLoading(false))
-    return () => controller.abort()
-  }, [])
-
-  useEffect(() => {
-    const controller = new AbortController()
-    loadMonthData(selectedMonth, controller.signal).catch((error) => {
-      if (error instanceof DOMException && error.name === 'AbortError') return
-      const message = formatApiError(error)
-      setEntriesError(message)
-      setSummaryError(message)
-      setEntriesLoading(false)
-      setSummaryLoading(false)
-    })
-    return () => controller.abort()
-  }, [selectedMonth])
 
   useEffect(() => {
     if (isModalOpen) {
@@ -353,6 +303,18 @@ export default function CashflowPage() {
     return Object.keys(nextErrors).length === 0
   }
 
+  async function refreshData(month = selectedMonth) {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.cashflowMonths }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.cashflowEntries(month) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.cashflowSummary(month) }),
+      queryClient.invalidateQueries({ queryKey: ['cashflow'] }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardSummary }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.analyticsSummary }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.reports('monthly-cashflow') }),
+    ])
+  }
+
   async function handleSubmit(event: SyntheticEvent) {
     event.preventDefault()
     setFormErrorMessage(null)
@@ -372,7 +334,7 @@ export default function CashflowPage() {
       }
 
       setIsModalOpen(false)
-      await Promise.all([loadMonths(), loadMonthData(selectedMonth)])
+      await refreshData(payload.month)
       resetForm(selectedMonth)
     } catch (error) {
       setFormErrorMessage(formatApiError(error))
@@ -387,7 +349,7 @@ export default function CashflowPage() {
       await deleteCashflowEntry(entry.id)
       setStatusTone('amber')
       setStatusMessage('Cashflow entry removed')
-      await Promise.all([loadMonths(), loadMonthData(selectedMonth)])
+      await refreshData(entry.month)
     } catch (error) {
       setStatusTone('rose')
       setStatusMessage(formatApiError(error))

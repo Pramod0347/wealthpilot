@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Icon } from './Icon'
 import PrivateValue from './ui/PrivateValue'
 import BottomSheet from './ui/BottomSheet'
@@ -6,6 +7,8 @@ import PortfolioPerformanceChart from './ui/PortfolioPerformanceChart'
 import { ApiError, apiFetch, type PortfolioPerformanceData, type PortfolioRange } from '../lib/api'
 import { formatINR, formatINRShort, formatPct, formatSignedPct, getTrendClass } from '../lib/format'
 import { usePrivacyMode } from '../context/PrivacyContext'
+import { useHoldingsAnalyticsQuery, useHoldingsQuery, usePortfolioPerformanceQuery } from '../queries/hooks'
+import { queryKeys } from '../queries/queryKeys'
 
 type ApiHolding = {
   id: number
@@ -517,13 +520,8 @@ function FormField({
 }
 
 export default function StocksPage() {
+  const queryClient = useQueryClient()
   const { privacyMode } = usePrivacyMode()
-  const [holdings, setHoldings] = useState<ApiHolding[]>([])
-  const [analytics, setAnalytics] = useState<ApiHoldingsAnalytics | null>(null)
-  const [holdingsLoading, setHoldingsLoading] = useState(true)
-  const [analyticsLoading, setAnalyticsLoading] = useState(true)
-  const [holdingsError, setHoldingsError] = useState<string | null>(null)
-  const [analyticsError, setAnalyticsError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [assetTypeFilter, setAssetTypeFilter] = useState('all')
   const [countryFilter, setCountryFilter] = useState('all')
@@ -542,78 +540,21 @@ export default function StocksPage() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [statusTone, setStatusTone] = useState<'emerald' | 'rose' | 'amber' | 'slate'>('emerald')
   const [activeRange, setActiveRange] = useState<PortfolioRange>('6M')
-  const [portfolioPerformance, setPortfolioPerformance] = useState<PortfolioPerformanceData | null>(null)
-  const [portfolioLoading, setPortfolioLoading] = useState(true)
-  const [portfolioError, setPortfolioError] = useState<string | null>(null)
   const [savingSnapshot, setSavingSnapshot] = useState(false)
   const [expandedHoldingId, setExpandedHoldingId] = useState<number | null>(null)
   const [selectedMobileHoldingId, setSelectedMobileHoldingId] = useState<number | null>(null)
-
-  const loadData = async (signal?: AbortSignal) => {
-    setHoldingsLoading(true)
-    setAnalyticsLoading(true)
-    setHoldingsError(null)
-    setAnalyticsError(null)
-
-    const [holdingsResult, analyticsResult] = await Promise.allSettled([
-      apiFetch<ApiHolding[]>('/api/holdings', { signal }),
-      apiFetch<ApiHoldingsAnalytics>('/api/holdings/analytics', { signal }),
-    ])
-
-    if (holdingsResult.status === 'fulfilled') {
-      setHoldings(holdingsResult.value)
-    } else if (holdingsResult.reason?.name !== 'AbortError') {
-      setHoldingsError(formatApiError(holdingsResult.reason))
-      setHoldings([])
-    }
-    setHoldingsLoading(false)
-
-    if (analyticsResult.status === 'fulfilled') {
-      setAnalytics(analyticsResult.value)
-    } else if (analyticsResult.reason?.name !== 'AbortError') {
-      setAnalyticsError(formatApiError(analyticsResult.reason))
-      setAnalytics(null)
-    }
-    setAnalyticsLoading(false)
-  }
-
-  useEffect(() => {
-    const controller = new AbortController()
-    loadData(controller.signal).catch((error) => {
-      if (error instanceof DOMException && error.name === 'AbortError') return
-      const message = formatApiError(error)
-      setHoldingsError(message)
-      setAnalyticsError(message)
-      setHoldingsLoading(false)
-      setAnalyticsLoading(false)
-    })
-    return () => controller.abort()
-  }, [])
-
-  const loadPortfolioPerformance = async (signal?: AbortSignal) => {
-    setPortfolioLoading(true)
-    setPortfolioError(null)
-
-    try {
-      const response = await apiFetch<PortfolioPerformanceData>(`/api/portfolio/performance?range=${activeRange}`, { signal })
-      setPortfolioPerformance(response)
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') return
-      setPortfolioError(formatApiError(error))
-    } finally {
-      setPortfolioLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    const controller = new AbortController()
-    loadPortfolioPerformance(controller.signal).catch((error) => {
-      if (error instanceof DOMException && error.name === 'AbortError') return
-      setPortfolioError(formatApiError(error))
-      setPortfolioLoading(false)
-    })
-    return () => controller.abort()
-  }, [activeRange])
+  const holdingsQuery = useHoldingsQuery()
+  const analyticsQuery = useHoldingsAnalyticsQuery()
+  const portfolioPerformanceQuery = usePortfolioPerformanceQuery(activeRange)
+  const holdings = (holdingsQuery.data ?? []) as ApiHolding[]
+  const analytics = (analyticsQuery.data ?? null) as ApiHoldingsAnalytics | null
+  const holdingsLoading = holdingsQuery.isLoading
+  const analyticsLoading = analyticsQuery.isLoading
+  const holdingsError = holdingsQuery.error ? formatApiError(holdingsQuery.error) : null
+  const analyticsError = analyticsQuery.error ? formatApiError(analyticsQuery.error) : null
+  const portfolioPerformance = (portfolioPerformanceQuery.data ?? null) as PortfolioPerformanceData | null
+  const portfolioLoading = portfolioPerformanceQuery.isLoading
+  const portfolioError = portfolioPerformanceQuery.error ? formatApiError(portfolioPerformanceQuery.error) : null
 
   useEffect(() => {
     if (isHoldingModalOpen) {
@@ -773,11 +714,18 @@ export default function StocksPage() {
   )
 
   async function refreshData() {
-    await loadData()
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.holdings }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.holdingsAnalytics }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardSummary }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.analyticsSummary }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.portfolioIntelligence }),
+      queryClient.invalidateQueries({ queryKey: ['reports', 'investment-holdings'] }),
+    ])
   }
 
   async function refreshPortfolioPerformance() {
-    await loadPortfolioPerformance()
+    await queryClient.invalidateQueries({ queryKey: ['portfolio', 'performance'] })
   }
 
   async function handleSaveSnapshot() {
@@ -789,6 +737,11 @@ export default function StocksPage() {
       setStatusTone('emerald')
       setStatusMessage("Saved today's snapshot.")
       await refreshPortfolioPerformance()
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboardSummary }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.analyticsSummary }),
+        queryClient.invalidateQueries({ queryKey: ['reports', 'networth-snapshots'] }),
+      ])
     } catch (error) {
       setStatusTone('rose')
       setStatusMessage(formatApiError(error))
@@ -973,6 +926,7 @@ export default function StocksPage() {
       setStatusTone('emerald')
       setStatusMessage(`Price refreshed for ${holding.symbol}.`)
       await refreshData()
+      await refreshPortfolioPerformance()
     } catch (error) {
       setStatusTone('rose')
       setStatusMessage(formatApiError(error))
@@ -995,6 +949,7 @@ export default function StocksPage() {
         setStatusMessage(`Refreshed ${result.updated_count} holdings successfully.`)
       }
       await refreshData()
+      await refreshPortfolioPerformance()
     } catch (error) {
       setStatusTone('rose')
       setStatusMessage(formatApiError(error))

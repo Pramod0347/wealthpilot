@@ -1,6 +1,4 @@
 const DEFAULT_API_BASE_URL = 'http://localhost:8000'
-const AUTH_TOKEN_STORAGE_KEY = 'wealthpilot_auth_token'
-
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
 
 export type WealthBucketItem = {
@@ -15,6 +13,18 @@ export type WealthBucketItem = {
   native_value: string | number | null
   native_currency: string | null
   badge: string | null
+}
+
+export type MarketOverviewItem = {
+  name: string
+  symbol: string
+  price: number | null
+  change: number | null
+  change_pct: number | null
+  currency: string
+  source: 'yfinance'
+  last_updated: string
+  error?: string | null
 }
 
 export type BankAccount = {
@@ -167,6 +177,93 @@ export type FixedSavingsAccountPayload = {
   maturity_date: string | null
   as_of_date: string | null
   notes: string | null
+}
+
+export type DashboardSummary = {
+  total_credit_card_dues: string | number
+  total_card_limit: string | number
+  total_card_used: string | number
+  overall_card_utilization: string | number
+  due_soon_count: number
+  overdue_count: number
+}
+
+export type Holding = {
+  id: number
+  symbol: string
+  company_name: string
+  asset_type: string
+  country: string
+  currency: string
+  exchange: string | null
+  exchange_symbol: string | null
+  fx_rate_to_inr: string | number
+  effective_fx_rate_to_inr: string | number
+  quantity: string | number
+  avg_buy_price: string | number
+  current_price: string | number
+  price_source: string
+  last_price_refreshed_at: string | null
+  sector: string | null
+  notes: string | null
+  as_of_date: string
+  created_at: string
+  updated_at: string
+  native_invested_amount: string | number
+  native_current_value: string | number
+  native_pnl: string | number
+  native_currency: string
+  invested_amount: string | number
+  current_value: string | number
+  pnl: string | number
+  return_pct: string | number
+}
+
+export type HoldingsAnalyticsResponse = {
+  total_invested: string | number
+  current_value: string | number
+  total_pnl: string | number
+  total_return_pct: string | number
+  asset_type_allocation: Array<{
+    key: string
+    label: string
+    amount: string | number
+    percentage: string | number
+  }>
+  sector_allocation: Array<{
+    key: string
+    label: string
+    amount: string | number
+    percentage: string | number
+  }>
+  top_gainers: Array<{
+    id: number
+    symbol: string
+    company_name: string
+    asset_type: string
+    country: string
+    currency: string
+    sector: string | null
+    native_current_value: string | number
+    native_pnl: string | number
+    current_value: string | number
+    pnl: string | number
+    return_pct: string | number
+  }>
+  top_losers: Array<{
+    id: number
+    symbol: string
+    company_name: string
+    asset_type: string
+    country: string
+    currency: string
+    sector: string | null
+    native_current_value: string | number
+    native_pnl: string | number
+    current_value: string | number
+    pnl: string | number
+    return_pct: string | number
+  }>
 }
 
 export type FinancialGoal = {
@@ -521,6 +618,170 @@ export type InvestmentHoldingsReport = {
   rows: InvestmentHoldingsReportRow[]
 }
 
+export type TaxYear = {
+  id: number
+  financial_year: string
+  assessment_year: string | null
+  regime: 'new'
+  filing_status: 'planning' | 'ready' | 'filed'
+  filing_date: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type TaxIncomeItem = {
+  id: number
+  tax_year_id: number
+  income_type: 'salary' | 'interest' | 'dividend' | 'capital_gains' | 'freelance' | 'other'
+  source: string | null
+  description: string | null
+  gross_amount: string | number
+  exempt_amount: string | number
+  taxable_amount: string | number | null
+  tds_amount: string | number
+  received_date: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type TaxDeduction = {
+  id: number
+  tax_year_id: number
+  section: 'STANDARD_DEDUCTION' | 'NPS_EMPLOYER' | 'OTHER_ALLOWED' | 'INFO_ONLY'
+  description: string | null
+  amount: string | number
+  eligible_amount: string | number | null
+  proof_status: 'missing' | 'available' | 'verified'
+  created_at: string
+  updated_at: string
+}
+
+export type TaxDocument = {
+  id: number
+  tax_year_id: number
+  document_type: 'FORM_16' | 'AIS' | 'TIS' | 'FORM_26AS' | 'CAPITAL_GAINS_STATEMENT' | 'BANK_INTEREST_CERTIFICATE' | 'OTHER'
+  name: string
+  status: 'missing' | 'uploaded' | 'verified'
+  file_name: string | null
+  file_path: string | null
+  notes: string | null
+  uploaded_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type TaxPayment = {
+  id: number
+  tax_year_id: number
+  payment_type: 'tds' | 'advance_tax' | 'self_assessment_tax' | 'refund'
+  amount: string | number
+  payment_date: string | null
+  challan_or_reference: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type TaxYearSummary = {
+  tax_year: TaxYear
+  income_summary: {
+    gross_income: string | number
+    exempt_income: string | number
+    taxable_income_before_adjustments: string | number
+    by_type: Array<{
+      income_type: TaxIncomeItem['income_type']
+      gross_amount: string | number
+      taxable_amount: string | number
+      tds_amount: string | number
+    }>
+  }
+  new_regime_estimate: {
+    taxable_income: string | number
+    standard_deduction: string | number
+    allowed_adjustments: string | number
+    tax_before_rebate: string | number
+    rebate: string | number
+    tax_before_cess: string | number
+    cess: string | number
+    total_tax: string | number
+    effective_tax_rate: string | number | null
+  }
+  tds_summary: {
+    total_tds: string | number
+    total_advance_tax: string | number
+    total_self_assessment_tax: string | number
+    total_refunds_received: string | number
+    total_tax_paid_or_credited: string | number
+  }
+  payable_summary: {
+    net_tax_balance: string | number
+    estimated_refund: string | number
+    estimated_payable: string | number
+    balance_label: 'refund' | 'payable' | 'settled' | string
+  }
+  documents_summary: {
+    total_required: number
+    available_count: number
+    verified_count: number
+    missing_count: number
+    readiness_score: string | number
+    missing_documents: string[]
+  }
+  filing_readiness: {
+    status: 'not_ready' | 'in_progress' | 'ready'
+    message: string
+    checklist: Array<{ label: string; done: boolean }>
+    disclaimer: string
+  }
+}
+
+export type TaxYearPayload = {
+  financial_year: string
+  assessment_year: string | null
+  regime?: 'new'
+  filing_status: TaxYear['filing_status']
+  filing_date: string | null
+  notes: string | null
+}
+
+export type TaxIncomeItemPayload = {
+  income_type: TaxIncomeItem['income_type']
+  source: string | null
+  description: string | null
+  gross_amount: string
+  exempt_amount: string
+  taxable_amount: string | null
+  tds_amount: string
+  received_date: string | null
+}
+
+export type TaxDeductionPayload = {
+  section: TaxDeduction['section']
+  description: string | null
+  amount: string
+  eligible_amount: string | null
+  proof_status: TaxDeduction['proof_status']
+}
+
+export type TaxDocumentPayload = {
+  document_type: TaxDocument['document_type']
+  name: string
+  status: TaxDocument['status']
+  file_name: string | null
+  file_path: string | null
+  notes: string | null
+  uploaded_at: string | null
+}
+
+export type TaxPaymentPayload = {
+  payment_type: TaxPayment['payment_type']
+  amount: string
+  payment_date: string | null
+  challan_or_reference: string | null
+  notes: string | null
+}
+
 export type ApiValidationError = {
   path: string
   message: string
@@ -539,17 +800,11 @@ export class ApiError extends Error {
 }
 
 export function getStoredAuthToken() {
-  if (typeof window === 'undefined') return ''
-  return window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) ?? ''
+  return ''
 }
 
 export function setStoredAuthToken(token: string) {
-  if (typeof window === 'undefined') return
-  if (token) {
-    window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token)
-    return
-  }
-  window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY)
+  void token
 }
 
 type FetchOptions = RequestInit & {
@@ -564,13 +819,11 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
 
   let response: Response
   try {
-    const authToken = getStoredAuthToken()
     response = await fetch(url, {
       ...requestOptions,
       credentials: 'include',
       headers: {
         Accept: 'application/json',
-        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
         ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
         ...(optionHeaders ?? {}),
       },
@@ -819,6 +1072,26 @@ export function getAnalyticsSummary(signal?: AbortSignal) {
   return apiFetch<AnalyticsSummary>('/api/analytics/summary', { signal })
 }
 
+export function getMarketOverview(signal?: AbortSignal) {
+  return apiFetch<MarketOverviewItem[]>('/api/market/overview', { signal })
+}
+
+export function getDashboardSummary(signal?: AbortSignal) {
+  return apiFetch<DashboardSummary>('/api/dashboard/summary', { signal })
+}
+
+export function getHoldings(signal?: AbortSignal) {
+  return apiFetch<Holding[]>('/api/holdings', { signal })
+}
+
+export function getHoldingsAnalytics(signal?: AbortSignal) {
+  return apiFetch<HoldingsAnalyticsResponse>('/api/holdings/analytics', { signal })
+}
+
+export function getPortfolioPerformance(range: PortfolioRange, signal?: AbortSignal) {
+  return apiFetch<PortfolioPerformanceData>(`/api/portfolio/performance?range=${range}`, { signal })
+}
+
 export function getMonthlyCashflowReport(filters?: {
   fromMonth?: string
   toMonth?: string
@@ -851,6 +1124,120 @@ export function getNetWorthSnapshotsReport(signal?: AbortSignal) {
 
 export function getInvestmentHoldingsReport(signal?: AbortSignal) {
   return apiFetch<InvestmentHoldingsReport>('/api/reports/investment-holdings', { signal })
+}
+
+export function getTaxYears(signal?: AbortSignal) {
+  return apiFetch<TaxYear[]>('/api/tax/years', { signal })
+}
+
+export function createTaxYear(payload: TaxYearPayload) {
+  return apiFetch<TaxYear>('/api/tax/years', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateTaxYear(taxYearId: number, payload: Partial<TaxYearPayload>) {
+  return apiFetch<TaxYear>(`/api/tax/years/${taxYearId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteTaxYear(taxYearId: number) {
+  return apiFetch<void>(`/api/tax/years/${taxYearId}`, { method: 'DELETE' })
+}
+
+export function getTaxYearSummary(taxYearId: number, signal?: AbortSignal) {
+  return apiFetch<TaxYearSummary>(`/api/tax/years/${taxYearId}/summary`, { signal })
+}
+
+export function getTaxIncomeItems(taxYearId: number, signal?: AbortSignal) {
+  return apiFetch<TaxIncomeItem[]>(`/api/tax/years/${taxYearId}/income`, { signal })
+}
+
+export function createTaxIncomeItem(taxYearId: number, payload: TaxIncomeItemPayload) {
+  return apiFetch<TaxIncomeItem>(`/api/tax/years/${taxYearId}/income`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateTaxIncomeItem(incomeId: number, payload: Partial<TaxIncomeItemPayload>) {
+  return apiFetch<TaxIncomeItem>(`/api/tax/income/${incomeId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteTaxIncomeItem(incomeId: number) {
+  return apiFetch<void>(`/api/tax/income/${incomeId}`, { method: 'DELETE' })
+}
+
+export function getTaxDeductions(taxYearId: number, signal?: AbortSignal) {
+  return apiFetch<TaxDeduction[]>(`/api/tax/years/${taxYearId}/deductions`, { signal })
+}
+
+export function createTaxDeduction(taxYearId: number, payload: TaxDeductionPayload) {
+  return apiFetch<TaxDeduction>(`/api/tax/years/${taxYearId}/deductions`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateTaxDeduction(deductionId: number, payload: Partial<TaxDeductionPayload>) {
+  return apiFetch<TaxDeduction>(`/api/tax/deductions/${deductionId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteTaxDeduction(deductionId: number) {
+  return apiFetch<void>(`/api/tax/deductions/${deductionId}`, { method: 'DELETE' })
+}
+
+export function getTaxDocuments(taxYearId: number, signal?: AbortSignal) {
+  return apiFetch<TaxDocument[]>(`/api/tax/years/${taxYearId}/documents`, { signal })
+}
+
+export function createTaxDocument(taxYearId: number, payload: TaxDocumentPayload) {
+  return apiFetch<TaxDocument>(`/api/tax/years/${taxYearId}/documents`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateTaxDocument(documentId: number, payload: Partial<TaxDocumentPayload>) {
+  return apiFetch<TaxDocument>(`/api/tax/documents/${documentId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteTaxDocument(documentId: number) {
+  return apiFetch<void>(`/api/tax/documents/${documentId}`, { method: 'DELETE' })
+}
+
+export function getTaxPayments(taxYearId: number, signal?: AbortSignal) {
+  return apiFetch<TaxPayment[]>(`/api/tax/years/${taxYearId}/payments`, { signal })
+}
+
+export function createTaxPayment(taxYearId: number, payload: TaxPaymentPayload) {
+  return apiFetch<TaxPayment>(`/api/tax/years/${taxYearId}/payments`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateTaxPayment(paymentId: number, payload: Partial<TaxPaymentPayload>) {
+  return apiFetch<TaxPayment>(`/api/tax/payments/${paymentId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteTaxPayment(paymentId: number) {
+  return apiFetch<void>(`/api/tax/payments/${paymentId}`, { method: 'DELETE' })
 }
 
 export function loginUser(email: string, phone: string) {

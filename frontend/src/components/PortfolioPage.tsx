@@ -1,10 +1,11 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import { ApiError, apiFetch, getPortfolioIntelligence, type PortfolioIntelligence, type PortfolioPerformanceData, type PortfolioRange } from '../lib/api'
+import { useState, type ReactNode } from 'react'
+import { ApiError, type PortfolioIntelligence, type PortfolioPerformanceData, type PortfolioRange } from '../lib/api'
 import { formatINR, formatINRShort, formatPct, formatSignedPct, getTrendClass } from '../lib/format'
 import { usePrivacyMode } from '../context/PrivacyContext'
 import { Icon } from './Icon'
 import PrivateValue from './ui/PrivateValue'
 import PortfolioPerformanceChart from './ui/PortfolioPerformanceChart'
+import { usePortfolioIntelligenceQuery, usePortfolioPerformanceQuery } from '../queries/hooks'
 
 const sectionLabel = 'text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500'
 const allocationColors: Record<string, string> = {
@@ -59,41 +60,15 @@ function SectionCard({ title, children, className = '' }: { title?: string; chil
 
 export default function PortfolioPage() {
   const { privacyMode } = usePrivacyMode()
-  const [intelligence, setIntelligence] = useState<PortfolioIntelligence | null>(null)
-  const [performance, setPerformance] = useState<PortfolioPerformanceData | null>(null)
   const [activeRange, setActiveRange] = useState<PortfolioRange>('6M')
-  const [loading, setLoading] = useState(true)
-  const [performanceLoading, setPerformanceLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [performanceError, setPerformanceError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const controller = new AbortController()
-    setLoading(true)
-    setError(null)
-    getPortfolioIntelligence(controller.signal)
-      .then(setIntelligence)
-      .catch((err) => {
-        if (err instanceof DOMException && err.name === 'AbortError') return
-        setError(formatApiError(err))
-      })
-      .finally(() => setLoading(false))
-    return () => controller.abort()
-  }, [])
-
-  useEffect(() => {
-    const controller = new AbortController()
-    setPerformanceLoading(true)
-    setPerformanceError(null)
-    apiFetch<PortfolioPerformanceData>(`/api/portfolio/performance?range=${activeRange}`, { signal: controller.signal })
-      .then(setPerformance)
-      .catch((err) => {
-        if (err instanceof DOMException && err.name === 'AbortError') return
-        setPerformanceError(formatApiError(err))
-      })
-      .finally(() => setPerformanceLoading(false))
-    return () => controller.abort()
-  }, [activeRange])
+  const intelligenceQuery = usePortfolioIntelligenceQuery()
+  const performanceQuery = usePortfolioPerformanceQuery(activeRange)
+  const intelligence = (intelligenceQuery.data as PortfolioIntelligence | undefined) ?? null
+  const performance = (performanceQuery.data as PortfolioPerformanceData | undefined) ?? null
+  const loading = intelligenceQuery.isLoading
+  const performanceLoading = performanceQuery.isLoading
+  const error = intelligenceQuery.error ? formatApiError(intelligenceQuery.error) : null
+  const performanceError = performanceQuery.error ? formatApiError(performanceQuery.error) : null
 
   const netWorthCards = intelligence
     ? [

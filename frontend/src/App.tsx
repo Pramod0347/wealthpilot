@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import Dashboard from './components/Dashboard'
@@ -10,13 +11,15 @@ import FixedSavingsPage from './components/FixedSavingsPage'
 import CashflowPage from './components/CashflowPage'
 import GoalsPage from './components/GoalsPage'
 import ReportsPage from './components/ReportsPage'
+import TaxCenterPage from './components/TaxCenterPage'
 import LoginPage from './components/auth/LoginPage'
 import ServerWakeScreen from './components/auth/ServerWakeScreen'
 import BottomSheet from './components/ui/BottomSheet'
 import { Icon, type IconName } from './components/Icon'
 import { ApiError, checkAuth, checkServerHealth, getStoredAuthToken, loginUser, logoutUser, setStoredAuthToken } from './lib/api'
+import { queryKeys } from './queries/queryKeys'
 
-type PageKey = 'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards' | 'transactions' | 'analytics' | 'goals' | 'reports'
+type PageKey = 'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards' | 'transactions' | 'analytics' | 'goals' | 'tax' | 'reports'
 type BootstrapState =
   | 'checking_server'
   | 'server_warming'
@@ -45,12 +48,13 @@ const mobileMoreNav: NavItem[] = [
   { key: 'transactions', label: 'Cashflow', icon: 'transactions' },
   { key: 'analytics', label: 'Analytics', icon: 'analytics' },
   { key: 'goals', label: 'Goals', icon: 'portfolio' },
+  { key: 'tax', label: 'Tax Center', icon: 'reports' },
   { key: 'reports', label: 'Reports', icon: 'reports' },
   { key: 'settings', label: 'Settings', icon: 'settings' },
 ]
 
 function isPageKey(value: NavItem['key']): value is PageKey {
-  return ['dashboard', 'stocks', 'banks', 'pfepf', 'cards', 'transactions', 'analytics', 'goals', 'reports'].includes(value)
+  return ['dashboard', 'stocks', 'banks', 'pfepf', 'cards', 'transactions', 'analytics', 'goals', 'tax', 'reports'].includes(value)
 }
 
 const HEALTH_RETRY_MS = 3_000
@@ -64,6 +68,7 @@ function wait(ms: number) {
 }
 
 export default function App() {
+  const queryClient = useQueryClient()
   const [activePage, setActivePage] = useState<PageKey>('dashboard')
   const [bootstrapState, setBootstrapState] = useState<BootstrapState>('checking_server')
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
@@ -147,6 +152,8 @@ export default function App() {
       }
 
       setStoredAuthToken(login.token ?? '')
+      await queryClient.invalidateQueries({ queryKey: queryKeys.authMe })
+      await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       setBootstrapState('authenticated')
     } catch (error) {
       setStoredAuthToken('')
@@ -173,6 +180,7 @@ export default function App() {
     } catch {
       // Best-effort cookie clear; frontend state should still move to login.
     }
+    queryClient.clear()
     setStoredAuthToken('')
     setAuthError(null)
     setBootstrapState('unauthenticated')
@@ -218,6 +226,11 @@ export default function App() {
       title: 'Goals',
       subtitle: 'Track personal financial targets and funding progress',
       content: <GoalsPage />,
+    },
+    tax: {
+      title: 'Tax Center',
+      subtitle: 'New regime tax estimate, documents, and ITR readiness',
+      content: <TaxCenterPage />,
     },
     reports: {
       title: 'Reports',

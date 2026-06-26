@@ -1,19 +1,19 @@
 import { useEffect, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   ApiError,
   createFixedSavingsAccount,
   deleteFixedSavingsAccount,
-  getFixedSavingsAccounts,
-  getFixedSavingsSummary,
   type FixedSavingsAccount,
   type FixedSavingsAccountPayload,
-  type FixedSavingsSummary,
   updateFixedSavingsAccount,
 } from '../lib/api'
 import { formatINR, formatINRShort, formatPct, getTrendClass } from '../lib/format'
 import { usePrivacyMode } from '../context/PrivacyContext'
 import { Icon } from './Icon'
 import PrivateValue from './ui/PrivateValue'
+import { useFixedSavingsAccountsQuery, useFixedSavingsSummaryQuery } from '../queries/hooks'
+import { queryKeys } from '../queries/queryKeys'
 
 type AccountType = FixedSavingsAccount['account_type']
 
@@ -215,13 +215,8 @@ function FormField({
 }
 
 export default function FixedSavingsPage() {
+  const queryClient = useQueryClient()
   const { privacyMode } = usePrivacyMode()
-  const [accounts, setAccounts] = useState<FixedSavingsAccount[]>([])
-  const [summary, setSummary] = useState<FixedSavingsSummary | null>(null)
-  const [accountsLoading, setAccountsLoading] = useState(true)
-  const [summaryLoading, setSummaryLoading] = useState(true)
-  const [accountsError, setAccountsError] = useState<string | null>(null)
-  const [summaryError, setSummaryError] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDrawerMounted, setIsDrawerMounted] = useState(false)
   const [isDrawerVisible, setIsDrawerVisible] = useState(false)
@@ -232,47 +227,14 @@ export default function FixedSavingsPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [statusTone, setStatusTone] = useState<'emerald' | 'rose' | 'amber' | 'slate'>('emerald')
-
-  const loadData = async (signal?: AbortSignal) => {
-    setAccountsLoading(true)
-    setSummaryLoading(true)
-    setAccountsError(null)
-    setSummaryError(null)
-
-    const [accountsResult, summaryResult] = await Promise.allSettled([
-      getFixedSavingsAccounts(signal),
-      getFixedSavingsSummary(signal),
-    ])
-
-    if (accountsResult.status === 'fulfilled') {
-      setAccounts(accountsResult.value)
-    } else if (accountsResult.reason?.name !== 'AbortError') {
-      setAccountsError(formatApiError(accountsResult.reason))
-      setAccounts([])
-    }
-    setAccountsLoading(false)
-
-    if (summaryResult.status === 'fulfilled') {
-      setSummary(summaryResult.value)
-    } else if (summaryResult.reason?.name !== 'AbortError') {
-      setSummaryError(formatApiError(summaryResult.reason))
-      setSummary(null)
-    }
-    setSummaryLoading(false)
-  }
-
-  useEffect(() => {
-    const controller = new AbortController()
-    loadData(controller.signal).catch((error) => {
-      if (error instanceof DOMException && error.name === 'AbortError') return
-      const message = formatApiError(error)
-      setAccountsError(message)
-      setSummaryError(message)
-      setAccountsLoading(false)
-      setSummaryLoading(false)
-    })
-    return () => controller.abort()
-  }, [])
+  const accountsQuery = useFixedSavingsAccountsQuery()
+  const summaryQuery = useFixedSavingsSummaryQuery()
+  const accounts = accountsQuery.data ?? []
+  const summary = summaryQuery.data ?? null
+  const accountsLoading = accountsQuery.isLoading
+  const summaryLoading = summaryQuery.isLoading
+  const accountsError = accountsQuery.error ? formatApiError(accountsQuery.error) : null
+  const summaryError = summaryQuery.error ? formatApiError(summaryQuery.error) : null
 
   useEffect(() => {
     if (isModalOpen) {
@@ -417,7 +379,12 @@ export default function FixedSavingsPage() {
       }
 
       setIsModalOpen(false)
-      await loadData()
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.fixedSavings }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.fixedSavingsSummary }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboardSummary }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.analyticsSummary }),
+      ])
       resetForm(form.account_type)
     } catch (error) {
       setFormErrorMessage(formatApiError(error))
@@ -434,7 +401,12 @@ export default function FixedSavingsPage() {
       await deleteFixedSavingsAccount(account.id)
       setStatusTone('amber')
       setStatusMessage('PF / PPF account removed')
-      await loadData()
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.fixedSavings }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.fixedSavingsSummary }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboardSummary }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.analyticsSummary }),
+      ])
     } catch (error) {
       setStatusTone('rose')
       setStatusMessage(formatApiError(error))

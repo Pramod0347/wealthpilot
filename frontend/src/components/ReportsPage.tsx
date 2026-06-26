@@ -1,12 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   ApiError,
-  getCashflowMonths,
-  getCreditCardBillPaymentsReport,
-  getCreditCards,
-  getInvestmentHoldingsReport,
-  getMonthlyCashflowReport,
-  getNetWorthSnapshotsReport,
   type CreditCard,
   type CreditCardBill,
   type CreditCardBillPaymentsReportRow,
@@ -18,6 +12,14 @@ import { formatINR, formatINRShort, formatPct, formatSignedPct, getTrendClass } 
 import { usePrivacyMode } from '../context/PrivacyContext'
 import { Icon } from './Icon'
 import PrivateValue from './ui/PrivateValue'
+import {
+  useCashflowMonthsQuery,
+  useCreditCardBillPaymentsReportQuery,
+  useCreditCardsQuery,
+  useInvestmentHoldingsReportQuery,
+  useMonthlyCashflowReportQuery,
+  useNetWorthSnapshotsReportQuery,
+} from '../queries/hooks'
 
 function toNumber(value: string | number | null | undefined) {
   return Number(value ?? 0)
@@ -138,117 +140,58 @@ function StatusBadge({ status }: { status: CreditCardBill['status'] }) {
 
 export default function ReportsPage() {
   const { privacyMode } = usePrivacyMode()
-  const [availableMonths, setAvailableMonths] = useState<string[]>([])
-  const [creditCards, setCreditCards] = useState<CreditCard[]>([])
-
-  const [cashflowRows, setCashflowRows] = useState<MonthlyCashflowReportRow[]>([])
-  const [billRows, setBillRows] = useState<CreditCardBillPaymentsReportRow[]>([])
-  const [snapshotRows, setSnapshotRows] = useState<NetWorthSnapshotReportRow[]>([])
-  const [holdingRows, setHoldingRows] = useState<InvestmentHoldingsReportRow[]>([])
-
-  const [cashflowLoading, setCashflowLoading] = useState(true)
-  const [billsLoading, setBillsLoading] = useState(true)
-  const [snapshotsLoading, setSnapshotsLoading] = useState(true)
-  const [holdingsLoading, setHoldingsLoading] = useState(true)
-  const [metaLoading, setMetaLoading] = useState(true)
-
-  const [cashflowError, setCashflowError] = useState<string | null>(null)
-  const [billsError, setBillsError] = useState<string | null>(null)
-  const [snapshotsError, setSnapshotsError] = useState<string | null>(null)
-  const [holdingsError, setHoldingsError] = useState<string | null>(null)
-  const [metaError, setMetaError] = useState<string | null>(null)
-
   const [cashflowFromMonth, setCashflowFromMonth] = useState('')
   const [cashflowToMonth, setCashflowToMonth] = useState('')
   const [billCardId, setBillCardId] = useState('all')
   const [billStatus, setBillStatus] = useState<'all' | CreditCardBill['status']>('all')
   const [billFromDate, setBillFromDate] = useState('')
   const [billToDate, setBillToDate] = useState('')
+  const cashflowMonthsQuery = useCashflowMonthsQuery()
+  const creditCardsQuery = useCreditCardsQuery()
+  const cashflowReportQuery = useMonthlyCashflowReportQuery({
+    fromMonth: cashflowFromMonth || undefined,
+    toMonth: cashflowToMonth || undefined,
+  })
+  const billPaymentsQuery = useCreditCardBillPaymentsReportQuery({
+    cardId: billCardId === 'all' ? undefined : Number(billCardId),
+    status: billStatus === 'all' ? undefined : billStatus,
+    fromDate: billFromDate || undefined,
+    toDate: billToDate || undefined,
+  })
+  const snapshotsReportQuery = useNetWorthSnapshotsReportQuery()
+  const holdingsReportQuery = useInvestmentHoldingsReportQuery()
+
+  const availableMonths = cashflowMonthsQuery.data ?? []
+  const creditCards = (creditCardsQuery.data as CreditCard[] | undefined) ?? []
+  const cashflowRows = (cashflowReportQuery.data?.rows as MonthlyCashflowReportRow[] | undefined) ?? []
+  const billRows = (billPaymentsQuery.data?.rows as CreditCardBillPaymentsReportRow[] | undefined) ?? []
+  const snapshotRows = (snapshotsReportQuery.data?.rows as NetWorthSnapshotReportRow[] | undefined) ?? []
+  const holdingRows = (holdingsReportQuery.data?.rows as InvestmentHoldingsReportRow[] | undefined) ?? []
+
+  const cashflowLoading = cashflowReportQuery.isLoading
+  const billsLoading = billPaymentsQuery.isLoading
+  const snapshotsLoading = snapshotsReportQuery.isLoading
+  const holdingsLoading = holdingsReportQuery.isLoading
+  const metaLoading = cashflowMonthsQuery.isLoading || creditCardsQuery.isLoading
+
+  const cashflowError = cashflowReportQuery.error ? formatApiError(cashflowReportQuery.error) : null
+  const billsError = billPaymentsQuery.error ? formatApiError(billPaymentsQuery.error) : null
+  const snapshotsError = snapshotsReportQuery.error ? formatApiError(snapshotsReportQuery.error) : null
+  const holdingsError = holdingsReportQuery.error ? formatApiError(holdingsReportQuery.error) : null
+  const metaError = cashflowMonthsQuery.error
+    ? formatApiError(cashflowMonthsQuery.error)
+    : creditCardsQuery.error
+      ? formatApiError(creditCardsQuery.error)
+      : null
 
   useEffect(() => {
-    const controller = new AbortController()
-    setMetaLoading(true)
-    setMetaError(null)
-    Promise.all([getCashflowMonths(controller.signal), getCreditCards(controller.signal)])
-      .then(([months, cards]) => {
-        setAvailableMonths(months)
-        setCreditCards(cards)
-        if (!cashflowFromMonth && months.length > 0) setCashflowFromMonth(months[months.length - 1] ?? '')
-        if (!cashflowToMonth && months.length > 0) setCashflowToMonth(months[0] ?? '')
-      })
-      .catch((error) => {
-        if (error instanceof DOMException && error.name === 'AbortError') return
-        setMetaError(formatApiError(error))
-      })
-      .finally(() => setMetaLoading(false))
-    return () => controller.abort()
-  }, [])
-
-  useEffect(() => {
-    const controller = new AbortController()
-    setCashflowLoading(true)
-    setCashflowError(null)
-    getMonthlyCashflowReport(
-      {
-        fromMonth: cashflowFromMonth || undefined,
-        toMonth: cashflowToMonth || undefined,
-      },
-      controller.signal,
-    )
-      .then((response) => setCashflowRows(response.rows))
-      .catch((error) => {
-        if (error instanceof DOMException && error.name === 'AbortError') return
-        setCashflowError(formatApiError(error))
-      })
-      .finally(() => setCashflowLoading(false))
-    return () => controller.abort()
-  }, [cashflowFromMonth, cashflowToMonth])
-
-  useEffect(() => {
-    const controller = new AbortController()
-    setBillsLoading(true)
-    setBillsError(null)
-    getCreditCardBillPaymentsReport(
-      {
-        cardId: billCardId === 'all' ? undefined : Number(billCardId),
-        status: billStatus === 'all' ? undefined : billStatus,
-        fromDate: billFromDate || undefined,
-        toDate: billToDate || undefined,
-      },
-      controller.signal,
-    )
-      .then((response) => setBillRows(response.rows))
-      .catch((error) => {
-        if (error instanceof DOMException && error.name === 'AbortError') return
-        setBillsError(formatApiError(error))
-      })
-      .finally(() => setBillsLoading(false))
-    return () => controller.abort()
-  }, [billCardId, billFromDate, billStatus, billToDate])
-
-  useEffect(() => {
-    const controller = new AbortController()
-    setSnapshotsLoading(true)
-    setHoldingsLoading(true)
-    setSnapshotsError(null)
-    setHoldingsError(null)
-    Promise.all([getNetWorthSnapshotsReport(controller.signal), getInvestmentHoldingsReport(controller.signal)])
-      .then(([snapshots, holdings]) => {
-        setSnapshotRows(snapshots.rows)
-        setHoldingRows(holdings.rows)
-      })
-      .catch((error) => {
-        if (error instanceof DOMException && error.name === 'AbortError') return
-        const message = formatApiError(error)
-        setSnapshotsError(message)
-        setHoldingsError(message)
-      })
-      .finally(() => {
-        setSnapshotsLoading(false)
-        setHoldingsLoading(false)
-      })
-    return () => controller.abort()
-  }, [])
+    if (!cashflowFromMonth && availableMonths.length > 0) {
+      setCashflowFromMonth(availableMonths[availableMonths.length - 1] ?? '')
+    }
+    if (!cashflowToMonth && availableMonths.length > 0) {
+      setCashflowToMonth(availableMonths[0] ?? '')
+    }
+  }, [availableMonths, cashflowFromMonth, cashflowToMonth])
 
   const cashflowCsvRows = useMemo(
     () =>

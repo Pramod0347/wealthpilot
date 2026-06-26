@@ -7,4 +7,9 @@ from app.models.financial_goal import FinancialGoal
 from app.models.holding import Holding
 from app.models.portfolio_snapshot import PortfolioSnapshot
 from app.models.scheduled_payment import ScheduledPayment
+from app.models.tax_deduction import TaxDeduction
+from app.models.tax_document import TaxDocument
+from app.models.tax_income_item import TaxIncomeItem
+from app.models.tax_payment import TaxPayment
+from app.models.tax_year import TaxYear
 from app.models.transaction import Transaction

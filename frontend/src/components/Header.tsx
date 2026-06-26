@@ -1,21 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
-import { apiFetch } from '../lib/api'
+import { useMemo } from 'react'
 import { getTrendClass } from '../lib/format'
 import { useTheme } from '../context/ThemeContext'
 import { usePrivacyMode } from '../context/PrivacyContext'
 import { Icon } from './Icon'
-
-type MarketOverviewItem = {
-  name: string
-  symbol: string
-  price: number | null
-  change: number | null
-  change_pct: number | null
-  currency: string
-  source: 'yfinance'
-  last_updated: string
-  error?: string | null
-}
+import { type MarketOverviewItem } from '../lib/api'
+import { useMarketOverviewQuery } from '../queries/hooks'
 
 type MarketChipData = {
   name: string
@@ -146,43 +135,18 @@ export default function Header({
 }) {
   const { isDark, toggleTheme } = useTheme()
   const { privacyMode, togglePrivacyMode } = usePrivacyMode()
-  const [markets, setMarkets] = useState<MarketChipData[]>(FALLBACK_MARKETS)
-  const [isLoadingMarkets, setIsLoadingMarkets] = useState(true)
-  const [isStale, setIsStale] = useState(false)
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null)
-
-  useEffect(() => {
-    let isMounted = true
-    let intervalId: number | undefined
-
-    async function loadMarkets(isInitialLoad: boolean) {
-      if (isInitialLoad) setIsLoadingMarkets(true)
-      try {
-        const response = await apiFetch<MarketOverviewItem[]>('/api/market/overview')
-        if (!isMounted) return
-        setMarkets(mergeMarkets(response))
-        setIsStale(false)
-        const updatedTimes = response
-          .filter((item) => !item.error && item.last_updated)
-          .map((item) => item.last_updated)
-          .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
-        if (updatedTimes[0]) setLastUpdated(updatedTimes[0])
-      } catch {
-        if (!isMounted) return
-        setIsStale(true)
-        if (isInitialLoad) setMarkets(FALLBACK_MARKETS)
-      } finally {
-        if (isMounted && isInitialLoad) setIsLoadingMarkets(false)
-      }
-    }
-
-    void loadMarkets(true)
-    intervalId = window.setInterval(() => void loadMarkets(false), 60_000)
-    return () => {
-      isMounted = false
-      if (intervalId !== undefined) window.clearInterval(intervalId)
-    }
-  }, [])
+  const marketOverviewQuery = useMarketOverviewQuery()
+  const marketResponse = marketOverviewQuery.data ?? []
+  const markets = marketResponse.length > 0 ? mergeMarkets(marketResponse) : FALLBACK_MARKETS
+  const isLoadingMarkets = marketOverviewQuery.isLoading
+  const isStale = Boolean(marketOverviewQuery.error)
+  const lastUpdated = useMemo(() => {
+    const updatedTimes = marketResponse
+      .filter((item) => !item.error && item.last_updated)
+      .map((item) => item.last_updated)
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+    return updatedTimes[0] ?? null
+  }, [marketResponse])
 
   const marketContent = useMemo(() => {
     if (isLoadingMarkets) {

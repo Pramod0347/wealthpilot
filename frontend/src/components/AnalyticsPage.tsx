@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useMemo, useState, type ReactNode } from 'react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import {
   ApiError,
-  apiFetch,
-  getAnalyticsSummary,
-  getPortfolioIntelligence,
+  type DashboardSummary,
   type AnalyticsCategoryAverageItem,
   type AnalyticsFocusItem,
   type AnalyticsMonthlyTrendItem,
@@ -19,15 +18,8 @@ import { Icon } from './Icon'
 import PrivateValue from './ui/PrivateValue'
 import PortfolioPerformanceChart from './ui/PortfolioPerformanceChart'
 import WealthBucketModal from './ui/WealthBucketModal'
-
-type ApiDashboardSummary = {
-  total_credit_card_dues: string | number
-  total_card_limit: string | number
-  total_card_used: string | number
-  overall_card_utilization: string | number
-  due_soon_count: number
-  overdue_count: number
-}
+import { useAnalyticsSummaryQuery, useDashboardSummaryQuery, usePortfolioIntelligenceQuery, usePortfolioPerformanceQuery } from '../queries/hooks'
+import { queryKeys } from '../queries/queryKeys'
 
 type TrendPoint = {
   label: string
@@ -242,67 +234,29 @@ function CategoryBars({
 
 export default function AnalyticsPage() {
   const { privacyMode } = usePrivacyMode()
-  const [intelligence, setIntelligence] = useState<PortfolioIntelligence | null>(null)
-  const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null)
-  const [performance, setPerformance] = useState<PortfolioPerformanceData | null>(null)
-  const [dashboardSummary, setDashboardSummary] = useState<ApiDashboardSummary | null>(null)
+  const queryClient = useQueryClient()
   const [activeRange, setActiveRange] = useState<PortfolioRange>('6M')
   const [selectedBucketKey, setSelectedBucketKey] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [analyticsLoading, setAnalyticsLoading] = useState(true)
-  const [performanceLoading, setPerformanceLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [analyticsError, setAnalyticsError] = useState<string | null>(null)
-  const [performanceError, setPerformanceError] = useState<string | null>(null)
   const [showAllExpenseCategories, setShowAllExpenseCategories] = useState(false)
+  const intelligenceQuery = usePortfolioIntelligenceQuery()
+  const dashboardSummaryQuery = useDashboardSummaryQuery()
+  const analyticsQuery = useAnalyticsSummaryQuery()
+  const performanceQuery = usePortfolioPerformanceQuery(activeRange)
 
-  useEffect(() => {
-    const controller = new AbortController()
-    setLoading(true)
-    setError(null)
-    Promise.all([
-      getPortfolioIntelligence(controller.signal),
-      apiFetch<ApiDashboardSummary>('/api/dashboard/summary', { signal: controller.signal }),
-    ])
-      .then(([intel, summary]) => {
-        setIntelligence(intel)
-        setDashboardSummary(summary)
-      })
-      .catch((err) => {
-        if (err instanceof DOMException && err.name === 'AbortError') return
-        setError(formatApiError(err))
-      })
-      .finally(() => setLoading(false))
-    return () => controller.abort()
-  }, [])
-
-  useEffect(() => {
-    const controller = new AbortController()
-    setAnalyticsLoading(true)
-    setAnalyticsError(null)
-    getAnalyticsSummary(controller.signal)
-      .then(setAnalytics)
-      .catch((err) => {
-        if (err instanceof DOMException && err.name === 'AbortError') return
-        setAnalyticsError(formatApiError(err))
-      })
-      .finally(() => setAnalyticsLoading(false))
-    return () => controller.abort()
-  }, [])
-
-  useEffect(() => {
-    const controller = new AbortController()
-    setPerformanceLoading(true)
-    setPerformanceError(null)
-    apiFetch<PortfolioPerformanceData>(`/api/portfolio/performance?range=${activeRange}`, { signal: controller.signal })
-      .then(setPerformance)
-      .catch((err) => {
-        if (err instanceof DOMException && err.name === 'AbortError') return
-        setPerformanceError(formatApiError(err))
-      })
-      .finally(() => setPerformanceLoading(false))
-    return () => controller.abort()
-  }, [activeRange])
+  const intelligence = (intelligenceQuery.data as PortfolioIntelligence | undefined) ?? null
+  const analytics = (analyticsQuery.data as AnalyticsSummary | undefined) ?? null
+  const performance = (performanceQuery.data as PortfolioPerformanceData | undefined) ?? null
+  const dashboardSummary = (dashboardSummaryQuery.data as DashboardSummary | undefined) ?? null
+  const loading = intelligenceQuery.isLoading || dashboardSummaryQuery.isLoading
+  const analyticsLoading = analyticsQuery.isLoading
+  const performanceLoading = performanceQuery.isLoading
+  const error = intelligenceQuery.error
+    ? formatApiError(intelligenceQuery.error)
+    : dashboardSummaryQuery.error
+      ? formatApiError(dashboardSummaryQuery.error)
+      : null
+  const analyticsError = analyticsQuery.error ? formatApiError(analyticsQuery.error) : null
+  const performanceError = performanceQuery.error ? formatApiError(performanceQuery.error) : null
 
   const trendData = useMemo(() => buildTrendChartData(analytics?.cashflow_analytics.monthly_trend ?? []), [analytics])
   const hasPerformance = (performance?.summary.snapshot_count ?? 0) > 0
@@ -452,31 +406,12 @@ export default function AnalyticsPage() {
   const topHoldings = useMemo(() => investmentAnalytics?.top_holdings ?? [], [investmentAnalytics])
 
   const refreshAnalytics = async () => {
-    setLoading(true)
-    setAnalyticsLoading(true)
-    setPerformanceLoading(true)
-    try {
-      const [intel, summary, analyticsSummary, perf] = await Promise.all([
-        getPortfolioIntelligence(),
-        apiFetch<ApiDashboardSummary>('/api/dashboard/summary'),
-        getAnalyticsSummary(),
-        apiFetch<PortfolioPerformanceData>(`/api/portfolio/performance?range=${activeRange}`),
-      ])
-      setIntelligence(intel)
-      setDashboardSummary(summary)
-      setAnalytics(analyticsSummary)
-      setPerformance(perf)
-      setError(null)
-      setAnalyticsError(null)
-      setPerformanceError(null)
-    } catch (err) {
-      const message = formatApiError(err)
-      setError(message)
-    } finally {
-      setLoading(false)
-      setAnalyticsLoading(false)
-      setPerformanceLoading(false)
-    }
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.portfolioIntelligence }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardSummary }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.analyticsSummary }),
+      queryClient.invalidateQueries({ queryKey: ['portfolio', 'performance'] }),
+    ])
   }
 
   const currentCashflow = cashflowMetrics?.current_month_summary

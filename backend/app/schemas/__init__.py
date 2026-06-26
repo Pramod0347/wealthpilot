@@ -74,4 +74,22 @@ from app.schemas.reports import (
     NetWorthSnapshotReportResponse,
     NetWorthSnapshotReportRow,
 )
+from app.schemas.tax import (
+    TaxDeductionCreate,
+    TaxDeductionRead,
+    TaxDeductionUpdate,
+    TaxDocumentCreate,
+    TaxDocumentRead,
+    TaxDocumentUpdate,
+    TaxIncomeItemCreate,
+    TaxIncomeItemRead,
+    TaxIncomeItemUpdate,
+    TaxPaymentCreate,
+    TaxPaymentRead,
+    TaxPaymentUpdate,
+    TaxYearCreate,
+    TaxYearRead,
+    TaxYearSummary,
+    TaxYearUpdate,
+)
 from app.schemas.transaction import TransactionCreate, TransactionRead, TransactionUpdate

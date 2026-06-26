@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState, type SyntheticEvent, type ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   ApiError,
   createBankAccount,
   deleteBankAccount,
-  getBankAccounts,
-  getBankAccountsSummary,
   type BankAccount,
   type BankAccountsSummary,
   type BankAccountPayload,
@@ -15,6 +14,8 @@ import { Icon } from './Icon'
 import PrivateValue from './ui/PrivateValue'
 import BottomSheet from './ui/BottomSheet'
 import { usePrivacyMode } from '../context/PrivacyContext'
+import { useBankAccountsQuery, useBankAccountsSummaryQuery } from '../queries/hooks'
+import { queryKeys } from '../queries/queryKeys'
 
 type BankAccountFormState = {
   bank_name: string
@@ -152,13 +153,8 @@ function FormField({
 }
 
 export default function BanksPage() {
+  const queryClient = useQueryClient()
   const { privacyMode } = usePrivacyMode()
-  const [accounts, setAccounts] = useState<BankAccount[]>([])
-  const [summary, setSummary] = useState<BankAccountsSummary | null>(null)
-  const [accountsLoading, setAccountsLoading] = useState(true)
-  const [summaryLoading, setSummaryLoading] = useState(true)
-  const [accountsError, setAccountsError] = useState<string | null>(null)
-  const [summaryError, setSummaryError] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDrawerMounted, setIsDrawerMounted] = useState(false)
   const [isDrawerVisible, setIsDrawerVisible] = useState(false)
@@ -170,47 +166,14 @@ export default function BanksPage() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [statusTone, setStatusTone] = useState<'emerald' | 'rose' | 'amber' | 'slate'>('emerald')
   const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null)
-
-  const loadData = async (signal?: AbortSignal) => {
-    setAccountsLoading(true)
-    setSummaryLoading(true)
-    setAccountsError(null)
-    setSummaryError(null)
-
-    const [accountsResult, summaryResult] = await Promise.allSettled([
-      getBankAccounts(signal),
-      getBankAccountsSummary(signal),
-    ])
-
-    if (accountsResult.status === 'fulfilled') {
-      setAccounts(accountsResult.value)
-    } else if (accountsResult.reason?.name !== 'AbortError') {
-      setAccountsError(formatApiError(accountsResult.reason))
-      setAccounts([])
-    }
-    setAccountsLoading(false)
-
-    if (summaryResult.status === 'fulfilled') {
-      setSummary(summaryResult.value)
-    } else if (summaryResult.reason?.name !== 'AbortError') {
-      setSummaryError(formatApiError(summaryResult.reason))
-      setSummary(null)
-    }
-    setSummaryLoading(false)
-  }
-
-  useEffect(() => {
-    const controller = new AbortController()
-    loadData(controller.signal).catch((error) => {
-      if (error instanceof DOMException && error.name === 'AbortError') return
-      const message = formatApiError(error)
-      setAccountsError(message)
-      setSummaryError(message)
-      setAccountsLoading(false)
-      setSummaryLoading(false)
-    })
-    return () => controller.abort()
-  }, [])
+  const accountsQuery = useBankAccountsQuery()
+  const summaryQuery = useBankAccountsSummaryQuery()
+  const accounts = accountsQuery.data ?? []
+  const summary = (summaryQuery.data ?? null) as BankAccountsSummary | null
+  const accountsLoading = accountsQuery.isLoading
+  const summaryLoading = summaryQuery.isLoading
+  const accountsError = accountsQuery.error ? formatApiError(accountsQuery.error) : null
+  const summaryError = summaryQuery.error ? formatApiError(summaryQuery.error) : null
 
   useEffect(() => {
     if (isModalOpen) {
@@ -327,7 +290,12 @@ export default function BanksPage() {
   }
 
   async function refreshData() {
-    await loadData()
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.bankAccounts }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.bankAccountsSummary }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardSummary }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.analyticsSummary }),
+    ])
   }
 
   async function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {

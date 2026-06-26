@@ -1,10 +1,13 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Icon } from './Icon'
 import PrivateValue from './ui/PrivateValue'
 import BottomSheet from './ui/BottomSheet'
-import { ApiError, apiFetch, getCreditCardBillHistory, getCreditCardBills, markCreditCardPaid, type CreditCardBill } from '../lib/api'
+import { ApiError, apiFetch, getCreditCardBillHistory, markCreditCardPaid, type CreditCardBill } from '../lib/api'
 import { formatINR, formatINRShort, formatPct } from '../lib/format'
 import { usePrivacyMode } from '../context/PrivacyContext'
+import { useCreditCardBillsQuery, useCreditCardsQuery, useDashboardSummaryQuery } from '../queries/hooks'
+import { queryKeys } from '../queries/queryKeys'
 
 type ApiDashboardSummary = {
   total_credit_card_dues: string | number
@@ -244,16 +247,9 @@ function buildSummaryCards(summary: ApiDashboardSummary | null, loading: boolean
 
 export default function CreditCardsPage() {
   const { privacyMode } = usePrivacyMode()
-  const [summary, setSummary] = useState<ApiDashboardSummary | null>(null)
-  const [cards, setCards] = useState<ApiCreditCard[]>([])
+  const queryClient = useQueryClient()
   const [recentBills, setRecentBills] = useState<CreditCardBill[]>([])
   const [billsByCard, setBillsByCard] = useState<Record<number, CreditCardBill[]>>({})
-  const [summaryLoading, setSummaryLoading] = useState(true)
-  const [cardsLoading, setCardsLoading] = useState(true)
-  const [billsLoading, setBillsLoading] = useState(true)
-  const [summaryError, setSummaryError] = useState<string | null>(null)
-  const [cardsError, setCardsError] = useState<string | null>(null)
-  const [billsError, setBillsError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<'all' | ApiCreditCard['status']>('all')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDrawerMounted, setIsDrawerMounted] = useState(false)
@@ -272,68 +268,18 @@ export default function CreditCardsPage() {
   const [markPaidErrorMessage, setMarkPaidErrorMessage] = useState<string | null>(null)
   const [isMarkingPaid, setIsMarkingPaid] = useState(false)
 
-  const loadData = async (signal?: AbortSignal) => {
-    setSummaryLoading(true)
-    setCardsLoading(true)
-    setBillsLoading(true)
-    setSummaryError(null)
-    setCardsError(null)
-    setBillsError(null)
+  const summaryQuery = useDashboardSummaryQuery()
+  const cardsQuery = useCreditCardsQuery()
+  const billsQuery = useCreditCardBillsQuery()
 
-    const [summaryResult, cardsResult, billsResult] = await Promise.allSettled([
-      apiFetch<ApiDashboardSummary>('/api/dashboard/summary', { signal }),
-      apiFetch<ApiCreditCard[]>('/api/credit-cards', { signal }),
-      getCreditCardBills(undefined, signal),
-    ])
-
-    if (summaryResult.status === 'fulfilled') {
-      setSummary(summaryResult.value)
-    } else if (summaryResult.reason?.name !== 'AbortError') {
-      setSummaryError(formatApiError(summaryResult.reason))
-      setSummary(null)
-    }
-    setSummaryLoading(false)
-
-    if (cardsResult.status === 'fulfilled') {
-      setCards(cardsResult.value)
-    } else if (cardsResult.reason?.name !== 'AbortError') {
-      setCardsError(formatApiError(cardsResult.reason))
-      setCards([])
-    }
-    setCardsLoading(false)
-
-    if (billsResult.status === 'fulfilled') {
-      const bills = billsResult.value
-      setRecentBills(bills.slice(0, 10))
-      setBillsByCard(
-        bills.reduce<Record<number, CreditCardBill[]>>((accumulator, bill) => {
-          if (!accumulator[bill.credit_card_id]) accumulator[bill.credit_card_id] = []
-          accumulator[bill.credit_card_id].push(bill)
-          return accumulator
-        }, {})
-      )
-    } else if (billsResult.reason?.name !== 'AbortError') {
-      setBillsError(formatApiError(billsResult.reason))
-      setRecentBills([])
-      setBillsByCard({})
-    }
-    setBillsLoading(false)
-  }
-
-  useEffect(() => {
-    const controller = new AbortController()
-    loadData(controller.signal).catch((error) => {
-      if (error instanceof DOMException && error.name === 'AbortError') return
-      const message = formatApiError(error)
-      setSummaryError(message)
-      setCardsError(message)
-      setBillsError(message)
-      setSummaryLoading(false)
-      setCardsLoading(false)
-      setBillsLoading(false)
-    })
-    return () => controller.abort()
-  }, [])
+  const summary = (summaryQuery.data as ApiDashboardSummary | undefined) ?? null
+  const cards = (cardsQuery.data as ApiCreditCard[] | undefined) ?? []
+  const summaryLoading = summaryQuery.isLoading
+  const cardsLoading = cardsQuery.isLoading
+  const billsLoading = billsQuery.isLoading
+  const summaryError = summaryQuery.error ? formatApiError(summaryQuery.error) : null
+  const cardsError = cardsQuery.error ? formatApiError(cardsQuery.error) : null
+  const billsError = billsQuery.error ? formatApiError(billsQuery.error) : null
 
   useEffect(() => {
     if (isModalOpen) {
@@ -368,6 +314,23 @@ export default function CreditCardsPage() {
     }
   }, [cards, selectedCard])
 
+  useEffect(() => {
+    if (!billsQuery.data) {
+      setRecentBills([])
+      setBillsByCard({})
+      return
+    }
+
+    setRecentBills(billsQuery.data.slice(0, 10))
+    setBillsByCard(
+      billsQuery.data.reduce<Record<number, CreditCardBill[]>>((accumulator, bill) => {
+        if (!accumulator[bill.credit_card_id]) accumulator[bill.credit_card_id] = []
+        accumulator[bill.credit_card_id].push(bill)
+        return accumulator
+      }, {})
+    )
+  }, [billsQuery.data])
+
   const summaryCards = useMemo(() => buildSummaryCards(summary, summaryLoading, summaryError), [summary, summaryLoading, summaryError])
 
   const filteredCards = useMemo(() => {
@@ -396,7 +359,10 @@ export default function CreditCardsPage() {
   }, [billsByCard, selectedCard])
 
   async function loadCardHistory(cardId: number) {
-    const bills = await getCreditCardBillHistory(cardId)
+    const bills = await queryClient.fetchQuery({
+      queryKey: queryKeys.creditCardBillHistory(cardId),
+      queryFn: ({ signal }) => getCreditCardBillHistory(cardId, signal),
+    })
     setBillsByCard((current) => ({ ...current, [cardId]: bills }))
     return bills
   }
@@ -451,7 +417,13 @@ export default function CreditCardsPage() {
   }
 
   async function refreshData() {
-    await loadData()
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardSummary }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.creditCards }),
+      queryClient.invalidateQueries({ queryKey: ['creditCardBills'] }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.analyticsSummary }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.reports('credit-card-bills') }),
+    ])
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {

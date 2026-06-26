@@ -1,12 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Icon } from './Icon'
 import PortfolioPerformanceChart from './ui/PortfolioPerformanceChart'
 import PrivateValue from './ui/PrivateValue'
 import WealthBucketModal from './ui/WealthBucketModal'
-import { ApiError, apiFetch, getBankAccounts, type BankAccount, type FinancialGoal, type FinancialGoalSummary, type PortfolioPerformanceData, type PortfolioRange, type WealthBucketItem } from '../lib/api'
+import { ApiError, apiFetch, type BankAccount, type FinancialGoal, type FinancialGoalSummary, type PortfolioPerformanceData, type PortfolioRange, type WealthBucketItem } from '../lib/api'
 import { formatINR, formatINRShort, formatPct, formatSignedPct, getTrendClass } from '../lib/format'
 import { maskSensitiveText } from '../utils/privacy'
 import { usePrivacyMode } from '../context/PrivacyContext'
+import { useBankAccountsQuery, useCreditCardsQuery, useDashboardSummaryQuery, useHoldingsQuery, usePortfolioPerformanceQuery } from '../queries/hooks'
+import { queryKeys } from '../queries/queryKeys'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -298,98 +301,33 @@ export default function Dashboard({
   onOpenCards?: () => void
   onOpenGoals?: () => void
 } = {}) {
+  const queryClient = useQueryClient()
   const { privacyMode } = usePrivacyMode()
   const [activeFilter, setActiveFilter] = useState<PortfolioRange>('6M')
-  const [summary, setSummary] = useState<ApiDashboardSummary | null>(null)
-  const [holdings, setHoldings] = useState<ApiHolding[]>([])
-  const [creditCards, setCreditCards] = useState<ApiCreditCard[]>([])
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
-  const [portfolioPerformance, setPortfolioPerformance] = useState<PortfolioPerformanceData | null>(null)
-  const [summaryLoading, setSummaryLoading] = useState(true)
-  const [holdingsLoading, setHoldingsLoading] = useState(true)
-  const [cardsLoading, setCardsLoading] = useState(true)
-  const [bankAccountsLoading, setBankAccountsLoading] = useState(true)
-  const [portfolioLoading, setPortfolioLoading] = useState(true)
-  const [summaryError, setSummaryError] = useState<string | null>(null)
-  const [holdingsError, setHoldingsError] = useState<string | null>(null)
-  const [cardsError, setCardsError] = useState<string | null>(null)
-  const [bankAccountsError, setBankAccountsError] = useState<string | null>(null)
-  const [portfolioError, setPortfolioError] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [statusTone, setStatusTone] = useState<'emerald' | 'rose' | 'amber' | 'slate'>('emerald')
   const [savingSnapshot, setSavingSnapshot] = useState(false)
   const [selectedBucketKey, setSelectedBucketKey] = useState<string | null>(null)
-
-  const loadDashboardData = async (signal?: AbortSignal) => {
-    setSummaryLoading(true)
-    setHoldingsLoading(true)
-    setCardsLoading(true)
-    setBankAccountsLoading(true)
-    setBankAccountsError(null)
-    setSummaryError(null)
-    setHoldingsError(null)
-    setCardsError(null)
-
-    const [summaryResult, holdingsResult, cardsResult, bankAccountsResult] = await Promise.allSettled([
-      apiFetch<ApiDashboardSummary>('/api/dashboard/summary', { signal }),
-      apiFetch<ApiHolding[]>('/api/holdings', { signal }),
-      apiFetch<ApiCreditCard[]>('/api/credit-cards', { signal }),
-      getBankAccounts(signal),
-    ])
-
-    if (summaryResult.status === 'fulfilled') setSummary(summaryResult.value)
-    else if (summaryResult.reason?.name !== 'AbortError') { setSummaryError(formatApiError(summaryResult.reason)); setSummary(null) }
-    setSummaryLoading(false)
-
-    if (holdingsResult.status === 'fulfilled') setHoldings(holdingsResult.value)
-    else if (holdingsResult.reason?.name !== 'AbortError') { setHoldingsError(formatApiError(holdingsResult.reason)); setHoldings([]) }
-    setHoldingsLoading(false)
-
-    if (cardsResult.status === 'fulfilled') setCreditCards(cardsResult.value)
-    else if (cardsResult.reason?.name !== 'AbortError') { setCardsError(formatApiError(cardsResult.reason)); setCreditCards([]) }
-    setCardsLoading(false)
-
-    if (bankAccountsResult.status === 'fulfilled') setBankAccounts(bankAccountsResult.value)
-    else if (bankAccountsResult.reason?.name !== 'AbortError') { setBankAccountsError(formatApiError(bankAccountsResult.reason)); setBankAccounts([]) }
-    setBankAccountsLoading(false)
-  }
-
-  const loadPortfolioPerformance = async (signal?: AbortSignal) => {
-    setPortfolioLoading(true)
-    setPortfolioError(null)
-    try {
-      const response = await apiFetch<PortfolioPerformanceData>(`/api/portfolio/performance?range=${activeFilter}`, { signal })
-      setPortfolioPerformance(response)
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') return
-      setPortfolioError(formatApiError(error))
-    } finally {
-      setPortfolioLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    const controller = new AbortController()
-    loadDashboardData(controller.signal).catch(error => {
-      if (error instanceof DOMException && error.name === 'AbortError') return
-      const message = formatApiError(error)
-      setSummaryError(message); setHoldingsError(message); setCardsError(message); setBankAccountsError(message)
-      setSummaryLoading(false); setHoldingsLoading(false); setCardsLoading(false); setBankAccountsLoading(false)
-    })
-    return () => controller.abort()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  useEffect(() => {
-    const controller = new AbortController()
-    loadPortfolioPerformance(controller.signal).catch(error => {
-      if (error instanceof DOMException && error.name === 'AbortError') return
-      setPortfolioError(formatApiError(error))
-      setPortfolioLoading(false)
-    })
-    return () => controller.abort()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFilter])
+  const summaryQuery = useDashboardSummaryQuery()
+  const holdingsQuery = useHoldingsQuery()
+  const cardsQuery = useCreditCardsQuery()
+  const bankAccountsQuery = useBankAccountsQuery()
+  const portfolioPerformanceQuery = usePortfolioPerformanceQuery(activeFilter)
+  const summary = (summaryQuery.data ?? null) as ApiDashboardSummary | null
+  const holdings = (holdingsQuery.data ?? []) as ApiHolding[]
+  const creditCards = (cardsQuery.data ?? []) as ApiCreditCard[]
+  const bankAccounts = (bankAccountsQuery.data ?? []) as BankAccount[]
+  const portfolioPerformance = (portfolioPerformanceQuery.data ?? null) as PortfolioPerformanceData | null
+  const summaryLoading = summaryQuery.isLoading
+  const holdingsLoading = holdingsQuery.isLoading
+  const cardsLoading = cardsQuery.isLoading
+  const bankAccountsLoading = bankAccountsQuery.isLoading
+  const portfolioLoading = portfolioPerformanceQuery.isLoading
+  const summaryError = summaryQuery.error ? formatApiError(summaryQuery.error) : null
+  const holdingsError = holdingsQuery.error ? formatApiError(holdingsQuery.error) : null
+  const cardsError = cardsQuery.error ? formatApiError(cardsQuery.error) : null
+  const bankAccountsError = bankAccountsQuery.error ? formatApiError(bankAccountsQuery.error) : null
+  const portfolioError = portfolioPerformanceQuery.error ? formatApiError(portfolioPerformanceQuery.error) : null
 
   const allocationData = useMemo(() => buildAllocationData(summary, holdings), [holdings, summary])
   const equityExposurePct = useMemo(() => allocationData.reduce((acc, e) => e.key === 'ind_stocks' || e.key === 'us_stocks' ? acc + e.percentage : acc, 0), [allocationData])
@@ -451,7 +389,11 @@ export default function Dashboard({
       await apiFetch('/api/portfolio/snapshots/today', { method: 'POST' })
       setStatusTone('emerald')
       setStatusMessage("Saved today's snapshot.")
-      await loadPortfolioPerformance()
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['portfolio', 'performance'] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboardSummary }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.analyticsSummary }),
+      ])
     } catch (error) {
       setStatusTone('rose')
       setStatusMessage(formatApiError(error))

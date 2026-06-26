@@ -15,6 +15,7 @@ from app.api.routes.holdings import router as holdings_router
 from app.api.routes.portfolio import router as portfolio_router
 from app.api.routes.market import router as market_router
 from app.api.routes.reports import router as reports_router
+from app.api.routes.tax import router as tax_router
 from app.core.config import settings
 
 _LOCAL_ORIGINS = [
@@ -68,6 +69,7 @@ app.include_router(portfolio_router, prefix="/api", dependencies=_PROTECTED)
 app.include_router(dashboard_router, prefix="/api", dependencies=_PROTECTED)
 app.include_router(market_router, prefix="/api", dependencies=_PROTECTED)
 app.include_router(reports_router, prefix="/api", dependencies=_PROTECTED)
+app.include_router(tax_router, prefix="/api", dependencies=_PROTECTED)
 
 
 @app.get("/health")

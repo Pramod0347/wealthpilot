@@ -1,0 +1,32 @@
+import type { CreditCardBill, PortfolioRange } from '../lib/api'
+
+export const queryKeys = {
+  authMe: ['auth', 'me'] as const,
+  dashboardSummary: ['dashboard', 'summary'] as const,
+  marketOverview: ['market', 'overview'] as const,
+  holdings: ['holdings'] as const,
+  holdingsAnalytics: ['holdings', 'analytics'] as const,
+  portfolioPerformance: (range: PortfolioRange) => ['portfolio', 'performance', range] as const,
+  portfolioIntelligence: ['portfolio', 'intelligence'] as const,
+  bankAccounts: ['bankAccounts'] as const,
+  bankAccountsSummary: ['bankAccounts', 'summary'] as const,
+  fixedSavings: ['fixedSavings'] as const,
+  fixedSavingsSummary: ['fixedSavings', 'summary'] as const,
+  creditCards: ['creditCards'] as const,
+  creditCardBills: (filters?: { cardId?: number; status?: CreditCardBill['status']; fromDate?: string; toDate?: string }) =>
+    ['creditCardBills', filters ?? {}] as const,
+  creditCardBillHistory: (cardId: number) => ['creditCardBills', cardId] as const,
+  cashflowMonths: ['cashflow', 'months'] as const,
+  cashflowEntries: (month?: string) => ['cashflow', month ?? 'all'] as const,
+  cashflowSummary: (month?: string) => ['cashflow', 'summary', month ?? 'all'] as const,
+  analyticsSummary: ['analytics', 'summary'] as const,
+  financialGoals: (activeOnly?: boolean) => ['goals', activeOnly ?? 'all'] as const,
+  financialGoalsSummary: ['goals', 'summary'] as const,
+  reports: (reportType: string, filters?: Record<string, unknown>) => ['reports', reportType, filters ?? {}] as const,
+  taxYears: ['taxYears'] as const,
+  taxSummary: (taxYearId: number) => ['taxSummary', taxYearId] as const,
+  taxIncome: (taxYearId: number) => ['taxIncome', taxYearId] as const,
+  taxDeductions: (taxYearId: number) => ['taxDeductions', taxYearId] as const,
+  taxDocuments: (taxYearId: number) => ['taxDocuments', taxYearId] as const,
+  taxPayments: (taxYearId: number) => ['taxPayments', taxYearId] as const,
+} as const

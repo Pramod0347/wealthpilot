@@ -1,12 +1,9 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   ApiError,
   createFinancialGoal,
   deleteFinancialGoal,
-  getBankAccounts,
-  getFinancialGoals,
-  getFinancialGoalsSummary,
-  getFixedSavingsAccounts,
   updateFinancialGoal,
   type BankAccount,
   type FinancialGoal,
@@ -17,6 +14,8 @@ import {
 import { formatINR, formatINRShort, formatPct } from '../lib/format'
 import { Icon } from './Icon'
 import PrivateValue from './ui/PrivateValue'
+import { useBankAccountsQuery, useFinancialGoalsQuery, useFinancialGoalsSummaryQuery, useFixedSavingsAccountsQuery } from '../queries/hooks'
+import { queryKeys } from '../queries/queryKeys'
 
 type GoalFormState = {
   name: string
@@ -165,13 +164,7 @@ function SummaryMetric({ label, value, meta }: { label: string; value: ReactNode
 }
 
 export default function GoalsPage() {
-  const [goals, setGoals] = useState<FinancialGoal[]>([])
-  const [summary, setSummary] = useState<FinancialGoalSummary | null>(null)
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
-  const [fixedSavingsAccounts, setFixedSavingsAccounts] = useState<FixedSavingsAccount[]>([])
-  const [loading, setLoading] = useState(true)
-  const [summaryLoading, setSummaryLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDrawerMounted, setIsDrawerMounted] = useState(false)
   const [isDrawerVisible, setIsDrawerVisible] = useState(false)
@@ -182,55 +175,22 @@ export default function GoalsPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [statusTone, setStatusTone] = useState<'emerald' | 'rose' | 'amber' | 'slate'>('emerald')
+  const goalsQuery = useFinancialGoalsQuery()
+  const summaryQuery = useFinancialGoalsSummaryQuery()
+  const bankAccountsQuery = useBankAccountsQuery()
+  const fixedSavingsQuery = useFixedSavingsAccountsQuery()
 
-  const loadData = async (signal?: AbortSignal) => {
-    setLoading(true)
-    setSummaryLoading(true)
-    setError(null)
-
-    const [goalsResult, summaryResult, banksResult, fixedResult] = await Promise.allSettled([
-      getFinancialGoals(undefined, signal),
-      getFinancialGoalsSummary(signal),
-      getBankAccounts(signal),
-      getFixedSavingsAccounts(signal),
-    ])
-
-    if (goalsResult.status === 'fulfilled') {
-      setGoals(goalsResult.value)
-    } else if (goalsResult.reason?.name !== 'AbortError') {
-      setError(formatApiError(goalsResult.reason))
-      setGoals([])
-    }
-
-    if (summaryResult.status === 'fulfilled') {
-      setSummary(summaryResult.value)
-    } else if (summaryResult.reason?.name !== 'AbortError') {
-      setError((current) => current ?? formatApiError(summaryResult.reason))
-      setSummary(null)
-    }
-
-    if (banksResult.status === 'fulfilled') {
-      setBankAccounts(banksResult.value)
-    }
-    if (fixedResult.status === 'fulfilled') {
-      setFixedSavingsAccounts(fixedResult.value)
-    }
-
-    setLoading(false)
-    setSummaryLoading(false)
-  }
-
-  useEffect(() => {
-    const controller = new AbortController()
-    loadData(controller.signal).catch((err) => {
-      if (err instanceof DOMException && err.name === 'AbortError') return
-      const message = formatApiError(err)
-      setError(message)
-      setLoading(false)
-      setSummaryLoading(false)
-    })
-    return () => controller.abort()
-  }, [])
+  const goals = (goalsQuery.data as FinancialGoal[] | undefined) ?? []
+  const summary = (summaryQuery.data as FinancialGoalSummary | undefined) ?? null
+  const bankAccounts = (bankAccountsQuery.data as BankAccount[] | undefined) ?? []
+  const fixedSavingsAccounts = (fixedSavingsQuery.data as FixedSavingsAccount[] | undefined) ?? []
+  const loading = goalsQuery.isLoading
+  const summaryLoading = summaryQuery.isLoading
+  const error = goalsQuery.error
+    ? formatApiError(goalsQuery.error)
+    : summaryQuery.error
+      ? formatApiError(summaryQuery.error)
+      : null
 
   useEffect(() => {
     if (isModalOpen) {
@@ -270,6 +230,15 @@ export default function GoalsPage() {
       holdings: [] as Array<{ id: number; label: string; meta: string }>,
     }
   }, [bankAccounts, fixedSavingsAccounts])
+
+  async function refreshData() {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['goals'] }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.financialGoalsSummary }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardSummary }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.analyticsSummary }),
+    ])
+  }
 
   function openCreateModal() {
     setEditingGoal(null)
@@ -405,7 +374,7 @@ export default function GoalsPage() {
       setIsModalOpen(false)
       setEditingGoal(null)
       setForm(defaultForm)
-      await loadData()
+      await refreshData()
     } catch (error) {
       setFormErrorMessage(formatApiError(error))
     } finally {
@@ -420,7 +389,7 @@ export default function GoalsPage() {
       await deleteFinancialGoal(goal.id)
       setStatusTone('emerald')
       setStatusMessage(`Deleted ${goal.name}.`)
-      await loadData()
+      await refreshData()
     } catch (error) {
       setStatusTone('rose')
       setStatusMessage(formatApiError(error))

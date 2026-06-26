@@ -18,6 +18,7 @@ const navItems: NavItem[] = [
   { key: 'transactions', label: 'Transactions', icon: 'transactions', navigable: true },
   { key: 'analytics', label: 'Analytics', icon: 'analytics', navigable: true },
   { key: 'goals', label: 'Goals', icon: 'portfolio', navigable: true },
+  { key: 'tax', label: 'Tax Center', icon: 'reports', navigable: true },
   { key: 'reports', label: 'Reports', icon: 'reports', navigable: true },
   { key: 'settings', label: 'Settings', icon: 'settings' },
 ]
@@ -28,8 +29,8 @@ export default function Sidebar({
   onNavigate,
 }: {
   className?: string
-  activePage: 'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards' | 'transactions' | 'analytics' | 'goals' | 'reports'
-  onNavigate: (page: 'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards' | 'transactions' | 'analytics' | 'goals' | 'reports') => void
+  activePage: 'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards' | 'transactions' | 'analytics' | 'goals' | 'tax' | 'reports'
+  onNavigate: (page: 'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards' | 'transactions' | 'analytics' | 'goals' | 'tax' | 'reports') => void
 }) {
   const [collapsed, setCollapsed] = useState(false)
 
@@ -82,7 +83,7 @@ export default function Sidebar({
               title={item.label}
               aria-label={item.label}
               aria-current={isActive ? 'page' : undefined}
-              onClick={isNavigable ? () => onNavigate(item.key as 'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards' | 'transactions' | 'analytics' | 'goals' | 'reports') : undefined}
+              onClick={isNavigable ? () => onNavigate(item.key as 'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards' | 'transactions' | 'analytics' | 'goals' | 'tax' | 'reports') : undefined}
               disabled={!isNavigable}
               className={[
                 'group flex min-w-0 items-center rounded-lg text-left',
