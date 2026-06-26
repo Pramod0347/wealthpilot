@@ -254,7 +254,6 @@ export default function CreditCardsPage() {
   const [summaryError, setSummaryError] = useState<string | null>(null)
   const [cardsError, setCardsError] = useState<string | null>(null)
   const [billsError, setBillsError] = useState<string | null>(null)
-  const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | ApiCreditCard['status']>('all')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDrawerMounted, setIsDrawerMounted] = useState(false)
@@ -372,17 +371,11 @@ export default function CreditCardsPage() {
   const summaryCards = useMemo(() => buildSummaryCards(summary, summaryLoading, summaryError), [summary, summaryLoading, summaryError])
 
   const filteredCards = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase()
     return cards.filter((card) => {
-      const matchesQuery =
-        !query ||
-        card.card_name.toLowerCase().includes(query) ||
-        card.bank_name.toLowerCase().includes(query) ||
-        card.last4.toLowerCase().includes(query)
       const matchesStatus = statusFilter === 'all' || card.status === statusFilter
-      return matchesQuery && matchesStatus
+      return matchesStatus
     })
-  }, [cards, searchTerm, statusFilter])
+  }, [cards, statusFilter])
 
   const latestCardUpdate = useMemo(() => {
     const values = cards.map((card) => new Date(card.updated_at).getTime()).filter((value) => !Number.isNaN(value))
@@ -728,16 +721,7 @@ export default function CreditCardsPage() {
           </div>
 
           <div className="rounded-2xl bg-slate-900/75 px-4 py-4 ring-1 ring-slate-800/80">
-            <div className="grid grid-cols-[1fr_132px] gap-3">
-              <label className="flex h-11 items-center gap-2 rounded-2xl border border-slate-700 bg-slate-800/80 px-3 text-slate-500">
-                <Icon name="search" className="h-4 w-4 shrink-0" />
-                <input
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="Search card or bank"
-                  className="w-full bg-transparent text-sm text-slate-100 placeholder:text-slate-500 outline-none"
-                />
-              </label>
+            <div className="grid grid-cols-1 gap-3">
               <select
                 value={statusFilter}
                 onChange={(event) => setStatusFilter(event.target.value as 'all' | ApiCreditCard['status'])}
@@ -815,6 +799,59 @@ export default function CreditCardsPage() {
               })}
             </div>
           )}
+
+          <div className="rounded-2xl bg-slate-900/75 px-4 py-4 ring-1 ring-slate-800/80">
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Recent Bill Payments</div>
+            {billsLoading ? (
+              <div className="mt-3 text-sm text-slate-400">Loading payment history...</div>
+            ) : billsError ? (
+              <div className="mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-4 text-sm text-rose-200">{billsError}</div>
+            ) : recentBills.length === 0 ? (
+              <div className="mt-3 text-sm text-slate-400">No bill payments logged yet.</div>
+            ) : (
+              <div className="mt-3 space-y-3">
+                {recentBills.slice(0, 5).map((bill) => {
+                  const card = cards.find((item) => item.id === bill.credit_card_id)
+                  return (
+                    <button
+                      key={`mobile-recent-bill-${bill.id}`}
+                      type="button"
+                      onClick={() => card && openCardDetail(card)}
+                      className="w-full rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-4 text-left"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-slate-100">{card?.card_name ?? `Card #${bill.credit_card_id}`}</div>
+                          <div className="mt-1 text-[11px] text-slate-500">{formatBillingCycle(bill.billing_cycle_start, bill.billing_cycle_end)}</div>
+                        </div>
+                        <span className={['inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ring-1 ring-inset', buildBillStatusTone(bill.status)].join(' ')}>
+                          {bill.status}
+                        </span>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-3 text-[12px]">
+                        <div>
+                          <div className="text-slate-500">Bill</div>
+                          <div className="mt-1 font-semibold text-slate-100">
+                            <PrivateValue value={formatINR(toNumber(bill.bill_amount))} mask="••••" hideColor />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-slate-500">Paid</div>
+                          <div className="mt-1 font-semibold text-slate-100">
+                            <PrivateValue value={formatINR(toNumber(bill.paid_amount))} mask="••••" hideColor />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500">
+                        <span>Paid {formatDisplayDate(bill.paid_date)}</span>
+                        <span>Due {formatDisplayDate(bill.due_date)}</span>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="hidden md:block space-y-6">
@@ -860,17 +897,7 @@ export default function CreditCardsPage() {
 
           <SectionCard>
           <div className="border-b border-slate-200 dark:border-slate-700/50 px-4 py-3 sm:px-6 sm:py-4">
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-              <label className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800 px-3 shadow-sm focus-within:border-accent-500 focus-within:ring-2 focus-within:ring-accent-500/15">
-                <Icon name="search" className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
-                <input
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="Search card or bank"
-                  className="w-full bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none"
-                />
-              </label>
-
+            <div className="grid grid-cols-1 gap-4">
               <select
                 value={statusFilter}
                 onChange={(event) => setStatusFilter(event.target.value as 'all' | ApiCreditCard['status'])}
@@ -1010,6 +1037,7 @@ export default function CreditCardsPage() {
                         <th className="pb-3 font-medium">Cycle</th>
                         <th className="pb-3 font-medium">Bill</th>
                         <th className="pb-3 font-medium">Paid</th>
+                        <th className="pb-3 font-medium">Due Date</th>
                         <th className="pb-3 font-medium">Paid Date</th>
                         <th className="pb-3 font-medium">Status</th>
                       </tr>
@@ -1032,6 +1060,7 @@ export default function CreditCardsPage() {
                             <td className="py-3 pr-4 text-slate-900 dark:text-slate-100">
                               <PrivateValue value={formatINR(toNumber(bill.paid_amount))} mask="••••" hideColor />
                             </td>
+                            <td className="py-3 pr-4 text-slate-600 dark:text-slate-300">{formatDisplayDate(bill.due_date)}</td>
                             <td className="py-3 pr-4 text-slate-600 dark:text-slate-300">{formatDisplayDate(bill.paid_date)}</td>
                             <td className="py-3">
                               <span className={['inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ring-1 ring-inset', buildBillStatusTone(bill.status)].join(' ')}>
@@ -1154,7 +1183,9 @@ export default function CreditCardsPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="text-xs font-semibold text-slate-800 dark:text-slate-100">{formatBillingCycle(bill.billing_cycle_start, bill.billing_cycle_end)}</div>
-                          <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Due {formatDisplayDate(bill.due_date)} · Paid {formatDisplayDate(bill.paid_date)}</div>
+                          <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                            Generated {formatDisplayDate(bill.bill_generated_date)} · Due {formatDisplayDate(bill.due_date)} · Paid {formatDisplayDate(bill.paid_date)}
+                          </div>
                         </div>
                         <span className={['inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ring-1 ring-inset', buildBillStatusTone(bill.status)].join(' ')}>
                           {bill.status}

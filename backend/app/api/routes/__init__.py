@@ -5,6 +5,8 @@ from app.api.routes.credit_card_bills import router as credit_card_bills_router
 from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.credit_cards import router as credit_cards_router
 from app.api.routes.fixed_savings import router as fixed_savings_router
+from app.api.routes.goals import router as goals_router
 from app.api.routes.holdings import router as holdings_router
 from app.api.routes.portfolio import router as portfolio_router
 from app.api.routes.market import router as market_router
+from app.api.routes.reports import router as reports_router

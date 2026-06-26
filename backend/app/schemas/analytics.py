@@ -2,6 +2,8 @@ from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.financial_goal import FinancialGoalSummary
+
 
 class AnalyticsMetricWindow(BaseModel):
     income: Decimal = Decimal("0")
@@ -48,6 +50,7 @@ class CashflowAnalyticsSummary(BaseModel):
     current_month: str | None = None
     current_month_summary: AnalyticsMetricWindow = Field(default_factory=AnalyticsMetricWindow)
     average_monthly_summary: AnalyticsMetricWindow = Field(default_factory=AnalyticsMetricWindow)
+    cash_buffer_months: Decimal | None = None
     average_expense_by_category: list[AnalyticsCategoryAverageItem] = Field(default_factory=list)
     average_income_by_category: list[AnalyticsCategoryAverageItem] = Field(default_factory=list)
     monthly_trend: list[AnalyticsMonthlyTrendItem] = Field(default_factory=list)
@@ -80,6 +83,19 @@ class InvestmentAnalyticsSummary(BaseModel):
     investment_focus_items: list[AnalyticsFocusItem] = Field(default_factory=list)
 
 
+class GoalsAnalyticsSummary(BaseModel):
+    total_goals: int = 0
+    completed_count: int = 0
+    on_track_count: int = 0
+    watch_count: int = 0
+    behind_count: int = 0
+    largest_shortfall_goal_name: str | None = None
+    largest_shortfall_amount: Decimal = Decimal("0")
+    monthly_saving_needed_total: Decimal = Decimal("0")
+    summary: FinancialGoalSummary = Field(default_factory=FinancialGoalSummary)
+
+
 class AnalyticsSummaryResponse(BaseModel):
     cashflow_analytics: CashflowAnalyticsSummary = Field(default_factory=CashflowAnalyticsSummary)
     investment_analytics: InvestmentAnalyticsSummary = Field(default_factory=InvestmentAnalyticsSummary)
+    goals_analytics: GoalsAnalyticsSummary = Field(default_factory=GoalsAnalyticsSummary)

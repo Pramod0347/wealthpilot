@@ -16,10 +16,12 @@ from app.schemas.analytics import (
     AnalyticsSummaryResponse,
     AnalyticsTopCategoryItem,
     CashflowAnalyticsSummary,
+    GoalsAnalyticsSummary,
     InvestmentAnalyticsSummary,
     InvestmentBucketSummaryItem,
     InvestmentTopHoldingItem,
 )
+from app.services.financial_goals_service import build_financial_goals_summary, list_financial_goals
 from app.services.cashflow_service import current_month_string
 from app.services.holdings_service import serialize_holding
 from app.services.wealth_bucket_service import build_wealth_buckets
@@ -70,6 +72,7 @@ def _build_cashflow_analytics(
     average_expense = total_expense / Decimal(months_count)
     average_net_savings = average_income - average_expense
     average_savings_rate = (average_net_savings / average_income) * Decimal("100") if average_income != 0 else None
+    cash_buffer_months = total_bank_cash / average_expense if average_expense != 0 else None
 
     current_income, current_expense, current_entries = monthly_map.get(current_month, (Decimal("0"), Decimal("0"), 0))
     current_net_savings = current_income - current_expense
@@ -278,6 +281,7 @@ def _build_cashflow_analytics(
             savings_rate=average_savings_rate,
             has_data=True,
         ),
+        cash_buffer_months=cash_buffer_months,
         average_expense_by_category=average_expense_by_category,
         average_income_by_category=average_income_by_category,
         monthly_trend=monthly_trend,
@@ -403,6 +407,9 @@ def build_analytics_summary(db: Session) -> AnalyticsSummaryResponse:
     total_liabilities = total_credit_card_dues
     net_worth = total_assets - total_liabilities
 
+    goals = list_financial_goals(db, active_only=True)
+    goals_summary = build_financial_goals_summary(db, goals)
+
     return AnalyticsSummaryResponse(
         cashflow_analytics=_build_cashflow_analytics(
             db=db,
@@ -415,5 +422,16 @@ def build_analytics_summary(db: Session) -> AnalyticsSummaryResponse:
             total_assets=total_assets,
             total_liabilities=total_liabilities,
             net_worth=net_worth,
+        ),
+        goals_analytics=GoalsAnalyticsSummary(
+            total_goals=goals_summary.active_goals_count,
+            completed_count=goals_summary.status_counts.get("completed", 0),
+            on_track_count=goals_summary.status_counts.get("on_track", 0),
+            watch_count=goals_summary.status_counts.get("watch", 0),
+            behind_count=goals_summary.status_counts.get("behind", 0),
+            largest_shortfall_goal_name=goals_summary.largest_shortfall_goal_name,
+            largest_shortfall_amount=goals_summary.largest_shortfall_amount,
+            monthly_saving_needed_total=goals_summary.monthly_saving_needed_total,
+            summary=goals_summary,
         ),
     )

@@ -9,6 +9,7 @@ from app.models.fixed_savings_account import FixedSavingsAccount
 from app.models.holding import Holding
 from app.schemas.dashboard import DashboardSummary
 from app.services.cashflow_service import build_cashflow_summary, build_dashboard_cashflow_metrics, current_month_string
+from app.services.financial_goals_service import build_financial_goals_summary, list_financial_goals
 from app.services.holdings_service import serialize_holding
 from app.services.wealth_bucket_service import build_wealth_buckets
 
@@ -76,6 +77,8 @@ def build_dashboard_summary(db: Session) -> DashboardSummary:
     cashflow_month = current_month_string()
     cashflow_summary = build_cashflow_summary(db, cashflow_month)
     cashflow_metrics = build_dashboard_cashflow_metrics(db, cashflow_month)
+    goals = list_financial_goals(db, active_only=True)
+    goals_summary = build_financial_goals_summary(db, goals)
 
     return DashboardSummary(
         total_invested=total_invested,
@@ -105,4 +108,6 @@ def build_dashboard_summary(db: Session) -> DashboardSummary:
         monthly_income_count=cashflow_summary.income_count,
         monthly_expense_count=cashflow_summary.expense_count,
         cashflow_month=cashflow_summary.month,
+        goals_summary=goals_summary,
+        top_goals=goals_summary.top_goals,
     )

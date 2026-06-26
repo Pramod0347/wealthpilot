@@ -1,17 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 import { Icon } from './Icon'
+import PortfolioPerformanceChart from './ui/PortfolioPerformanceChart'
 import PrivateValue from './ui/PrivateValue'
 import WealthBucketModal from './ui/WealthBucketModal'
-import { ApiError, apiFetch, getBankAccounts, type BankAccount, type WealthBucketItem } from '../lib/api'
+import { ApiError, apiFetch, getBankAccounts, type BankAccount, type FinancialGoal, type FinancialGoalSummary, type PortfolioPerformanceData, type PortfolioRange, type WealthBucketItem } from '../lib/api'
 import { formatINR, formatINRShort, formatPct, formatSignedPct, getTrendClass } from '../lib/format'
 import { maskSensitiveText } from '../utils/privacy'
 import { usePrivacyMode } from '../context/PrivacyContext'
@@ -62,6 +54,8 @@ type ApiDashboardSummary = {
     percentage: string | number
     items: WealthBucketItem[]
   }>
+  goals_summary?: FinancialGoalSummary
+  top_goals?: FinancialGoal[]
 }
 
 type ApiHolding = {
@@ -115,32 +109,6 @@ type ApiCreditCard = {
   days_until_due: number
 }
 
-type ApiPortfolioPerformance = {
-  range: '1M' | '3M' | '6M' | '1Y' | 'ALL'
-  actual: Array<{
-    date: string
-    current_value: string | number
-    total_invested: string | number
-    total_pnl: string | number
-    total_return_pct: string | number
-  }>
-  predicted: Array<{
-    date: string
-    current_value: string | number
-    is_predicted: boolean
-  }>
-  message: string | null
-}
-
-type PortfolioRange = '1M' | '3M' | '6M' | '1Y' | 'ALL'
-
-type ChartPoint = {
-  date: string
-  label: string
-  actual_value: number | null
-  predicted_value: number | null
-}
-
 type ActionItem = {
   title: string
   amount: string
@@ -155,14 +123,6 @@ type InsightItem = {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const timeFilters: Array<{ label: string; value: PortfolioRange }> = [
-  { label: '1M', value: '1M' },
-  { label: '3M', value: '3M' },
-  { label: '6M', value: '6M' },
-  { label: '1Y', value: '1Y' },
-  { label: 'All', value: 'ALL' },
-]
 
 const assetTypePalette: Record<string, { label: string; color: string }> = {
   ind_stocks: { label: 'IND Stocks', color: '#14b8a6' },
@@ -205,12 +165,6 @@ function formatDisplayDate(value: string | null | undefined) {
   return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(date)
 }
 
-function formatChartDate(value: string) {
-  const date = new Date(`${value}T00:00:00`)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short' }).format(date)
-}
-
 function formatShortDateTime(date: Date) {
   return new Intl.DateTimeFormat('en-IN', {
     day: 'numeric',
@@ -250,29 +204,6 @@ function getCardTone(status: ApiCreditCard['status']): 'emerald' | 'amber' | 'ro
   return 'rose'
 }
 
-function buildPortfolioChartData(performance: ApiPortfolioPerformance | null): ChartPoint[] {
-  if (!performance) return []
-  const rows = new Map<string, ChartPoint>()
-  performance.actual.forEach(point => {
-    rows.set(point.date, {
-      date: point.date,
-      label: formatChartDate(point.date),
-      actual_value: toNumber(point.current_value),
-      predicted_value: rows.get(point.date)?.predicted_value ?? null,
-    })
-  })
-  performance.predicted.forEach(point => {
-    const current = rows.get(point.date)
-    rows.set(point.date, {
-      date: point.date,
-      label: formatChartDate(point.date),
-      actual_value: current?.actual_value ?? null,
-      predicted_value: toNumber(point.current_value),
-    })
-  })
-  return Array.from(rows.values()).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-}
-
 function buildAllocationData(summary: ApiDashboardSummary | null, holdings: ApiHolding[]) {
   if (summary?.allocations && summary.allocations.length > 0) {
     return summary.allocations.map(entry => {
@@ -290,7 +221,7 @@ function buildAllocationData(summary: ApiDashboardSummary | null, holdings: ApiH
   return Object.entries(totals).map(([key, item]) => ({ key, label: item.label, value: item.value, percentage: totalValue > 0 ? (item.value / totalValue) * 100 : 0, color: item.color, items: [] as WealthBucketItem[] }))
 }
 
-function buildActionItems(cards: ApiCreditCard[], summary: ApiDashboardSummary | null, performance: ApiPortfolioPerformance | null): ActionItem[] {
+function buildActionItems(cards: ApiCreditCard[], summary: ApiDashboardSummary | null, performance: PortfolioPerformanceData | null): ActionItem[] {
   const urgentCards = [...cards]
     .filter(c => c.status !== 'paid')
     .sort((a, b) => ({ overdue: 0, due_soon: 1, paid: 2 } as const)[a.status] - ({ overdue: 0, due_soon: 1, paid: 2 } as const)[b.status])
@@ -308,7 +239,7 @@ function buildActionItems(cards: ApiCreditCard[], summary: ApiDashboardSummary |
       amount: 'No urgent dues',
       statusLabel: 'All good',
       statusTone: 'emerald',
-      subtitle: performance?.actual?.length && summary ? `Portfolio value ${formatMoney(toNumber(summary.current_value))} with no overdue cards.` : 'No overdue cards and no urgent portfolio alerts.',
+      subtitle: (performance?.summary.snapshot_count ?? 0) > 0 && summary ? `Portfolio value ${formatMoney(toNumber(summary.current_value))} with no overdue cards.` : 'No overdue cards and no urgent portfolio alerts.',
     })
   }
   return items
@@ -321,7 +252,7 @@ function buildUpcomingPayments(cards: ApiCreditCard[]) {
     .slice(0, 5)
 }
 
-function buildInsights(summary: ApiDashboardSummary | null, holdings: ApiHolding[], cards: ApiCreditCard[], performance: ApiPortfolioPerformance | null): InsightItem[] {
+function buildInsights(summary: ApiDashboardSummary | null, holdings: ApiHolding[], cards: ApiCreditCard[], performance: PortfolioPerformanceData | null): InsightItem[] {
   const insights: InsightItem[] = []
   const allocation = buildAllocationData(summary, holdings)
   const topAllocation = allocation
@@ -335,7 +266,7 @@ function buildInsights(summary: ApiDashboardSummary | null, holdings: ApiHolding
     const topUrgent = urgentCards.sort((a, b) => toNumber(b.current_bill_amount) - toNumber(a.current_bill_amount))[0]
     insights.push({ tone: topUrgent.status === 'overdue' ? 'rose' : 'amber', text: `${topUrgent.card_name} bill of ${formatMoney(toNumber(topUrgent.current_bill_amount))} is ${topUrgent.status === 'overdue' ? 'overdue' : 'due soon'}.` })
   }
-  const latestReturn = performance?.actual.at(-1)?.total_return_pct
+  const latestReturn = performance?.summary.change_pct
   if (latestReturn !== undefined && latestReturn !== null) {
     const n = toNumber(latestReturn)
     if (n !== 0) insights.push({ tone: n > 0 ? 'emerald' : 'rose', text: `Portfolio return is ${formatSignedPct(n)} on the latest snapshot.` })
@@ -361,9 +292,11 @@ function StatusPill({ tone, label }: { tone: 'emerald' | 'amber' | 'rose' | 'sla
 export default function Dashboard({
   onOpenStocks,
   onOpenCards,
+  onOpenGoals,
 }: {
   onOpenStocks?: () => void
   onOpenCards?: () => void
+  onOpenGoals?: () => void
 } = {}) {
   const { privacyMode } = usePrivacyMode()
   const [activeFilter, setActiveFilter] = useState<PortfolioRange>('6M')
@@ -371,7 +304,7 @@ export default function Dashboard({
   const [holdings, setHoldings] = useState<ApiHolding[]>([])
   const [creditCards, setCreditCards] = useState<ApiCreditCard[]>([])
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
-  const [portfolioPerformance, setPortfolioPerformance] = useState<ApiPortfolioPerformance | null>(null)
+  const [portfolioPerformance, setPortfolioPerformance] = useState<PortfolioPerformanceData | null>(null)
   const [summaryLoading, setSummaryLoading] = useState(true)
   const [holdingsLoading, setHoldingsLoading] = useState(true)
   const [cardsLoading, setCardsLoading] = useState(true)
@@ -425,7 +358,7 @@ export default function Dashboard({
     setPortfolioLoading(true)
     setPortfolioError(null)
     try {
-      const response = await apiFetch<ApiPortfolioPerformance>(`/api/portfolio/performance?range=${activeFilter}`, { signal })
+      const response = await apiFetch<PortfolioPerformanceData>(`/api/portfolio/performance?range=${activeFilter}`, { signal })
       setPortfolioPerformance(response)
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
@@ -460,7 +393,6 @@ export default function Dashboard({
 
   const allocationData = useMemo(() => buildAllocationData(summary, holdings), [holdings, summary])
   const equityExposurePct = useMemo(() => allocationData.reduce((acc, e) => e.key === 'ind_stocks' || e.key === 'us_stocks' ? acc + e.percentage : acc, 0), [allocationData])
-  const portfolioChartData = useMemo(() => buildPortfolioChartData(portfolioPerformance), [portfolioPerformance])
   const usStocksValue = useMemo(() => holdings.reduce((acc, h) => h.country === 'US' ? acc + toNumber(h.current_value) : acc, 0), [holdings])
   const liveUsdInrRate = useMemo(() => {
     const firstUsHolding = holdings.find((holding) => holding.country === 'US')
@@ -481,22 +413,27 @@ export default function Dashboard({
     return timestamps.map(v => new Date(v)).filter(d => !Number.isNaN(d.getTime())).sort((a, b) => b.getTime() - a.getTime())[0] ?? null
   }, [bankAccounts, creditCards, holdings])
 
-  const latestSnapshotValue = portfolioPerformance?.actual.at(-1)?.current_value
-  const latestSnapshotReturn = portfolioPerformance?.actual.at(-1)?.total_return_pct
+  const latestSnapshotReturn = portfolioPerformance?.summary.change_pct
   const netWorth = toNumber(summary?.net_worth)
   const cashflowMetrics = summary?.cashflow_metrics
   const currentCashflow = cashflowMetrics?.current
   const averageCashflow = cashflowMetrics?.average
   const monthlyHasData = Boolean(currentCashflow?.has_data)
   const averageCashflowHasData = Boolean(averageCashflow?.has_data)
-  const formatAverageMeta = (label: string, value: number | null, kind: 'money' | 'pct') => {
-    if (!averageCashflowHasData || value === null) return 'No cashflow data'
+  const trackedMonthsCount = averageCashflow?.months_count ?? 0
+  const goalsSummary = summary?.goals_summary
+  const topGoals = summary?.top_goals ?? []
+  const formatCashflowCurrentValue = (value: number | null, kind: 'money' | 'pct') => {
+    if (!monthlyHasData || value === null) return 'Not added'
     const displayValue = kind === 'money' ? formatMoney(value) : formatPct(value)
-    return privacyMode ? `Avg: ${maskSensitiveText(displayValue, true)}` : `Avg: ${displayValue}${kind === 'money' ? ' / month' : ''}`
+    return <PrivateValue value={displayValue} mask="••••" hideColor />
   }
-  const portfolioHasSnapshots = (portfolioPerformance?.actual.length ?? 0) > 0
-  const chartMessage = portfolioPerformance?.message
-  const portfolioEmptyState = !portfolioLoading && !portfolioHasSnapshots && chartMessage?.includes('No portfolio snapshots yet')
+  const formatCashflowAverageMeta = (value: number | null, kind: 'money' | 'pct') => {
+    if (!averageCashflowHasData || value === null) return 'Avg not available'
+    const displayValue = kind === 'money' ? `${formatMoney(value)}/mo` : formatPct(value)
+    return privacyMode ? `Avg ${maskSensitiveText(displayValue, true)}` : `Avg ${displayValue}`
+  }
+  const portfolioHasSnapshots = (portfolioPerformance?.summary.snapshot_count ?? 0) > 0
 
   // Suppress unused variable warnings for errors not displayed in new layout
   void holdingsError
@@ -762,51 +699,132 @@ export default function Dashboard({
           </div>
         </div>
 
-        {/* Monthly Spend */}
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm">
-          <div className={LABEL}>Monthly Spend</div>
-          <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', monthlyHasData ? (privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-rose-400') : 'text-slate-400 dark:text-slate-500'].join(' ')}>
-            {summaryLoading ? '—' : monthlyHasData ? <PrivateValue value={formatMoney(toNumber(currentCashflow?.expense))} mask="••••" hideColor /> : 'Not added'}
-          </div>
-          <div className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-            {summaryLoading ? 'Loading...' : formatAverageMeta('Avg', averageCashflowHasData ? toNumber(averageCashflow?.expense) : null, 'money')}
-          </div>
-          <div className="mt-3 grid h-7 w-7 place-items-center rounded-lg bg-rose-500/15">
-            <Icon name="transactions" className="h-3.5 w-3.5 text-rose-400" />
-          </div>
-        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm">
-          <div className={LABEL}>Monthly Income</div>
-          <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', monthlyHasData ? (privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-emerald-400') : 'text-slate-400 dark:text-slate-500'].join(' ')}>
-            {summaryLoading ? '—' : monthlyHasData ? <PrivateValue value={formatMoney(toNumber(currentCashflow?.income))} mask="••••" hideColor /> : 'Not added'}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className={LABEL}>Monthly Cashflow</div>
+            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {summaryLoading
+                ? 'Loading cashflow...'
+                : trackedMonthsCount > 0
+                  ? `Based on ${trackedMonthsCount} tracked month${trackedMonthsCount === 1 ? '' : 's'}`
+                  : 'Add monthly cashflow to unlock this card'}
+            </div>
           </div>
-          <div className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-            {summaryLoading ? 'Loading...' : formatAverageMeta('Avg', averageCashflowHasData ? toNumber(averageCashflow?.income) : null, 'money')}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm">
-          <div className={LABEL}>Net Savings</div>
-          <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', !monthlyHasData ? 'text-slate-400 dark:text-slate-500' : privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(currentCashflow?.net_savings))].join(' ')}>
-            {summaryLoading ? '—' : monthlyHasData ? <PrivateValue value={formatMoney(toNumber(currentCashflow?.net_savings))} mask="••••" hideColor /> : 'Not added'}
-          </div>
-          <div className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-            {summaryLoading ? 'Loading...' : formatAverageMeta('Avg', averageCashflowHasData ? toNumber(averageCashflow?.net_savings) : null, 'money')}
+          <div className="grid h-9 w-9 place-items-center rounded-xl bg-cyan-500/15 text-cyan-500 dark:text-cyan-400">
+            <Icon name="transactions" className="h-4 w-4" />
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm">
-          <div className={LABEL}>Savings Rate</div>
-          <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', !monthlyHasData || currentCashflow?.savings_rate == null ? 'text-slate-400 dark:text-slate-500' : privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(currentCashflow?.savings_rate))].join(' ')}>
-            {summaryLoading ? '—' : monthlyHasData && currentCashflow?.savings_rate != null ? <PrivateValue value={formatPct(toNumber(currentCashflow?.savings_rate))} mask="••••" hideColor /> : 'Not added'}
+        {summaryLoading ? (
+          <div className="mt-4 text-sm text-slate-400">Loading cashflow...</div>
+        ) : !monthlyHasData && !averageCashflowHasData ? (
+          <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/40">
+            <div className="text-sm text-slate-500 dark:text-slate-400">No monthly cashflow added yet</div>
+            <button
+              type="button"
+              className="text-sm font-medium text-accent-600 transition-colors hover:text-accent-500 dark:text-accent-400 dark:hover:text-accent-300"
+            >
+              Add from Transactions
+            </button>
           </div>
-          <div className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-            {summaryLoading ? 'Loading...' : formatAverageMeta('Avg', averageCashflowHasData && averageCashflow?.savings_rate != null ? toNumber(averageCashflow?.savings_rate) : null, 'pct')}
+        ) : (
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/80 dark:border-slate-700/70 dark:bg-slate-800/40">
+            <div className="grid grid-cols-2 sm:grid-cols-4">
+              <div className="px-4 py-3 sm:px-4 sm:py-3">
+                <div className={LABEL}>Income</div>
+                <div className={['mt-1.5 font-mono text-base font-bold tabular-nums sm:text-lg', monthlyHasData ? (privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-emerald-500 dark:text-emerald-400') : 'text-slate-400 dark:text-slate-500'].join(' ')}>
+                  {formatCashflowCurrentValue(toNumber(currentCashflow?.income), 'money')}
+                </div>
+                <div className="mt-1 text-[11px] leading-4 text-slate-500 dark:text-slate-400">
+                  {formatCashflowAverageMeta(averageCashflowHasData ? toNumber(averageCashflow?.income) : null, 'money')}
+                </div>
+              </div>
+
+              <div className="border-l border-slate-200 dark:border-slate-700 px-4 py-3">
+                <div className={LABEL}>Spend</div>
+                <div className={['mt-1.5 font-mono text-base font-bold tabular-nums sm:text-lg', monthlyHasData ? (privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-rose-500 dark:text-rose-400') : 'text-slate-400 dark:text-slate-500'].join(' ')}>
+                  {formatCashflowCurrentValue(toNumber(currentCashflow?.expense), 'money')}
+                </div>
+                <div className="mt-1 text-[11px] leading-4 text-slate-500 dark:text-slate-400">
+                  {formatCashflowAverageMeta(averageCashflowHasData ? toNumber(averageCashflow?.expense) : null, 'money')}
+                </div>
+              </div>
+
+              <div className="border-t border-slate-200 dark:border-slate-700 sm:border-t-0 sm:border-l px-4 py-3">
+                <div className={LABEL}>Net Savings</div>
+                <div className={['mt-1.5 font-mono text-base font-bold tabular-nums sm:text-lg', !monthlyHasData ? 'text-slate-400 dark:text-slate-500' : privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(currentCashflow?.net_savings))].join(' ')}>
+                  {formatCashflowCurrentValue(toNumber(currentCashflow?.net_savings), 'money')}
+                </div>
+                <div className="mt-1 text-[11px] leading-4 text-slate-500 dark:text-slate-400">
+                  {formatCashflowAverageMeta(averageCashflowHasData ? toNumber(averageCashflow?.net_savings) : null, 'money')}
+                </div>
+              </div>
+
+              <div className="border-l border-t border-slate-200 dark:border-slate-700 sm:border-t-0 px-4 py-3">
+                <div className={LABEL}>Savings Rate</div>
+                <div className={['mt-1.5 font-mono text-base font-bold tabular-nums sm:text-lg', !monthlyHasData || currentCashflow?.savings_rate == null ? 'text-slate-400 dark:text-slate-500' : privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(currentCashflow?.savings_rate))].join(' ')}>
+                  {formatCashflowCurrentValue(currentCashflow?.savings_rate == null ? null : toNumber(currentCashflow.savings_rate), 'pct')}
+                </div>
+                <div className="mt-1 text-[11px] leading-4 text-slate-500 dark:text-slate-400">
+                  {formatCashflowAverageMeta(averageCashflowHasData && averageCashflow?.savings_rate != null ? toNumber(averageCashflow.savings_rate) : null, 'pct')}
+                </div>
+              </div>
+            </div>
           </div>
+        )}
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className={LABEL}>Goals</div>
+            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {summaryLoading
+                ? 'Loading goals...'
+                : (goalsSummary?.active_goals_count ?? 0) > 0
+                  ? `${goalsSummary?.active_goals_count ?? 0} active goal${goalsSummary?.active_goals_count === 1 ? '' : 's'}`
+                  : 'Add personal goals to track funding progress'}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onOpenGoals}
+            className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800/50"
+          >
+            <Icon name="portfolio" className="h-4 w-4" />
+            View Goals
+          </button>
         </div>
+
+        {summaryLoading ? (
+          <div className="mt-4 text-sm text-slate-500 dark:text-slate-400">Loading goals...</div>
+        ) : !topGoals.length ? (
+          <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
+            No financial goals added yet.
+          </div>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {topGoals.map((goal) => (
+              <div key={goal.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-700/50 dark:bg-slate-900/40">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold text-slate-900 dark:text-white">{goal.name}</div>
+                  <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{goal.status.replace('_', ' ')} · {goal.target_date ? formatDisplayDate(goal.target_date) : 'No target date'}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm font-semibold text-slate-900 dark:text-white">
+                    <PrivateValue value={formatPct(toNumber(goal.progress_pct))} mask="••••" hideColor />
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    <PrivateValue value={formatMoney(toNumber(goal.shortfall_amount))} mask="••••" hideColor />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Row 3: Performance chart + Composition ── */}
@@ -814,100 +832,24 @@ export default function Dashboard({
 
         {/* Performance chart */}
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700/50 dark:bg-slate-900/80 sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <div className={LABEL}>Performance</div>
-              <div className="mt-2 flex items-baseline gap-3">
-                <span className="font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
-                  {portfolioLoading ? '—' : portfolioHasSnapshots ? <PrivateValue value={formatMoney(toNumber(latestSnapshotValue))} mask="••••" hideColor /> : '—'}
-                </span>
-                {portfolioHasSnapshots ? (
-                  <span className={['text-sm font-semibold', privacyMode ? 'text-slate-400 dark:text-slate-400' : getTrendClass(toNumber(latestSnapshotReturn ?? 0))].join(' ')}>
-                    <PrivateValue value={formatSignedPct(toNumber(latestSnapshotReturn ?? 0))} mask="••••" hideColor />
-                  </span>
-                ) : null}
-              </div>
+          {portfolioError ? (
+            <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+              {portfolioError}
             </div>
-
-            {/* Time filters */}
-            <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-1 gap-0.5">
-              {timeFilters.filter(f => f.value !== 'ALL').map(filter => (
-                <button
-                  key={filter.value}
-                  type="button"
-                  onClick={() => setActiveFilter(filter.value)}
-                  className={[
-                    'rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150',
-                    activeFilter === filter.value
-                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200',
-                  ].join(' ')}
-                >
-                  {filter.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Chart area */}
-          <div className="mt-5">
-            {portfolioLoading ? (
-              <div className="flex h-56 items-center justify-center rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40">
-                <span className="text-sm text-slate-400">Loading chart…</span>
-              </div>
-            ) : portfolioEmptyState ? (
-              <div className="flex h-56 flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 px-6 text-center">
-                <div>
-                  <div className="text-sm font-semibold text-slate-900 dark:text-white">No portfolio history yet</div>
-                  <div className="mt-1 text-xs text-slate-500">Save your first snapshot to start tracking performance.</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSaveTodaySnapshot}
-                  disabled={savingSnapshot}
-                  className="inline-flex h-9 items-center gap-2 rounded-lg bg-teal-600 px-4 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-teal-700 disabled:opacity-60"
-                >
-                  <Icon name="download" className="h-3.5 w-3.5" />
-                  Save Snapshot
-                </button>
-              </div>
-            ) : (
-              <>
-                {portfolioError ? (
-                  <div className="mb-3 rounded-lg border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-4 py-2 text-xs text-rose-700 dark:text-rose-300">
-                    {portfolioError}
-                  </div>
-                ) : null}
-                <div className="h-56 min-w-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={portfolioChartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                      <CartesianGrid stroke="rgba(51,65,85,0.35)" vertical={false} />
-                      <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} width={48} tickFormatter={v => (privacyMode ? '••••' : formatINRShort(Number(v)))} />
-                      <Tooltip
-                        contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#e2e8f0', fontSize: 12 }}
-                        formatter={(value, name) => value !== null && value !== undefined ? [privacyMode ? '••••' : formatINRShort(Number(value)), name === 'actual_value' ? 'Actual' : 'Predicted'] : ['-', name === 'actual_value' ? 'Actual' : 'Predicted']}
-                      />
-                      <Line type="monotone" dataKey="actual_value" stroke="#0d9488" strokeWidth={2.5} dot={false} connectNulls isAnimationActive={false} />
-                      <Line type="monotone" dataKey="predicted_value" stroke="#f59e0b" strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls isAnimationActive={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Save Snapshot link */}
-          <div className="mt-4 flex justify-center border-t border-slate-100 dark:border-slate-800 pt-4">
-            <button
-              type="button"
-              onClick={handleSaveTodaySnapshot}
-              disabled={savingSnapshot}
-              className="text-sm font-medium text-teal-500 dark:text-teal-400 transition-colors hover:text-teal-600 dark:hover:text-teal-300 disabled:opacity-50"
-            >
-              {savingSnapshot ? 'Saving…' : 'Save Snapshot'}
-            </button>
-          </div>
+          ) : (
+            <PortfolioPerformanceChart
+              data={portfolioPerformance}
+              range={activeFilter}
+              onRangeChange={setActiveFilter}
+              privacyMode={privacyMode}
+              loading={portfolioLoading}
+              onSaveSnapshot={handleSaveTodaySnapshot}
+              savingSnapshot={savingSnapshot}
+              title="Performance"
+              description={portfolioHasSnapshots ? 'Broker-style trend from saved portfolio snapshots.' : null}
+              variant="compact"
+            />
+          )}
         </div>
 
         {/* Composition */}

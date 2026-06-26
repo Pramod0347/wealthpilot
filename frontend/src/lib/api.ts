@@ -53,6 +53,26 @@ export type CreditCardBill = {
   updated_at: string
 }
 
+export type CreditCard = {
+  id: number
+  card_name: string
+  bank_name: string
+  last4: string
+  total_limit: string | number
+  used_amount: string | number
+  current_bill_amount: string | number
+  billing_cycle_start: string
+  billing_cycle_end: string
+  due_date: string
+  status: 'paid' | 'due_soon' | 'overdue'
+  notes: string | null
+  created_at: string
+  updated_at: string
+  available_limit: string | number
+  utilization_pct: string | number
+  days_until_due: number
+}
+
 export type MarkCreditCardPaidPayload = {
   paid_amount: string | null
   paid_date: string | null
@@ -147,6 +167,59 @@ export type FixedSavingsAccountPayload = {
   maturity_date: string | null
   as_of_date: string | null
   notes: string | null
+}
+
+export type FinancialGoal = {
+  id: number
+  name: string
+  goal_type: 'emergency_fund' | 'travel' | 'retirement' | 'house' | 'vehicle' | 'education' | 'custom'
+  target_amount: string | number
+  current_amount: string | number
+  target_date: string | null
+  linked_source_type: 'manual' | 'bank_accounts' | 'holdings' | 'fixed_savings' | 'total_networth' | null
+  linked_source_ids: number[] | null
+  linked_source_types: Array<'manual' | 'bank_accounts' | 'holdings' | 'fixed_savings' | 'total_networth'> | null
+  linked_source_map: Partial<Record<'manual' | 'bank_accounts' | 'holdings' | 'fixed_savings' | 'total_networth', number[]>> | null
+  priority: 'low' | 'medium' | 'high' | null
+  notes: string | null
+  is_active: boolean
+  resolved_current_amount: string | number
+  progress_pct: string | number
+  shortfall_amount: string | number
+  months_remaining: number | null
+  required_monthly_saving: string | number | null
+  status: 'completed' | 'on_track' | 'watch' | 'behind' | 'unknown'
+  created_at: string
+  updated_at: string
+}
+
+export type FinancialGoalPayload = {
+  name: string
+  goal_type: FinancialGoal['goal_type']
+  target_amount: string
+  current_amount: string
+  target_date: string | null
+  linked_source_type: FinancialGoal['linked_source_type']
+  linked_source_ids: number[] | null
+  linked_source_types: Array<'manual' | 'bank_accounts' | 'holdings' | 'fixed_savings' | 'total_networth'> | null
+  linked_source_map: Partial<Record<'manual' | 'bank_accounts' | 'holdings' | 'fixed_savings' | 'total_networth', number[]>> | null
+  priority: FinancialGoal['priority']
+  notes: string | null
+  is_active: boolean
+}
+
+export type FinancialGoalSummary = {
+  active_goals_count: number
+  completed_goals_count: number
+  total_target_amount: string | number
+  total_current_amount: string | number
+  total_shortfall_amount: string | number
+  average_progress_pct: string | number
+  monthly_saving_needed_total: string | number
+  largest_shortfall_goal_name: string | null
+  largest_shortfall_amount: string | number
+  status_counts: Record<string, number>
+  top_goals: FinancialGoal[]
 }
 
 export type CashflowEntry = {
@@ -254,6 +327,50 @@ export type PortfolioIntelligence = {
   }
 }
 
+export type PortfolioRange = '1M' | '3M' | '6M' | '1Y' | 'ALL'
+
+export type PortfolioPerformanceSnapshot = {
+  date: string
+  timestamp: string
+  total_value: string | number
+  net_worth: string | number | null
+  invested_value: string | number | null
+}
+
+export type PortfolioPerformancePredictionPoint = {
+  date: string
+  estimated_value: string | number
+}
+
+export type PortfolioPerformancePrediction = {
+  available: boolean
+  method: 'median_daily_return' | 'linear_regression' | 'insufficient_data'
+  confidence: 'low' | 'medium' | 'high' | null
+  reason: string
+  points: PortfolioPerformancePredictionPoint[]
+  estimated_change_amount: string | number | null
+  estimated_change_pct: string | number | null
+}
+
+export type PortfolioPerformanceSummary = {
+  first_value: string | number | null
+  latest_value: string | number | null
+  change_amount: string | number | null
+  change_pct: string | number | null
+  snapshot_count: number
+  projected_value: string | number | null
+  projected_change_pct: string | number | null
+}
+
+export type PortfolioPerformanceData = {
+  range: PortfolioRange
+  start_date: string
+  end_date: string
+  snapshots: PortfolioPerformanceSnapshot[]
+  prediction: PortfolioPerformancePrediction
+  summary: PortfolioPerformanceSummary
+}
+
 export type AnalyticsMetricWindow = {
   income: string | number
   expense: string | number
@@ -294,6 +411,7 @@ export type AnalyticsSummary = {
     current_month: string | null
     current_month_summary: AnalyticsMetricWindow
     average_monthly_summary: AnalyticsMetricWindow
+    cash_buffer_months: string | number | null
     average_expense_by_category: AnalyticsCategoryAverageItem[]
     average_income_by_category: AnalyticsCategoryAverageItem[]
     monthly_trend: AnalyticsMonthlyTrendItem[]
@@ -324,6 +442,83 @@ export type AnalyticsSummary = {
     }>
     investment_focus_items: AnalyticsFocusItem[]
   }
+  goals_analytics: {
+    total_goals: number
+    completed_count: number
+    on_track_count: number
+    watch_count: number
+    behind_count: number
+    largest_shortfall_goal_name: string | null
+    largest_shortfall_amount: string | number
+    monthly_saving_needed_total: string | number
+    summary: FinancialGoalSummary
+  }
+}
+
+export type MonthlyCashflowReportRow = {
+  month: string
+  total_income: string | number
+  total_expense: string | number
+  net_savings: string | number
+  savings_rate: string | number | null
+  top_expense_category: string | null
+  top_income_source: string | null
+}
+
+export type MonthlyCashflowReport = {
+  rows: MonthlyCashflowReportRow[]
+}
+
+export type CreditCardBillPaymentsReportRow = {
+  bill_id: number
+  credit_card_id: number
+  card_name: string
+  billing_cycle_start: string | null
+  billing_cycle_end: string | null
+  bill_generated_date: string | null
+  due_date: string | null
+  bill_amount: string | number
+  paid_amount: string | number | null
+  paid_date: string | null
+  status: CreditCardBill['status']
+  notes: string | null
+}
+
+export type CreditCardBillPaymentsReport = {
+  rows: CreditCardBillPaymentsReportRow[]
+}
+
+export type NetWorthSnapshotReportRow = {
+  date: string
+  portfolio_value: string | number
+  change_amount: string | number | null
+  change_pct: string | number | null
+  created_at: string
+  updated_at: string
+}
+
+export type NetWorthSnapshotReport = {
+  rows: NetWorthSnapshotReportRow[]
+}
+
+export type InvestmentHoldingsReportRow = {
+  holding_id: number
+  symbol: string
+  company_name: string
+  asset_type: string
+  country: string
+  invested_value: string | number
+  current_value: string | number
+  pnl: string | number
+  return_pct: string | number
+  quantity: string | number
+  avg_buy_price: string | number
+  current_price: string | number
+  last_updated: string
+}
+
+export type InvestmentHoldingsReport = {
+  rows: InvestmentHoldingsReportRow[]
 }
 
 export type ApiValidationError = {
@@ -484,6 +679,10 @@ export function getCreditCardBills(filters?: {
   return apiFetch<CreditCardBill[]>(`/api/credit-card-bills${query ? `?${query}` : ''}`, { signal })
 }
 
+export function getCreditCards(signal?: AbortSignal) {
+  return apiFetch<CreditCard[]>('/api/credit-cards', { signal })
+}
+
 export function getCreditCardBillHistory(cardId: number, signal?: AbortSignal) {
   return apiFetch<CreditCardBill[]>(`/api/credit-cards/${cardId}/bills`, { signal })
 }
@@ -549,6 +748,35 @@ export function deleteFixedSavingsAccount(accountId: number) {
   })
 }
 
+export function getFinancialGoals(activeOnly?: boolean, signal?: AbortSignal) {
+  const query = typeof activeOnly === 'boolean' ? `?active_only=${activeOnly}` : ''
+  return apiFetch<FinancialGoal[]>(`/api/goals${query}`, { signal })
+}
+
+export function getFinancialGoalsSummary(signal?: AbortSignal) {
+  return apiFetch<FinancialGoalSummary>('/api/goals/summary', { signal })
+}
+
+export function createFinancialGoal(payload: FinancialGoalPayload) {
+  return apiFetch<FinancialGoal>('/api/goals', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateFinancialGoal(goalId: number, payload: Partial<FinancialGoalPayload>) {
+  return apiFetch<FinancialGoal>(`/api/goals/${goalId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteFinancialGoal(goalId: number) {
+  return apiFetch<void>(`/api/goals/${goalId}`, {
+    method: 'DELETE',
+  })
+}
+
 export function getCashflowEntries(month?: string, signal?: AbortSignal) {
   const query = month ? `?month=${encodeURIComponent(month)}` : ''
   return apiFetch<CashflowEntry[]>(`/api/cashflow${query}`, { signal })
@@ -589,6 +817,40 @@ export function getPortfolioIntelligence(signal?: AbortSignal) {
 
 export function getAnalyticsSummary(signal?: AbortSignal) {
   return apiFetch<AnalyticsSummary>('/api/analytics/summary', { signal })
+}
+
+export function getMonthlyCashflowReport(filters?: {
+  fromMonth?: string
+  toMonth?: string
+}, signal?: AbortSignal) {
+  const params = new URLSearchParams()
+  if (filters?.fromMonth) params.set('from_month', filters.fromMonth)
+  if (filters?.toMonth) params.set('to_month', filters.toMonth)
+  const query = params.toString()
+  return apiFetch<MonthlyCashflowReport>(`/api/reports/monthly-cashflow${query ? `?${query}` : ''}`, { signal })
+}
+
+export function getCreditCardBillPaymentsReport(filters?: {
+  cardId?: number
+  status?: CreditCardBill['status']
+  fromDate?: string
+  toDate?: string
+}, signal?: AbortSignal) {
+  const params = new URLSearchParams()
+  if (filters?.cardId !== undefined) params.set('card_id', String(filters.cardId))
+  if (filters?.status) params.set('status', filters.status)
+  if (filters?.fromDate) params.set('from_date', filters.fromDate)
+  if (filters?.toDate) params.set('to_date', filters.toDate)
+  const query = params.toString()
+  return apiFetch<CreditCardBillPaymentsReport>(`/api/reports/credit-card-bills${query ? `?${query}` : ''}`, { signal })
+}
+
+export function getNetWorthSnapshotsReport(signal?: AbortSignal) {
+  return apiFetch<NetWorthSnapshotReport>('/api/reports/networth-snapshots', { signal })
+}
+
+export function getInvestmentHoldingsReport(signal?: AbortSignal) {
+  return apiFetch<InvestmentHoldingsReport>('/api/reports/investment-holdings', { signal })
 }
 
 export function loginUser(email: string, phone: string) {

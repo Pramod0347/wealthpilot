@@ -1,46 +1,12 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { ApiError, apiFetch, getPortfolioIntelligence, type PortfolioIntelligence } from '../lib/api'
+import { useEffect, useState, type ReactNode } from 'react'
+import { ApiError, apiFetch, getPortfolioIntelligence, type PortfolioIntelligence, type PortfolioPerformanceData, type PortfolioRange } from '../lib/api'
 import { formatINR, formatINRShort, formatPct, formatSignedPct, getTrendClass } from '../lib/format'
 import { usePrivacyMode } from '../context/PrivacyContext'
 import { Icon } from './Icon'
 import PrivateValue from './ui/PrivateValue'
-
-type PortfolioRange = '1M' | '3M' | '6M' | '1Y' | 'ALL'
-
-type ApiPortfolioPerformance = {
-  range: PortfolioRange
-  actual: Array<{
-    date: string
-    current_value: string | number
-    total_invested: string | number
-    total_pnl: string | number
-    total_return_pct: string | number
-  }>
-  predicted: Array<{
-    date: string
-    current_value: string | number
-    is_predicted: boolean
-  }>
-  message: string | null
-}
-
-type ChartPoint = {
-  label: string
-  date: string
-  actual_value: number | null
-  predicted_value: number | null
-}
+import PortfolioPerformanceChart from './ui/PortfolioPerformanceChart'
 
 const sectionLabel = 'text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500'
-const rangeFilters: Array<{ label: string; value: PortfolioRange }> = [
-  { label: '1M', value: '1M' },
-  { label: '3M', value: '3M' },
-  { label: '6M', value: '6M' },
-  { label: '1Y', value: '1Y' },
-  { label: 'All', value: 'ALL' },
-]
-
 const allocationColors: Record<string, string> = {
   stock_in: '#0d9488',
   stock_us: '#38bdf8',
@@ -82,35 +48,6 @@ function formatDate(value: string | null | undefined) {
   return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(date)
 }
 
-function formatChartDate(value: string) {
-  const date = new Date(`${value}T00:00:00`)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short' }).format(date)
-}
-
-function buildChartData(performance: ApiPortfolioPerformance | null): ChartPoint[] {
-  if (!performance) return []
-  const rows = new Map<string, ChartPoint>()
-  performance.actual.forEach((point) => {
-    rows.set(point.date, {
-      date: point.date,
-      label: formatChartDate(point.date),
-      actual_value: toNumber(point.current_value),
-      predicted_value: rows.get(point.date)?.predicted_value ?? null,
-    })
-  })
-  performance.predicted.forEach((point) => {
-    const existing = rows.get(point.date)
-    rows.set(point.date, {
-      date: point.date,
-      label: formatChartDate(point.date),
-      actual_value: existing?.actual_value ?? null,
-      predicted_value: toNumber(point.current_value),
-    })
-  })
-  return Array.from(rows.values()).sort((left, right) => new Date(left.date).getTime() - new Date(right.date).getTime())
-}
-
 function SectionCard({ title, children, className = '' }: { title?: string; children: ReactNode; className?: string }) {
   return (
     <div className={['rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700/50 dark:bg-slate-900/80', className].join(' ')}>
@@ -123,7 +60,7 @@ function SectionCard({ title, children, className = '' }: { title?: string; chil
 export default function PortfolioPage() {
   const { privacyMode } = usePrivacyMode()
   const [intelligence, setIntelligence] = useState<PortfolioIntelligence | null>(null)
-  const [performance, setPerformance] = useState<ApiPortfolioPerformance | null>(null)
+  const [performance, setPerformance] = useState<PortfolioPerformanceData | null>(null)
   const [activeRange, setActiveRange] = useState<PortfolioRange>('6M')
   const [loading, setLoading] = useState(true)
   const [performanceLoading, setPerformanceLoading] = useState(true)
@@ -148,7 +85,7 @@ export default function PortfolioPage() {
     const controller = new AbortController()
     setPerformanceLoading(true)
     setPerformanceError(null)
-    apiFetch<ApiPortfolioPerformance>(`/api/portfolio/performance?range=${activeRange}`, { signal: controller.signal })
+    apiFetch<PortfolioPerformanceData>(`/api/portfolio/performance?range=${activeRange}`, { signal: controller.signal })
       .then(setPerformance)
       .catch((err) => {
         if (err instanceof DOMException && err.name === 'AbortError') return
@@ -157,10 +94,6 @@ export default function PortfolioPage() {
       .finally(() => setPerformanceLoading(false))
     return () => controller.abort()
   }, [activeRange])
-
-  const chartData = useMemo(() => buildChartData(performance), [performance])
-  const hasPerformance = (performance?.actual.length ?? 0) > 0
-  const latestSnapshotReturn = toNumber(intelligence?.performance.latest_snapshot_return_pct)
 
   const netWorthCards = intelligence
     ? [
@@ -324,83 +257,19 @@ export default function PortfolioPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-        <SectionCard title="Portfolio Performance" className="p-5">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <div className="font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
-                {intelligence?.performance.has_snapshots ? <PrivateValue value={formatMoney(toNumber(intelligence.performance.latest_snapshot_value))} mask="••••" hideColor /> : '—'}
-              </div>
-              {intelligence?.performance.has_snapshots ? (
-                <div className={['mt-1 text-sm font-semibold', privacyMode ? 'text-slate-400 dark:text-slate-400' : getTrendClass(latestSnapshotReturn)].join(' ')}>
-                  <PrivateValue value={formatSignedPct(latestSnapshotReturn)} mask="••••" hideColor />
-                </div>
-              ) : (
-                <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">{intelligence?.performance.message ?? 'No portfolio snapshots yet'}</div>
-              )}
-            </div>
-            <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-1 gap-0.5">
-              {rangeFilters.map((filter) => (
-                <button
-                  key={filter.value}
-                  type="button"
-                  onClick={() => setActiveRange(filter.value)}
-                  className={[
-                    'rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150',
-                    activeRange === filter.value ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200',
-                  ].join(' ')}
-                >
-                  {filter.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="mt-5">
-            {performanceLoading ? (
-              <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/40">
-                <span className="text-sm text-slate-400">Loading chart…</span>
-              </div>
-            ) : performanceError ? (
-              <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{performanceError}</div>
-            ) : !hasPerformance ? (
-              <div className="flex h-64 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 text-center dark:border-slate-700 dark:bg-slate-800/40">
-                <div className="text-sm font-semibold text-slate-900 dark:text-white">No portfolio history yet</div>
-                <div className="text-sm text-slate-500 dark:text-slate-400">{performance?.message ?? 'More snapshot history needed for prediction.'}</div>
-              </div>
-            ) : (
-              <>
-                <div className="mb-3 flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
-                  <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-teal-400" />Actual</span>
-                  <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-400" />Predicted</span>
-                </div>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                      <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
-                      <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
-                      <YAxis
-                        tickLine={false}
-                        axisLine={false}
-                        tick={{ fill: '#64748b', fontSize: 11 }}
-                        width={76}
-                        tickFormatter={(value: number) => (privacyMode ? '••••' : formatINRShort(value))}
-                      />
-                      <Tooltip
-                        contentStyle={{ background: '#0f172a', border: '1px solid rgba(51,65,85,0.7)', borderRadius: '12px', color: '#fff' }}
-                        formatter={(value, name) => [
-                          privacyMode ? '••••' : formatINR(Number(Array.isArray(value) ? value[0] ?? 0 : value ?? 0)),
-                          name === 'actual_value' ? 'Actual' : 'Predicted',
-                        ]}
-                        labelFormatter={(label) => `Date: ${label}`}
-                      />
-                      <Line type="monotone" dataKey="actual_value" stroke="#14b8a6" strokeWidth={2.25} dot={{ r: 0 }} activeDot={{ r: 4 }} connectNulls={false} />
-                      <Line type="monotone" dataKey="predicted_value" stroke="#f59e0b" strokeWidth={2} dot={{ r: 0 }} strokeDasharray="6 4" activeDot={{ r: 4 }} connectNulls={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-                {performance?.message ? <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">{performance.message}</div> : null}
-              </>
-            )}
-          </div>
+        <SectionCard className="p-5">
+          {performanceError ? (
+            <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{performanceError}</div>
+          ) : (
+            <PortfolioPerformanceChart
+              data={performance}
+              range={activeRange}
+              onRangeChange={setActiveRange}
+              privacyMode={privacyMode}
+              loading={performanceLoading}
+              variant="compact"
+            />
+          )}
         </SectionCard>
 
         <SectionCard title="Top Movers / Attention" className="p-5">

@@ -36,10 +36,23 @@ from app.schemas.fixed_savings_account import (
     FixedSavingsByTypeSummary,
     FixedSavingsSummary,
 )
+from app.schemas.financial_goal import (
+    FinancialGoalCreate,
+    FinancialGoalRead,
+    FinancialGoalSummary,
+    FinancialGoalUpdate,
+)
 from app.schemas.holding import HoldingCreate, HoldingRead, HoldingUpdate
 from app.schemas.holding import AllocationItem, HoldingAnalyticsItem, HoldingsAnalyticsResponse
-from app.schemas.portfolio_snapshot import PerformanceRange, PortfolioPerformancePoint, PortfolioPerformanceResponse
-from app.schemas.portfolio_snapshot import PortfolioPredictedPoint, PortfolioSnapshotRead
+from app.schemas.portfolio_snapshot import (
+    PerformanceRange,
+    PortfolioPerformanceResponse,
+    PortfolioPerformanceSummary,
+    PortfolioPredictionPoint,
+    PortfolioPredictionSummary,
+    PortfolioSnapshotPerformancePoint,
+    PortfolioSnapshotRead,
+)
 from app.schemas.portfolio_intelligence import (
     PortfolioAllocationItem,
     PortfolioAttentionItem,
@@ -50,5 +63,15 @@ from app.schemas.portfolio_intelligence import (
     PortfolioNetWorthOverview,
     PortfolioPerformanceOverview,
     PortfolioTopMovers,
+)
+from app.schemas.reports import (
+    CreditCardBillPaymentsReportResponse,
+    CreditCardBillPaymentsReportRow,
+    InvestmentHoldingsReportResponse,
+    InvestmentHoldingsReportRow,
+    MonthlyCashflowReportResponse,
+    MonthlyCashflowReportRow,
+    NetWorthSnapshotReportResponse,
+    NetWorthSnapshotReportRow,
 )
 from app.schemas.transaction import TransactionCreate, TransactionRead, TransactionUpdate

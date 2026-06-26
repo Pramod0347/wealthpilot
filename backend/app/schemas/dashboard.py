@@ -2,6 +2,8 @@ from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.financial_goal import FinancialGoalRead, FinancialGoalSummary
+
 
 class WealthBucketItem(BaseModel):
     id: int
@@ -71,3 +73,5 @@ class DashboardSummary(BaseModel):
     monthly_income_count: int = 0
     monthly_expense_count: int = 0
     cashflow_month: str | None = None
+    goals_summary: FinancialGoalSummary = Field(default_factory=FinancialGoalSummary)
+    top_goals: list[FinancialGoalRead] = Field(default_factory=list)

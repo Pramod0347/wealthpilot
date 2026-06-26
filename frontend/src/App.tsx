@@ -8,13 +8,15 @@ import CreditCardsPage from './components/CreditCardsPage'
 import BanksPage from './components/BanksPage'
 import FixedSavingsPage from './components/FixedSavingsPage'
 import CashflowPage from './components/CashflowPage'
+import GoalsPage from './components/GoalsPage'
+import ReportsPage from './components/ReportsPage'
 import LoginPage from './components/auth/LoginPage'
 import ServerWakeScreen from './components/auth/ServerWakeScreen'
 import BottomSheet from './components/ui/BottomSheet'
 import { Icon, type IconName } from './components/Icon'
 import { ApiError, checkAuth, checkServerHealth, getStoredAuthToken, loginUser, logoutUser, setStoredAuthToken } from './lib/api'
 
-type PageKey = 'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards' | 'transactions' | 'analytics'
+type PageKey = 'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards' | 'transactions' | 'analytics' | 'goals' | 'reports'
 type BootstrapState =
   | 'checking_server'
   | 'server_warming'
@@ -42,12 +44,13 @@ const mobileMoreNav: NavItem[] = [
   { key: 'pfepf', label: 'PF / EPF', icon: 'pfepf' },
   { key: 'transactions', label: 'Cashflow', icon: 'transactions' },
   { key: 'analytics', label: 'Analytics', icon: 'analytics' },
+  { key: 'goals', label: 'Goals', icon: 'portfolio' },
   { key: 'reports', label: 'Reports', icon: 'reports' },
   { key: 'settings', label: 'Settings', icon: 'settings' },
 ]
 
 function isPageKey(value: NavItem['key']): value is PageKey {
-  return ['dashboard', 'stocks', 'banks', 'pfepf', 'cards', 'transactions', 'analytics'].includes(value)
+  return ['dashboard', 'stocks', 'banks', 'pfepf', 'cards', 'transactions', 'analytics', 'goals', 'reports'].includes(value)
 }
 
 const HEALTH_RETRY_MS = 3_000
@@ -179,7 +182,7 @@ export default function App() {
     dashboard: {
       title: 'Dashboard',
       subtitle: 'Quick command center for your money',
-      content: <Dashboard onOpenStocks={() => setActivePage('stocks')} onOpenCards={() => setActivePage('cards')} />,
+      content: <Dashboard onOpenStocks={() => setActivePage('stocks')} onOpenCards={() => setActivePage('cards')} onOpenGoals={() => setActivePage('goals')} />,
     },
     stocks: {
       title: 'Stocks & Investments',
@@ -211,11 +214,19 @@ export default function App() {
       subtitle: 'Net worth, risk, allocation, cashflow, and credit health',
       content: <AnalyticsPage />,
     },
+    goals: {
+      title: 'Goals',
+      subtitle: 'Track personal financial targets and funding progress',
+      content: <GoalsPage />,
+    },
+    reports: {
+      title: 'Reports',
+      subtitle: 'Read-only financial reports with CSV exports',
+      content: <ReportsPage />,
+    },
   }[activePage]
 
-  const activeMobileNav = useMemo(() => {
-    return mobilePrimaryNav.find((item) => item.key === activePage)?.key ?? 'more'
-  }, [activePage])
+  const activeMobileNav = useMemo(() => mobilePrimaryNav.find((item) => item.key === activePage)?.key ?? 'more', [activePage])
 
   const handleMobileNavigate = (page: PageKey) => {
     setActivePage(page)

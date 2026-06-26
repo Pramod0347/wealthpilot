@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Icon } from './Icon'
 import PrivateValue from './ui/PrivateValue'
 import BottomSheet from './ui/BottomSheet'
-import { ApiError, apiFetch } from '../lib/api'
+import PortfolioPerformanceChart from './ui/PortfolioPerformanceChart'
+import { ApiError, apiFetch, type PortfolioPerformanceData, type PortfolioRange } from '../lib/api'
 import { formatINR, formatINRShort, formatPct, formatSignedPct, getTrendClass } from '../lib/format'
 import { usePrivacyMode } from '../context/PrivacyContext'
 
@@ -83,23 +83,6 @@ type ApiHoldingsAnalytics = {
     pnl: string | number
     return_pct: string | number
   }>
-}
-
-type ApiPortfolioPerformance = {
-  range: '1M' | '3M' | '6M' | '1Y' | 'ALL'
-  actual: Array<{
-    date: string
-    current_value: string | number
-    total_invested: string | number
-    total_pnl: string | number
-    total_return_pct: string | number
-  }>
-  predicted: Array<{
-    date: string
-    current_value: string | number
-    is_predicted: boolean
-  }>
-  message: string | null
 }
 
 type BulkRefreshResponse = {
@@ -310,40 +293,6 @@ function buildHoldingGroups(holdings: ApiHolding[]) {
   )
 }
 
-type ChartPoint = {
-  date: string
-  label: string
-  actual_value: number | null
-  predicted_value: number | null
-}
-
-function buildPortfolioChartData(performance: ApiPortfolioPerformance | null): ChartPoint[] {
-  if (!performance) return []
-
-  const rows = new Map<string, ChartPoint>()
-
-  performance.actual.forEach((point) => {
-    rows.set(point.date, {
-      date: point.date,
-      label: formatDisplayDate(point.date),
-      actual_value: toNumber(point.current_value),
-      predicted_value: rows.get(point.date)?.predicted_value ?? null,
-    })
-  })
-
-  performance.predicted.forEach((point) => {
-    const current = rows.get(point.date)
-    rows.set(point.date, {
-      date: point.date,
-      label: formatDisplayDate(point.date),
-      actual_value: current?.actual_value ?? null,
-      predicted_value: toNumber(point.current_value),
-    })
-  })
-
-  return Array.from(rows.values()).sort((left, right) => new Date(left.date).getTime() - new Date(right.date).getTime())
-}
-
 function formatNativeMoney(value: number, currency: string) {
   const sign = value < 0 ? '-' : ''
   const absolute = Math.abs(value)
@@ -507,14 +456,6 @@ function getCountryDefaults(country: string) {
   return { currency: 'INR', exchange: 'NSE', fx_rate_to_inr: '1' }
 }
 
-const timeFilters: Array<{ label: string; value: '1M' | '3M' | '6M' | '1Y' | 'ALL' }> = [
-  { label: '1M', value: '1M' },
-  { label: '3M', value: '3M' },
-  { label: '6M', value: '6M' },
-  { label: '1Y', value: '1Y' },
-  { label: 'All', value: 'ALL' },
-]
-
 const sectionLabel = 't-micro text-slate-500 dark:text-slate-500'
 
 function SectionCard({ title, children, className = '' }: { title?: string; children: ReactNode; className?: string }) {
@@ -600,8 +541,8 @@ export default function StocksPage() {
   const [refreshingHoldingId, setRefreshingHoldingId] = useState<number | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [statusTone, setStatusTone] = useState<'emerald' | 'rose' | 'amber' | 'slate'>('emerald')
-  const [activeRange, setActiveRange] = useState<'1M' | '3M' | '6M' | '1Y' | 'ALL'>('6M')
-  const [portfolioPerformance, setPortfolioPerformance] = useState<ApiPortfolioPerformance | null>(null)
+  const [activeRange, setActiveRange] = useState<PortfolioRange>('6M')
+  const [portfolioPerformance, setPortfolioPerformance] = useState<PortfolioPerformanceData | null>(null)
   const [portfolioLoading, setPortfolioLoading] = useState(true)
   const [portfolioError, setPortfolioError] = useState<string | null>(null)
   const [savingSnapshot, setSavingSnapshot] = useState(false)
@@ -654,7 +595,7 @@ export default function StocksPage() {
     setPortfolioError(null)
 
     try {
-      const response = await apiFetch<ApiPortfolioPerformance>(`/api/portfolio/performance?range=${activeRange}`, { signal })
+      const response = await apiFetch<PortfolioPerformanceData>(`/api/portfolio/performance?range=${activeRange}`, { signal })
       setPortfolioPerformance(response)
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
@@ -812,11 +753,7 @@ export default function StocksPage() {
       }))
   }, [holdingGroups.etfsGold, holdingGroups.indianEquity, holdingGroups.mutualFunds, holdingGroups.usEquity])
 
-  const portfolioChartData = useMemo(() => buildPortfolioChartData(portfolioPerformance), [portfolioPerformance])
-  const portfolioHasSnapshots = (portfolioPerformance?.actual.length ?? 0) > 0
-  const latestSnapshot = portfolioPerformance?.actual.at(-1) ?? null
-  const latestSnapshotValue = toNumber(latestSnapshot?.current_value)
-  const latestSnapshotReturn = toNumber(latestSnapshot?.total_return_pct)
+  const portfolioHasSnapshots = (portfolioPerformance?.summary.snapshot_count ?? 0) > 0
   const latestUpdate = useMemo(() => {
     const timestamps = holdings
       .flatMap((holding) => [holding.updated_at, holding.last_price_refreshed_at])
@@ -1160,73 +1097,18 @@ export default function StocksPage() {
           </div>
 
           <div className="rounded-[24px] bg-slate-900/75 px-4 py-4 ring-1 ring-slate-800/80">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Performance</div>
-                <div className="mt-2 text-[1.2rem] font-bold text-slate-100">
-                  {portfolioHasSnapshots ? (privacyMode ? '••••' : formatINRShort(latestSnapshotValue)) : '—'}
-                </div>
-                <div className={['mt-1 text-[12px] font-medium', privacyMode ? 'text-slate-400' : getTrendClass(latestSnapshotReturn)].join(' ')}>
-                  {portfolioHasSnapshots ? (privacyMode ? '••••' : formatSignedPct(latestSnapshotReturn)) : 'Waiting for snapshots'}
-                </div>
-              </div>
-              <div className="no-scrollbar flex max-w-[54%] items-center gap-1 overflow-x-auto rounded-full bg-slate-800/80 p-1">
-                {timeFilters.map((filter) => (
-                  <button
-                    key={`mobile-range-${filter.value}`}
-                    type="button"
-                    onClick={() => setActiveRange(filter.value)}
-                    className={[
-                      'h-7 whitespace-nowrap rounded-full px-2.5 text-[11px] font-medium transition-colors',
-                      activeRange === filter.value ? 'bg-slate-700 text-white' : 'text-slate-400',
-                    ].join(' ')}
-                  >
-                    {filter.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {portfolioHasSnapshots ? (
-              <>
-                <div className="mt-4 h-36">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={portfolioChartData} margin={{ top: 6, right: 0, left: -16, bottom: 0 }}>
-                      <CartesianGrid stroke="rgba(51,65,85,0.35)" vertical={false} />
-                      <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 10 }} />
-                      <YAxis hide />
-                      <Tooltip
-                        contentStyle={{ background: '#111827', border: '1px solid #334155', borderRadius: '10px', color: '#e2e8f0', fontSize: 12 }}
-                        formatter={(value, name) => [privacyMode ? '••••' : formatINRShort(Number(value)), name === 'actual_value' ? 'Actual' : 'Predicted']}
-                      />
-                      <Line type="monotone" dataKey="actual_value" stroke="#2dd4bf" strokeWidth={2.25} dot={false} activeDot={{ r: 3 }} connectNulls />
-                      <Line type="monotone" dataKey="predicted_value" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSaveSnapshot}
-                  disabled={savingSnapshot}
-                  className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-xl border border-slate-700 bg-slate-950 text-sm font-medium text-teal-400 transition-colors hover:border-slate-600 disabled:opacity-60"
-                >
-                  {savingSnapshot ? 'Saving…' : 'Save Snapshot'}
-                </button>
-              </>
-            ) : (
-              <div className="mt-4 rounded-2xl border border-dashed border-slate-700 bg-slate-950/50 px-4 py-5 text-center">
-                <div className="text-sm font-medium text-slate-200">No portfolio history yet</div>
-                <div className="mt-1 text-[12px] leading-5 text-slate-500">Save today&apos;s snapshot to start tracking performance.</div>
-                <button
-                  type="button"
-                  onClick={handleSaveSnapshot}
-                  disabled={savingSnapshot}
-                  className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-xl bg-accent-600 text-sm font-semibold text-white disabled:opacity-60"
-                >
-                  {savingSnapshot ? 'Saving…' : 'Save Snapshot'}
-                </button>
-              </div>
-            )}
+            <PortfolioPerformanceChart
+              data={portfolioPerformance}
+              range={activeRange}
+              onRangeChange={setActiveRange}
+              privacyMode={privacyMode}
+              loading={portfolioLoading}
+              onSaveSnapshot={handleSaveSnapshot}
+              savingSnapshot={savingSnapshot}
+              title="Performance"
+              description={portfolioHasSnapshots ? 'Saved snapshot trend with estimated extension.' : null}
+              variant="compact"
+            />
           </div>
 
           <div className="rounded-[24px] bg-slate-900/75 px-4 py-4 ring-1 ring-slate-800/80">
@@ -1473,115 +1355,23 @@ export default function StocksPage() {
           </SectionCard>
 
           <SectionCard className="px-4 py-5 sm:px-6 sm:py-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="t-micro text-slate-500 dark:text-slate-500">Performance</div>
-                <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Portfolio snapshot trend</div>
-              </div>
-              <div className="no-scrollbar flex max-w-full items-center gap-1 overflow-x-auto rounded-full bg-slate-100 p-1 dark:bg-slate-700 t-badge">
-                {timeFilters.map((filter) => (
-                  <button
-                    key={filter.value}
-                    type="button"
-                    onClick={() => setActiveRange(filter.value)}
-                    className={[
-                      'h-8 rounded-full px-3 t-badge transition-all duration-200 ease-out active:scale-[0.98] motion-reduce:transition-none',
-                      activeRange === filter.value
-                        ? 'bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm'
-                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200',
-                    ].join(' ')}
-                  >
-                    {filter.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-4 flex items-center gap-3">
-              <div className="t-metric text-slate-900 dark:text-white">{portfolioHasSnapshots ? (privacyMode ? '••••' : formatINRShort(latestSnapshotValue)) : '—'}</div>
-              {portfolioHasSnapshots ? <div className={['t-nav', privacyMode ? 'text-slate-400 dark:text-slate-400' : getTrendClass(latestSnapshotReturn)].join(' ')}>{privacyMode ? '••••' : formatSignedPct(latestSnapshotReturn)}</div> : null}
-              <div className="t-body text-slate-600 dark:text-slate-300">{portfolioHasSnapshots ? 'latest snapshot' : 'waiting for snapshots'}</div>
-            </div>
-
-            {portfolioLoading ? (
-              <div className="mt-8 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-8 text-center">
-                <div className="t-section text-slate-900 dark:text-slate-100">Loading portfolio snapshots...</div>
-                <div className="mt-2 t-body text-slate-600 dark:text-slate-300">Fetching actual and predicted data from the backend.</div>
-              </div>
-            ) : portfolioError ? (
-              <div className="mt-8 rounded-lg border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-4 py-3 text-sm text-rose-800 dark:text-rose-200">
+            {portfolioError ? (
+              <div className="rounded-lg border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-4 py-3 text-sm text-rose-800 dark:text-rose-200">
                 {portfolioError}
               </div>
-            ) : !portfolioHasSnapshots ? (
-              <div className="mt-8 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-8 text-center">
-                <div className="t-section text-slate-900 dark:text-slate-100">No portfolio history yet</div>
-                <div className="mt-2 t-body text-slate-600 dark:text-slate-300">Save today&apos;s snapshot to start tracking performance.</div>
-                <button
-                  type="button"
-                  onClick={handleSaveSnapshot}
-                  disabled={savingSnapshot}
-                  className="mt-5 inline-flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-accent-700 active:bg-accent-800 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {savingSnapshot ? <Icon name="refresh" className="h-4 w-4 animate-spin" /> : <Icon name="add" className="h-4 w-4" />}
-                  Save Snapshot
-                </button>
-              </div>
             ) : (
-              <>
-                <div className="mt-6 flex items-center gap-4 t-badge text-slate-500 dark:text-slate-400">
-                  <span className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full bg-accent-400" />
-                    Actual
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
-                    Predicted
-                  </span>
-                </div>
-                <div className="mt-4 h-56 sm:h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={portfolioChartData} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
-                      <CartesianGrid stroke="rgba(51,65,85,0.45)" strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                      <YAxis tickLine={false} axisLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={(value) => (privacyMode ? '••••' : formatINRShort(Number(value)))} width={70} />
-                      <Tooltip
-                        contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#e2e8f0' }}
-                        labelStyle={{ color: '#e2e8f0' }}
-                        formatter={(value, name) => [privacyMode ? '••••' : formatINRShort(Number(value)), name === 'actual_value' ? 'Actual' : 'Predicted']}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="actual_value"
-                        stroke="#2dd4bf"
-                        strokeWidth={2.5}
-                        dot={false}
-                        activeDot={{ r: 4 }}
-                        connectNulls
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="predicted_value"
-                        stroke="#f59e0b"
-                        strokeWidth={2.5}
-                        strokeDasharray="6 4"
-                        dot={false}
-                        activeDot={{ r: 4 }}
-                        connectNulls
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="mt-5 flex justify-center border-t border-slate-100 dark:border-slate-800 pt-4">
-                  <button
-                    type="button"
-                    onClick={handleSaveSnapshot}
-                    disabled={savingSnapshot}
-                    className="text-sm font-medium text-teal-500 dark:text-teal-400 transition-colors hover:text-teal-600 dark:hover:text-teal-300 disabled:opacity-50"
-                  >
-                    {savingSnapshot ? 'Saving…' : 'Save Snapshot'}
-                  </button>
-                </div>
-              </>
+              <PortfolioPerformanceChart
+                data={portfolioPerformance}
+                range={activeRange}
+                onRangeChange={setActiveRange}
+                privacyMode={privacyMode}
+                loading={portfolioLoading}
+                onSaveSnapshot={handleSaveSnapshot}
+                savingSnapshot={savingSnapshot}
+                title="Performance"
+                description={portfolioHasSnapshots ? 'Portfolio snapshot trend with estimated growth extension.' : null}
+                variant="compact"
+              />
             )}
           </SectionCard>
         </div>

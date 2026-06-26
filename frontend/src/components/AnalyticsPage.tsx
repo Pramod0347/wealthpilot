@@ -10,31 +10,15 @@ import {
   type AnalyticsMonthlyTrendItem,
   type AnalyticsSummary,
   type PortfolioIntelligence,
+  type PortfolioPerformanceData,
+  type PortfolioRange,
 } from '../lib/api'
 import { formatINR, formatINRShort, formatPct, formatSignedPct, getTrendClass } from '../lib/format'
 import { usePrivacyMode } from '../context/PrivacyContext'
 import { Icon } from './Icon'
 import PrivateValue from './ui/PrivateValue'
+import PortfolioPerformanceChart from './ui/PortfolioPerformanceChart'
 import WealthBucketModal from './ui/WealthBucketModal'
-
-type PortfolioRange = '1M' | '3M' | '6M' | '1Y' | 'ALL'
-
-type ApiPortfolioPerformance = {
-  range: PortfolioRange
-  actual: Array<{
-    date: string
-    current_value: string | number
-    total_invested: string | number
-    total_pnl: string | number
-    total_return_pct: string | number
-  }>
-  predicted: Array<{
-    date: string
-    current_value: string | number
-    is_predicted: boolean
-  }>
-  message: string | null
-}
 
 type ApiDashboardSummary = {
   total_credit_card_dues: string | number
@@ -43,13 +27,6 @@ type ApiDashboardSummary = {
   overall_card_utilization: string | number
   due_soon_count: number
   overdue_count: number
-}
-
-type ChartPoint = {
-  label: string
-  date: string
-  actual_value: number | null
-  predicted_value: number | null
 }
 
 type TrendPoint = {
@@ -73,14 +50,6 @@ type ScanRow = {
 }
 
 const sectionLabel = 't-micro text-slate-500 dark:text-slate-500'
-const rangeFilters: Array<{ label: string; value: PortfolioRange }> = [
-  { label: '1M', value: '1M' },
-  { label: '3M', value: '3M' },
-  { label: '6M', value: '6M' },
-  { label: '1Y', value: '1Y' },
-  { label: 'All', value: 'ALL' },
-]
-
 const allocationColors: Record<string, string> = {
   ind_stocks: '#14b8a6',
   us_stocks: '#38bdf8',
@@ -109,12 +78,6 @@ function formatMoney(value: number) {
   return Math.abs(value) >= 100000 ? formatINRShort(value) : formatINR(value)
 }
 
-function formatChartDate(value: string) {
-  const date = new Date(`${value}T00:00:00`)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short' }).format(date)
-}
-
 function formatMonthLabel(value: string) {
   const date = new Date(`${value}-01T00:00:00`)
   if (Number.isNaN(date.getTime())) return value
@@ -137,29 +100,6 @@ function formatDateTime(value: string | null | undefined) {
     .format(date)
     .replace(' am', ' am')
     .replace(' pm', ' pm')
-}
-
-function buildPerformanceChartData(performance: ApiPortfolioPerformance | null): ChartPoint[] {
-  if (!performance) return []
-  const rows = new Map<string, ChartPoint>()
-  performance.actual.forEach((point) => {
-    rows.set(point.date, {
-      date: point.date,
-      label: formatChartDate(point.date),
-      actual_value: toNumber(point.current_value),
-      predicted_value: rows.get(point.date)?.predicted_value ?? null,
-    })
-  })
-  performance.predicted.forEach((point) => {
-    const existing = rows.get(point.date)
-    rows.set(point.date, {
-      date: point.date,
-      label: formatChartDate(point.date),
-      actual_value: existing?.actual_value ?? null,
-      predicted_value: toNumber(point.current_value),
-    })
-  })
-  return Array.from(rows.values()).sort((left, right) => new Date(left.date).getTime() - new Date(right.date).getTime())
 }
 
 function buildTrendChartData(items: AnalyticsMonthlyTrendItem[]): TrendPoint[] {
@@ -304,7 +244,7 @@ export default function AnalyticsPage() {
   const { privacyMode } = usePrivacyMode()
   const [intelligence, setIntelligence] = useState<PortfolioIntelligence | null>(null)
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null)
-  const [performance, setPerformance] = useState<ApiPortfolioPerformance | null>(null)
+  const [performance, setPerformance] = useState<PortfolioPerformanceData | null>(null)
   const [dashboardSummary, setDashboardSummary] = useState<ApiDashboardSummary | null>(null)
   const [activeRange, setActiveRange] = useState<PortfolioRange>('6M')
   const [selectedBucketKey, setSelectedBucketKey] = useState<string | null>(null)
@@ -314,6 +254,7 @@ export default function AnalyticsPage() {
   const [error, setError] = useState<string | null>(null)
   const [analyticsError, setAnalyticsError] = useState<string | null>(null)
   const [performanceError, setPerformanceError] = useState<string | null>(null)
+  const [showAllExpenseCategories, setShowAllExpenseCategories] = useState(false)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -353,7 +294,7 @@ export default function AnalyticsPage() {
     const controller = new AbortController()
     setPerformanceLoading(true)
     setPerformanceError(null)
-    apiFetch<ApiPortfolioPerformance>(`/api/portfolio/performance?range=${activeRange}`, { signal: controller.signal })
+    apiFetch<PortfolioPerformanceData>(`/api/portfolio/performance?range=${activeRange}`, { signal: controller.signal })
       .then(setPerformance)
       .catch((err) => {
         if (err instanceof DOMException && err.name === 'AbortError') return
@@ -363,12 +304,11 @@ export default function AnalyticsPage() {
     return () => controller.abort()
   }, [activeRange])
 
-  const chartData = useMemo(() => buildPerformanceChartData(performance), [performance])
   const trendData = useMemo(() => buildTrendChartData(analytics?.cashflow_analytics.monthly_trend ?? []), [analytics])
-  const hasPerformance = (performance?.actual.length ?? 0) > 0
+  const hasPerformance = (performance?.summary.snapshot_count ?? 0) > 0
 
   const statusMeta = useMemo(() => {
-    const latestSnapshotDate = intelligence?.performance.latest_snapshot_date ?? performance?.actual.at(-1)?.date ?? null
+    const latestSnapshotDate = intelligence?.performance.latest_snapshot_date ?? performance?.snapshots.at(-1)?.date ?? null
     const modules = [
       !!intelligence?.asset_allocation.length,
       !!analytics?.cashflow_analytics.months_count,
@@ -391,12 +331,8 @@ export default function AnalyticsPage() {
     return intelligence.asset_allocation.find((item) => item.key === selectedBucketKey) ?? intelligence.risk_allocation.find((item) => item.key === selectedBucketKey) ?? null
   }, [intelligence, selectedBucketKey])
 
-  const performanceHeaderValue = intelligence?.performance.has_snapshots ? formatMoney(toNumber(intelligence.performance.latest_snapshot_value)) : '—'
-  const snapshotCount = performance?.actual.length ?? 0
-  const firstSnapshotValue = snapshotCount > 0 ? toNumber(performance?.actual[0]?.current_value) : 0
-  const latestSnapshotValue = snapshotCount > 0 ? toNumber(performance?.actual[snapshotCount - 1]?.current_value) : 0
-  const changeSinceFirst = latestSnapshotValue - firstSnapshotValue
-  const predictionReady = snapshotCount >= 3 && (performance?.predicted.length ?? 0) > 0
+  const snapshotCount = performance?.summary.snapshot_count ?? 0
+  const predictionReady = Boolean(performance?.prediction.available && (performance?.prediction.points.length ?? 0) > 0)
 
   const networthCards = useMemo(() => {
     if (!intelligence) return []
@@ -470,6 +406,7 @@ export default function AnalyticsPage() {
 
   const cashflowMetrics = analytics?.cashflow_analytics
   const investmentAnalytics = analytics?.investment_analytics
+  const goalsAnalytics = analytics?.goals_analytics
 
   const monthsTrackedNote = useMemo(() => {
     if (!cashflowMetrics) return 'Loading tracked months'
@@ -484,21 +421,21 @@ export default function AnalyticsPage() {
       return {
         label: 'Unknown',
         tone: 'neutral' as SeverityTone,
-        text: 'Monthly cashflow not added for this month',
+        text: 'Add monthly cashflow to unlock savings health.',
       }
     }
     if (avgRate === null) {
       return {
         label: 'Unknown',
         tone: 'neutral' as SeverityTone,
-        text: 'No income data yet',
+        text: 'No income data yet, so savings rate is not available.',
       }
     }
     const rate = toNumber(avgRate)
-    if (rate >= 40) return { label: 'Excellent', tone: 'healthy' as SeverityTone, text: privacyMode ? 'Your savings trend is healthy.' : 'You are saving strongly across tracked months.' }
-    if (rate >= 25) return { label: 'Good', tone: 'healthy' as SeverityTone, text: privacyMode ? 'Your savings trend is healthy.' : 'Your average savings trend is healthy.' }
-    if (rate >= 10) return { label: 'Watch', tone: 'watch' as SeverityTone, text: privacyMode ? 'Your savings trend needs attention.' : 'Your savings rate needs attention.' }
-    return { label: 'Risk', tone: 'risk' as SeverityTone, text: privacyMode ? 'Your savings trend needs attention.' : 'Spending is taking too much of monthly income.' }
+    if (rate >= 40) return { label: 'Excellent', tone: 'healthy' as SeverityTone, text: 'Savings health is strong across tracked months.' }
+    if (rate >= 25) return { label: 'Good', tone: 'healthy' as SeverityTone, text: 'Your average savings trend is healthy.' }
+    if (rate >= 10) return { label: 'Watch', tone: 'watch' as SeverityTone, text: 'Your savings rate needs attention.' }
+    return { label: 'Risk', tone: 'risk' as SeverityTone, text: 'Spending is taking too much of monthly income.' }
   }, [cashflowMetrics, privacyMode])
 
   const combinedFocusItems = useMemo(() => {
@@ -523,7 +460,7 @@ export default function AnalyticsPage() {
         getPortfolioIntelligence(),
         apiFetch<ApiDashboardSummary>('/api/dashboard/summary'),
         getAnalyticsSummary(),
-        apiFetch<ApiPortfolioPerformance>(`/api/portfolio/performance?range=${activeRange}`),
+        apiFetch<PortfolioPerformanceData>(`/api/portfolio/performance?range=${activeRange}`),
       ])
       setIntelligence(intel)
       setDashboardSummary(summary)
@@ -544,9 +481,14 @@ export default function AnalyticsPage() {
 
   const currentCashflow = cashflowMetrics?.current_month_summary
   const averageCashflow = cashflowMetrics?.average_monthly_summary
+  const cashBufferMonths = cashflowMetrics?.cash_buffer_months == null ? null : toNumber(cashflowMetrics.cash_buffer_months)
   const utilization = toNumber(dashboardSummary?.overall_card_utilization)
   const creditCardsTone = dashboardSummary?.overdue_count ? 'risk' : dashboardSummary?.due_soon_count ? 'watch' : 'healthy'
   const creditToneMeta = severityClasses(creditCardsTone)
+  const visibleExpenseCategories = useMemo(
+    () => (showAllExpenseCategories ? cashflowMetrics?.average_expense_by_category ?? [] : (cashflowMetrics?.average_expense_by_category ?? []).slice(0, 5)),
+    [cashflowMetrics, showAllExpenseCategories],
+  )
 
   return (
     <div className="space-y-5">
@@ -627,23 +569,23 @@ export default function AnalyticsPage() {
             </div>
             {hasPerformance ? (
               <div className="space-y-3">
-                <div className="h-36">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
-                      <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
-                      <Tooltip
-                        contentStyle={{ background: '#0f172a', border: '1px solid rgba(51,65,85,0.7)', borderRadius: '12px', color: '#fff' }}
-                        formatter={(value, name) => [
-                          privacyMode ? '••••' : formatINR(Number(Array.isArray(value) ? value[0] ?? 0 : value ?? 0)),
-                          name === 'actual_value' ? 'Actual' : 'Projected',
-                        ]}
-                      />
-                      <Line type="monotone" dataKey="actual_value" stroke="#14b8a6" strokeWidth={2.25} dot={false} />
-                      {performance?.predicted.length ? <Line type="monotone" dataKey="predicted_value" stroke="#f59e0b" strokeWidth={2} dot={false} strokeDasharray="6 4" /> : null}
-                    </LineChart>
-                  </ResponsiveContainer>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl border border-slate-200 bg-white/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/50">
+                    <div className={sectionLabel}>Projected Value</div>
+                    <div className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">
+                      {performance?.summary.projected_value == null ? '—' : <PrivateValue value={formatMoney(toNumber(performance.summary.projected_value))} mask="••••" hideColor />}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-white/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/50">
+                    <div className={sectionLabel}>Projected Change</div>
+                    <div className={['mt-2 text-lg font-semibold', privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(performance?.summary.projected_change_pct))].join(' ')}>
+                      {performance?.summary.projected_change_pct == null ? '—' : <PrivateValue value={formatSignedPct(toNumber(performance.summary.projected_change_pct))} mask="••••" hideColor />}
+                    </div>
+                  </div>
                 </div>
-                <div className="t-meta text-slate-500 dark:text-slate-400">{predictionReady ? 'Projection shown from existing snapshot trend.' : 'Save more snapshots to see projection'}</div>
+                <div className="t-meta text-slate-500 dark:text-slate-400">
+                  {predictionReady ? performance?.prediction.reason : 'Save more snapshots to see projection'}
+                </div>
               </div>
             ) : (
               <div className="flex h-36 items-center justify-center rounded-xl border border-dashed border-slate-200 px-6 text-center dark:border-slate-700">
@@ -656,6 +598,231 @@ export default function AnalyticsPage() {
           </div>
         </div>
       </SectionCard>
+
+      <SectionCard title="Money Flow Intelligence" className="p-5 pl-0">
+        <div className="space-y-4 px-5">
+          {analyticsLoading ? (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              {Array.from({ length: 5 }, (_, index) => (
+                <div key={index} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
+                  <div className="animate-pulse space-y-3">
+                    <div className="h-3 w-20 rounded bg-slate-200 dark:bg-slate-700" />
+                    <div className="h-7 w-24 rounded bg-slate-200 dark:bg-slate-700" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : !cashflowMetrics || cashflowMetrics.months_count === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 px-4 py-5 dark:border-slate-700">
+              <div className="t-section text-slate-900 dark:text-white">Add monthly cashflow to unlock money flow analytics.</div>
+              <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Use Transactions to add monthly income and expense entries.</div>
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                <MetricCard label="Average Income" value={formatMoney(toNumber(averageCashflow?.income))} context={monthsTrackedNote} tone="text-emerald-400" hideColor />
+                <MetricCard label="Average Spend" value={formatMoney(toNumber(averageCashflow?.expense))} context="Across tracked months" tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-rose-400'} hideColor />
+                <MetricCard label="Average Savings" value={formatMoney(toNumber(averageCashflow?.net_savings))} context="Income minus spend" tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(averageCashflow?.net_savings))} hideColor />
+                <MetricCard
+                  label="Average Savings Rate"
+                  value={averageCashflow?.savings_rate === null ? 'Not available' : formatPct(toNumber(averageCashflow?.savings_rate))}
+                  context={cashflowMetrics.months_count === 1 ? 'Single month only' : `${cashflowMetrics.months_count} months averaged`}
+                  tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(averageCashflow?.savings_rate))}
+                  hideColor
+                />
+                <MetricCard label="Months Tracked" value={String(cashflowMetrics.months_count)} context={cashflowMetrics.months_count === 1 ? 'Add more months to improve averages' : 'Used for averages'} tone="text-slate-900 dark:text-white" hideColor />
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="t-section text-slate-900 dark:text-white">Current Month</div>
+                    <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">{cashflowMetrics.current_month}</div>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-4">
+                    <div>
+                      <div className={sectionLabel}>Income</div>
+                      <div className="mt-1 t-nav text-slate-900 dark:text-white">
+                        <PrivateValue value={currentCashflow?.has_data ? formatMoney(toNumber(currentCashflow.income)) : 'Not added'} mask="••••" hideColor />
+                      </div>
+                    </div>
+                    <div>
+                      <div className={sectionLabel}>Spend</div>
+                      <div className="mt-1 t-nav text-slate-900 dark:text-white">
+                        <PrivateValue value={currentCashflow?.has_data ? formatMoney(toNumber(currentCashflow.expense)) : 'Not added'} mask="••••" hideColor />
+                      </div>
+                    </div>
+                    <div>
+                      <div className={sectionLabel}>Savings</div>
+                      <div className="mt-1 t-nav text-slate-900 dark:text-white">
+                        <PrivateValue value={currentCashflow?.has_data ? formatMoney(toNumber(currentCashflow.net_savings)) : 'Not added'} mask="••••" hideColor />
+                      </div>
+                    </div>
+                    <div>
+                      <div className={sectionLabel}>Savings Rate</div>
+                      <div className="mt-1 t-nav text-slate-900 dark:text-white">
+                        <PrivateValue value={currentCashflow?.savings_rate === null ? 'Not available' : formatPct(toNumber(currentCashflow?.savings_rate))} mask="••••" hideColor />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {cashflowMetrics.months_count === 1 ? <div className="mt-3 t-meta text-slate-500 dark:text-slate-400">Add more months to improve averages.</div> : null}
+              </div>
+            </>
+          )}
+        </div>
+      </SectionCard>
+
+      <SectionCard title="What to Focus On" className="p-5 pl-0">
+        <div className="space-y-3 px-5">
+          {combinedFocusItems.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 px-4 py-5 dark:border-slate-700">
+              <div className="t-section text-slate-900 dark:text-white">No immediate focus items.</div>
+              <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Add more tracked data to deepen analytics.</div>
+            </div>
+          ) : (
+            combinedFocusItems.map((item) => {
+              const tone = severityClasses(item.severity as SeverityTone)
+              return (
+                <div key={`${item.type}-${item.title}`} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className={['t-section', tone.title].join(' ')}>{item.title}</div>
+                    <span className={['inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 t-badge', tone.chip].join(' ')}>
+                      <Icon name={tone.icon} className="h-3.5 w-3.5" />
+                      {item.severity === 'healthy' ? 'Healthy' : item.severity === 'watch' ? 'Watch' : 'Risk'}
+                    </span>
+                  </div>
+                  <div className="mt-2 t-body text-slate-500 dark:text-slate-400">{item.message}</div>
+                  <div className="mt-2 t-meta text-slate-300 dark:text-slate-300">Action: {item.action}</div>
+                </div>
+              )
+            })
+          )}
+        </div>
+      </SectionCard>
+
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <SectionCard title="Where Your Money Goes" className="p-5 pl-0">
+          <div className="space-y-3 px-5">
+            <CategoryBars
+              items={visibleExpenseCategories}
+              percentageKey="percentage_of_avg_spend"
+              emptyTitle="No expenses added for tracked months."
+              emptyBody="Add expense summaries in Transactions to see category averages."
+            />
+            {(cashflowMetrics?.average_expense_by_category.length ?? 0) > 5 ? (
+              <button
+                type="button"
+                onClick={() => setShowAllExpenseCategories((current) => !current)}
+                className="text-sm font-medium text-accent-600 transition-colors hover:text-accent-500 dark:text-accent-400 dark:hover:text-accent-300"
+              >
+                {showAllExpenseCategories ? 'Show top 5 categories' : 'View all categories'}
+              </button>
+            ) : null}
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Income Sources" className="p-5 pl-0">
+          <div className="px-5">
+            <CategoryBars
+              items={cashflowMetrics?.average_income_by_category ?? []}
+              percentageKey="percentage_of_avg_income"
+              emptyTitle="No income entries added yet."
+              emptyBody="Add income entries in Transactions to see source mix."
+            />
+          </div>
+        </SectionCard>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <SectionCard title="Savings Health" className="p-5 pl-0">
+          <div className="space-y-4 px-5">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <MetricCard
+                label="Current Savings Rate"
+                value={currentCashflow?.savings_rate === null ? 'Not available' : formatPct(toNumber(currentCashflow?.savings_rate))}
+                context={currentCashflow?.has_data ? 'Current month summary' : 'No current month data'}
+                tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(currentCashflow?.savings_rate))}
+                hideColor
+              />
+              <MetricCard
+                label="Average Savings Rate"
+                value={averageCashflow?.savings_rate === null ? 'Not available' : formatPct(toNumber(averageCashflow?.savings_rate))}
+                context={monthsTrackedNote}
+                tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(averageCashflow?.savings_rate))}
+                hideColor
+              />
+              <MetricCard
+                label="Cash Buffer"
+                value={cashBufferMonths === null ? 'Not available' : `${cashBufferMonths.toFixed(1)} months`}
+                context={cashBufferMonths === null ? 'Needs bank balance and average spend' : 'Bank balance / avg monthly spend'}
+                tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : cashBufferMonths !== null && cashBufferMonths < 1 ? 'text-rose-400' : cashBufferMonths !== null && cashBufferMonths < 3 ? 'text-amber-300' : 'text-emerald-300'}
+                hideColor
+              />
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="t-section text-slate-900 dark:text-white">{savingsHealth.label}</div>
+                  <div className="mt-2 t-body text-slate-500 dark:text-slate-400">{savingsHealth.text}</div>
+                </div>
+                <span className={['inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 t-badge', severityClasses(savingsHealth.tone).chip].join(' ')}>
+                  <Icon name={severityClasses(savingsHealth.tone).icon} className="h-3.5 w-3.5" />
+                  {savingsHealth.label}
+                </span>
+              </div>
+            </div>
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Goals Progress" className="p-5 pl-0">
+          <div className="space-y-4 px-5">
+            {!goalsAnalytics || goalsAnalytics.total_goals === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 px-4 py-5 dark:border-slate-700">
+                <div className="t-section text-slate-900 dark:text-white">No financial goals added yet.</div>
+                <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Add goals to track progress, shortfall, and monthly saving needed.</div>
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <MetricCard label="Total Goals" value={String(goalsAnalytics.total_goals)} context={`${goalsAnalytics.completed_count} completed`} tone="text-slate-900 dark:text-white" hideColor />
+                  <MetricCard label="Monthly Saving Needed" value={formatMoney(toNumber(goalsAnalytics.monthly_saving_needed_total))} context="Across active goals" tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-amber-300'} hideColor />
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-slate-700/50 dark:bg-slate-900/40">
+                    <div className={sectionLabel}>On Track</div>
+                    <div className="mt-1 t-section text-sky-300">{goalsAnalytics.on_track_count}</div>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-slate-700/50 dark:bg-slate-900/40">
+                    <div className={sectionLabel}>Watch</div>
+                    <div className="mt-1 t-section text-amber-300">{goalsAnalytics.watch_count}</div>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-slate-700/50 dark:bg-slate-900/40">
+                    <div className={sectionLabel}>Behind</div>
+                    <div className="mt-1 t-section text-rose-300">{goalsAnalytics.behind_count}</div>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-slate-700/50 dark:bg-slate-900/40">
+                    <div className={sectionLabel}>Completed</div>
+                    <div className="mt-1 t-section text-emerald-300">{goalsAnalytics.completed_count}</div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="t-section text-slate-900 dark:text-white">Largest Shortfall</div>
+                      <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">{goalsAnalytics.largest_shortfall_goal_name ?? 'No active shortfall'}</div>
+                    </div>
+                    <div className="text-right t-amount text-slate-900 dark:text-white">
+                      <PrivateValue value={formatMoney(toNumber(goalsAnalytics.largest_shortfall_amount))} mask="••••" hideColor />
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </SectionCard>
+      </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)]">
         <SectionCard title="Portfolio Scan" className="p-5 pl-0">
@@ -734,147 +901,14 @@ export default function AnalyticsPage() {
         </SectionCard>
       </div>
 
-      <SectionCard title="Money Flow Intelligence" className="p-5 pl-0">
-        <div className="space-y-4 px-5">
-          {analyticsLoading ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {Array.from({ length: 4 }, (_, index) => (
-                <div key={index} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
-                  <div className="animate-pulse space-y-3">
-                    <div className="h-3 w-20 rounded bg-slate-200 dark:bg-slate-700" />
-                    <div className="h-7 w-24 rounded bg-slate-200 dark:bg-slate-700" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : !cashflowMetrics || cashflowMetrics.months_count === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-200 px-4 py-5 dark:border-slate-700">
-              <div className="t-section text-slate-900 dark:text-white">Monthly cashflow is not added yet.</div>
-              <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Add income and expense entries from Transactions to unlock money flow analytics.</div>
-            </div>
-          ) : (
-            <>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <MetricCard label="Average Income" value={formatMoney(toNumber(averageCashflow?.income))} context={monthsTrackedNote} tone="text-emerald-400" hideColor />
-                <MetricCard label="Average Spend" value={formatMoney(toNumber(averageCashflow?.expense))} context="Across tracked months" tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-rose-400'} hideColor />
-                <MetricCard label="Average Net Savings" value={formatMoney(toNumber(averageCashflow?.net_savings))} context="Income minus spend" tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(averageCashflow?.net_savings))} hideColor />
-                <MetricCard
-                  label="Avg Savings Rate"
-                  value={averageCashflow?.savings_rate === null ? 'Not available' : formatPct(toNumber(averageCashflow?.savings_rate))}
-                  context={cashflowMetrics.months_count === 1 ? 'Single month only' : `${cashflowMetrics.months_count} months averaged`}
-                  tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(averageCashflow?.savings_rate))}
-                  hideColor
-                />
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <div className="t-section text-slate-900 dark:text-white">Current Month</div>
-                    <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">{cashflowMetrics.current_month}</div>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-4">
-                    <div>
-                      <div className={sectionLabel}>Income</div>
-                      <div className="mt-1 t-nav text-slate-900 dark:text-white">
-                        <PrivateValue value={currentCashflow?.has_data ? formatMoney(toNumber(currentCashflow.income)) : 'Not added'} mask="••••" hideColor />
-                      </div>
-                    </div>
-                    <div>
-                      <div className={sectionLabel}>Spend</div>
-                      <div className="mt-1 t-nav text-slate-900 dark:text-white">
-                        <PrivateValue value={currentCashflow?.has_data ? formatMoney(toNumber(currentCashflow.expense)) : 'Not added'} mask="••••" hideColor />
-                      </div>
-                    </div>
-                    <div>
-                      <div className={sectionLabel}>Savings</div>
-                      <div className="mt-1 t-nav text-slate-900 dark:text-white">
-                        <PrivateValue value={currentCashflow?.has_data ? formatMoney(toNumber(currentCashflow.net_savings)) : 'Not added'} mask="••••" hideColor />
-                      </div>
-                    </div>
-                    <div>
-                      <div className={sectionLabel}>Savings Rate</div>
-                      <div className="mt-1 t-nav text-slate-900 dark:text-white">
-                        <PrivateValue value={currentCashflow?.savings_rate === null ? 'Not available' : formatPct(toNumber(currentCashflow?.savings_rate))} mask="••••" hideColor />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </SectionCard>
-
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        <SectionCard title="Where Your Money Goes" className="p-5 pl-0">
-          <div className="px-5">
-            <CategoryBars
-              items={cashflowMetrics?.average_expense_by_category ?? []}
-              percentageKey="percentage_of_avg_spend"
-              emptyTitle="No expenses added for tracked months."
-              emptyBody="Add expense summaries in Transactions to see category averages."
-            />
-          </div>
-        </SectionCard>
-
-        <SectionCard title="Income Sources" className="p-5 pl-0">
-          <div className="px-5">
-            <CategoryBars
-              items={cashflowMetrics?.average_income_by_category ?? []}
-              percentageKey="percentage_of_avg_income"
-              emptyTitle="No income entries added yet."
-              emptyBody="Add income entries in Transactions to see source mix."
-            />
-          </div>
-        </SectionCard>
-      </div>
-
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <SectionCard title="Savings Health" className="p-5 pl-0">
-          <div className="space-y-4 px-5">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <MetricCard
-                label="Current Savings Rate"
-                value={currentCashflow?.savings_rate === null ? 'Not available' : formatPct(toNumber(currentCashflow?.savings_rate))}
-                context={currentCashflow?.has_data ? 'Current month summary' : 'No current month data'}
-                tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(currentCashflow?.savings_rate))}
-                hideColor
-              />
-              <MetricCard
-                label="Average Savings Rate"
-                value={averageCashflow?.savings_rate === null ? 'Not available' : formatPct(toNumber(averageCashflow?.savings_rate))}
-                context={monthsTrackedNote}
-                tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(averageCashflow?.savings_rate))}
-                hideColor
-              />
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="t-section text-slate-900 dark:text-white">{savingsHealth.label}</div>
-                  <div className="mt-2 t-body text-slate-500 dark:text-slate-400">{savingsHealth.text}</div>
-                </div>
-                <span className={['inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 t-badge', severityClasses(savingsHealth.tone).chip].join(' ')}>
-                  <Icon name={severityClasses(savingsHealth.tone).icon} className="h-3.5 w-3.5" />
-                  {savingsHealth.label}
-                </span>
-              </div>
-            </div>
-          </div>
-        </SectionCard>
-
-        <SectionCard title="What to Focus On" className="p-5 pl-0">
-          <div className="space-y-3 px-5">
-            {combinedFocusItems.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 px-4 py-5 dark:border-slate-700">
-                <div className="t-section text-slate-900 dark:text-white">No immediate focus items.</div>
-                <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Add more tracked data to deepen analytics.</div>
-              </div>
-            ) : (
-              combinedFocusItems.map((item) => {
+      <SectionCard title="Investment Focus" className="p-5 pl-0">
+        <div className="grid gap-5 px-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="space-y-3">
+            {investmentAnalytics?.investment_focus_items.length ? (
+              investmentAnalytics.investment_focus_items.map((item) => {
                 const tone = severityClasses(item.severity as SeverityTone)
                 return (
-                  <div key={`${item.type}-${item.title}`} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
+                  <div key={item.title} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
                     <div className="flex items-start justify-between gap-3">
                       <div className={['t-section', tone.title].join(' ')}>{item.title}</div>
                       <span className={['inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 t-badge', tone.chip].join(' ')}>
@@ -887,10 +921,47 @@ export default function AnalyticsPage() {
                   </div>
                 )
               })
+            ) : (
+              <div className="rounded-xl border border-dashed border-slate-200 px-4 py-5 dark:border-slate-700">
+                <div className="t-section text-slate-900 dark:text-white">No investment focus items yet.</div>
+                <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Add more holdings and snapshots to deepen investment diagnostics.</div>
+              </div>
             )}
           </div>
-        </SectionCard>
-      </div>
+
+          <div className="space-y-3">
+            <div className="t-section text-slate-900 dark:text-white">Top Holdings</div>
+            {topHoldings.length ? (
+              topHoldings.map((item) => (
+                <div key={item.symbol} className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-slate-700/50 dark:bg-slate-900/40">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate t-section text-slate-900 dark:text-white">{item.symbol}</div>
+                      <div className="mt-1 truncate t-meta text-slate-500 dark:text-slate-400">{item.name}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="t-amount text-slate-900 dark:text-white">
+                        <PrivateValue value={formatMoney(toNumber(item.value))} mask="••••" hideColor />
+                      </div>
+                      <div className={['mt-1 t-meta', privacyMode ? 'text-slate-400' : getTrendClass(toNumber(item.return_pct))].join(' ')}>
+                        <PrivateValue value={item.return_pct === null ? '—' : formatSignedPct(toNumber(item.return_pct))} mask="••••" hideColor />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200/70 dark:bg-slate-800">
+                    <div className="h-full rounded-full bg-teal-500" style={{ width: `${Math.max(4, Math.min(100, toNumber(item.percentage_of_portfolio)))}%` }} />
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-xl border border-dashed border-slate-200 px-4 py-5 dark:border-slate-700">
+                <div className="t-section text-slate-900 dark:text-white">No holdings added yet.</div>
+                <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Add investments in Stocks to populate top holdings analytics.</div>
+              </div>
+            )}
+          </div>
+        </div>
+      </SectionCard>
 
       <SectionCard title="Income vs Spend Trend" className="p-5 pl-0">
         <div className="space-y-4 px-5">
@@ -959,163 +1030,21 @@ export default function AnalyticsPage() {
         </div>
       </SectionCard>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        <SectionCard title="Investment Focus" className="p-5 pl-0">
-          <div className="space-y-3 px-5">
-            {investmentAnalytics?.investment_focus_items.length ? (
-              investmentAnalytics.investment_focus_items.map((item) => {
-                const tone = severityClasses(item.severity as SeverityTone)
-                return (
-                  <div key={item.title} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className={['t-section', tone.title].join(' ')}>{item.title}</div>
-                      <span className={['inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 t-badge', tone.chip].join(' ')}>
-                        <Icon name={tone.icon} className="h-3.5 w-3.5" />
-                        {item.severity === 'healthy' ? 'Healthy' : item.severity === 'watch' ? 'Watch' : 'Risk'}
-                      </span>
-                    </div>
-                    <div className="mt-2 t-body text-slate-500 dark:text-slate-400">{item.message}</div>
-                    <div className="mt-2 t-meta text-slate-300 dark:text-slate-300">Action: {item.action}</div>
-                  </div>
-                )
-              })
-            ) : (
-              <div className="rounded-xl border border-dashed border-slate-200 px-4 py-5 dark:border-slate-700">
-                <div className="t-section text-slate-900 dark:text-white">No investment focus items yet.</div>
-                <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Add more holdings and snapshots to deepen investment diagnostics.</div>
-              </div>
-            )}
-          </div>
-        </SectionCard>
-
-        <SectionCard title="Top Holdings" className="p-5 pl-0">
-          <div className="space-y-3 px-5">
-            {topHoldings.length ? (
-              topHoldings.map((item) => (
-                <div key={item.symbol} className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-slate-700/50 dark:bg-slate-900/40">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="truncate t-section text-slate-900 dark:text-white">{item.symbol}</div>
-                      <div className="mt-1 truncate t-meta text-slate-500 dark:text-slate-400">{item.name}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="t-amount text-slate-900 dark:text-white">
-                        <PrivateValue value={formatMoney(toNumber(item.value))} mask="••••" hideColor />
-                      </div>
-                      <div className={['mt-1 t-meta', privacyMode ? 'text-slate-400' : getTrendClass(toNumber(item.return_pct))].join(' ')}>
-                        <PrivateValue value={item.return_pct === null ? '—' : formatSignedPct(toNumber(item.return_pct))} mask="••••" hideColor />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200/70 dark:bg-slate-800">
-                    <div className="h-full rounded-full bg-teal-500" style={{ width: `${Math.max(4, Math.min(100, toNumber(item.percentage_of_portfolio)))}%` }} />
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="rounded-xl border border-dashed border-slate-200 px-4 py-5 dark:border-slate-700">
-                <div className="t-section text-slate-900 dark:text-white">No holdings added yet.</div>
-                <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Add investments in Stocks to populate top holdings analytics.</div>
-              </div>
-            )}
-          </div>
-        </SectionCard>
-      </div>
-
-      <SectionCard
-        title="Portfolio Performance"
-        className="p-5 pl-0"
-        action={
-          <div className="flex items-center gap-0.5 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
-            {rangeFilters.map((filter) => (
-              <button
-                key={filter.value}
-                type="button"
-                onClick={() => setActiveRange(filter.value)}
-                className={[
-                  'rounded-lg px-3 py-1.5 t-badge transition-all duration-150',
-                  activeRange === filter.value ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200',
-                ].join(' ')}
-              >
-                {filter.label}
-              </button>
-            ))}
-          </div>
-        }
-      >
-        <div className="mb-5 flex flex-wrap items-center gap-3 px-5">
-          <div className="t-metric text-slate-900 dark:text-white">
-            <PrivateValue value={performanceHeaderValue} mask="••••" hideColor />
-          </div>
-          {intelligence?.performance.has_snapshots ? (
-            <div className={['t-nav', privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(intelligence.performance.latest_snapshot_return_pct))].join(' ')}>
-              <PrivateValue value={formatSignedPct(toNumber(intelligence.performance.latest_snapshot_return_pct))} mask="••••" hideColor />
-            </div>
-          ) : (
-            <div className="t-body text-slate-500 dark:text-slate-400">Not enough history yet</div>
-          )}
-        </div>
-        <div className="mb-5 grid gap-3 px-5 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard label="Latest Value" value={performanceHeaderValue} context="Most recent snapshot" />
-          <MetricCard label="Snapshot Count" value={String(snapshotCount)} context="Saved portfolio history points" />
-          <MetricCard
-            label="Change Since First"
-            value={snapshotCount > 1 ? formatMoney(changeSinceFirst) : '—'}
-            context={snapshotCount > 1 ? 'Latest versus first snapshot' : 'Need at least 2 snapshots'}
-            tone={privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(changeSinceFirst)}
-            hideColor
+      <SectionCard className="p-5">
+        {performanceError ? (
+          <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{performanceError}</div>
+        ) : (
+          <PortfolioPerformanceChart
+            data={performance}
+            range={activeRange}
+            onRangeChange={setActiveRange}
+            privacyMode={privacyMode}
+            loading={performanceLoading}
+            title="Portfolio Performance"
+            description={hasPerformance ? 'Actual snapshots with conservative estimated extension.' : null}
+            variant="compact"
           />
-          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
-            <div className={sectionLabel}>Prediction Status</div>
-            <div className={['mt-2.5 t-section', predictionReady ? 'text-amber-300' : 'text-slate-300'].join(' ')}>
-              {predictionReady ? 'Projection available' : 'More snapshots needed for prediction'}
-            </div>
-            <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">
-              {snapshotCount < 3 ? 'Save more snapshots over time to unlock projected trend lines.' : 'Prediction is shown only because enough history exists.'}
-            </div>
-          </div>
-        </div>
-        <div className="px-5">
-          {performanceLoading ? (
-            <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/40">
-              <span className="t-body text-slate-400">Loading chart…</span>
-            </div>
-          ) : performanceError ? (
-            <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{performanceError}</div>
-          ) : !hasPerformance ? (
-            <div className="flex h-64 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 text-center dark:border-slate-700 dark:bg-slate-800/40">
-              <div className="t-section text-slate-900 dark:text-white">Not enough history yet</div>
-              <div className="t-body text-slate-500 dark:text-slate-400">{performance?.message ?? 'More snapshot history needed for prediction.'}</div>
-            </div>
-          ) : (
-            <>
-              <div className="mb-3 flex items-center gap-4 t-badge text-slate-500 dark:text-slate-400">
-                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-teal-400" />Actual</span>
-                {performance?.predicted.length ? <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-400" />Projected</span> : null}
-              </div>
-              <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                    <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
-                    <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
-                    <YAxis tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 11 }} width={76} tickFormatter={(value: number) => (privacyMode ? '••••' : formatINRShort(value))} />
-                    <Tooltip
-                      contentStyle={{ background: '#0f172a', border: '1px solid rgba(51,65,85,0.7)', borderRadius: '12px', color: '#fff' }}
-                      formatter={(value, name) => [
-                        privacyMode ? '••••' : formatINR(Number(Array.isArray(value) ? value[0] ?? 0 : value ?? 0)),
-                        name === 'actual_value' ? 'Actual' : 'Projected',
-                      ]}
-                      labelFormatter={(label) => `Date: ${label}`}
-                    />
-                    <Line type="monotone" dataKey="actual_value" stroke="#14b8a6" strokeWidth={2.25} dot={{ r: 0 }} activeDot={{ r: 4 }} connectNulls={false} />
-                    {performance?.predicted.length ? <Line type="monotone" dataKey="predicted_value" stroke="#f59e0b" strokeWidth={2} dot={{ r: 0 }} strokeDasharray="6 4" activeDot={{ r: 4 }} connectNulls={false} /> : null}
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-              {performance?.message ? <div className="mt-3 t-meta text-slate-500 dark:text-slate-400">{performance.message}</div> : null}
-            </>
-          )}
-        </div>
+        )}
       </SectionCard>
     </div>
   )
