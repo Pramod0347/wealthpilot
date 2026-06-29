@@ -38,6 +38,8 @@ from app.schemas.fixed_savings_account import (
 )
 from app.schemas.financial_goal import (
     FinancialGoalCreate,
+    MarkGoalAchievedRequest,
+    QuickAchievementCreate,
     FinancialGoalRead,
     FinancialGoalSummary,
     FinancialGoalUpdate,

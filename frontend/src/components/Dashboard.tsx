@@ -754,7 +754,7 @@ export default function Dashboard({
               <div key={goal.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-700/50 dark:bg-slate-900/40">
                 <div className="min-w-0">
                   <div className="truncate text-sm font-semibold tracking-[-0.01em] text-slate-900 dark:text-white">{goal.name}</div>
-                  <div className="mt-1 text-xs font-medium text-slate-400 dark:text-slate-400">{goal.status.replace('_', ' ')} · {goal.target_date ? formatDisplayDate(goal.target_date) : 'No target date'}</div>
+                  <div className="mt-1 text-xs font-medium text-slate-400 dark:text-slate-400">{goal.progress_status.replace('_', ' ')} · {goal.target_date ? formatDisplayDate(goal.target_date) : 'No target date'}</div>
                 </div>
                 <div className="text-right">
                   <div className="font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white">
@@ -766,6 +766,15 @@ export default function Dashboard({
                 </div>
               </div>
             ))}
+            {goalsSummary?.recent_achieved_goal ? (
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3">
+                <div className={LABEL}>Recently Achieved</div>
+                <div className="mt-1 text-sm font-semibold tracking-[-0.01em] text-slate-900 dark:text-white">{goalsSummary.recent_achieved_goal.name}</div>
+                <div className="mt-1 text-xs font-medium text-slate-400 dark:text-slate-400">
+                  {goalsSummary.recent_achieved_goal.achieved_date ? formatDisplayDate(goalsSummary.recent_achieved_goal.achieved_date) : 'Recently completed'}
+                </div>
+              </div>
+            ) : null}
           </div>
         )}
       </div>

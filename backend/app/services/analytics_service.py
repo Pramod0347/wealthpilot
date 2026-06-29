@@ -425,7 +425,7 @@ def build_analytics_summary(db: Session) -> AnalyticsSummaryResponse:
         ),
         goals_analytics=GoalsAnalyticsSummary(
             total_goals=goals_summary.active_goals_count,
-            completed_count=goals_summary.status_counts.get("completed", 0),
+            completed_count=goals_summary.achieved_goals_count,
             on_track_count=goals_summary.status_counts.get("on_track", 0),
             watch_count=goals_summary.status_counts.get("watch", 0),
             behind_count=goals_summary.status_counts.get("behind", 0),

@@ -279,13 +279,24 @@ export type FinancialGoal = {
   linked_source_map: Partial<Record<'manual' | 'bank_accounts' | 'holdings' | 'fixed_savings' | 'total_networth', number[]>> | null
   priority: 'low' | 'medium' | 'high' | null
   notes: string | null
+  status: 'active' | 'achieved' | 'paused' | 'cancelled'
+  achieved_date: string | null
+  achieved_amount: string | number | null
+  achievement_type: 'planned_goal' | 'big_purchase' | 'gift' | 'travel' | 'asset_purchase' | 'other' | null
+  payment_source: 'bank' | 'credit_card' | 'cash' | 'mixed' | 'other' | null
+  is_big_purchase: boolean
+  purchase_notes: string | null
   is_active: boolean
   resolved_current_amount: string | number
   progress_pct: string | number
   shortfall_amount: string | number
   months_remaining: number | null
   required_monthly_saving: string | number | null
-  status: 'completed' | 'on_track' | 'watch' | 'behind' | 'unknown'
+  progress_status: 'completed' | 'on_track' | 'watch' | 'behind' | 'unknown'
+  is_achieved: boolean
+  final_amount: string | number
+  variance_amount: string | number
+  variance_pct: string | number | null
   created_at: string
   updated_at: string
 }
@@ -302,12 +313,37 @@ export type FinancialGoalPayload = {
   linked_source_map: Partial<Record<'manual' | 'bank_accounts' | 'holdings' | 'fixed_savings' | 'total_networth', number[]>> | null
   priority: FinancialGoal['priority']
   notes: string | null
+  status: FinancialGoal['status']
+  achieved_date: string | null
+  achieved_amount: string | null
+  achievement_type: FinancialGoal['achievement_type']
+  payment_source: FinancialGoal['payment_source']
+  is_big_purchase: boolean
+  purchase_notes: string | null
   is_active: boolean
+}
+
+export type GoalAchievementPayload = {
+  achieved_date: string
+  achieved_amount: string
+  achievement_type: NonNullable<FinancialGoal['achievement_type']>
+  payment_source: NonNullable<FinancialGoal['payment_source']>
+  purchase_notes: string | null
+}
+
+export type QuickAchievementPayload = {
+  name: string
+  goal_type: FinancialGoal['goal_type']
+  achieved_amount: string
+  achieved_date: string
+  achievement_type: NonNullable<FinancialGoal['achievement_type']>
+  payment_source: NonNullable<FinancialGoal['payment_source']>
+  purchase_notes: string | null
 }
 
 export type FinancialGoalSummary = {
   active_goals_count: number
-  completed_goals_count: number
+  achieved_goals_count: number
   total_target_amount: string | number
   total_current_amount: string | number
   total_shortfall_amount: string | number
@@ -315,6 +351,11 @@ export type FinancialGoalSummary = {
   monthly_saving_needed_total: string | number
   largest_shortfall_goal_name: string | null
   largest_shortfall_amount: string | number
+  total_achieved_amount: string | number
+  big_purchases_count: number
+  this_year_achieved_amount: string | number
+  average_achieved_amount: string | number
+  recent_achieved_goal: FinancialGoal | null
   status_counts: Record<string, number>
   top_goals: FinancialGoal[]
 }
@@ -1020,6 +1061,20 @@ export function createFinancialGoal(payload: FinancialGoalPayload) {
 export function updateFinancialGoal(goalId: number, payload: Partial<FinancialGoalPayload>) {
   return apiFetch<FinancialGoal>(`/api/goals/${goalId}`, {
     method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function markFinancialGoalAchieved(goalId: number, payload: GoalAchievementPayload) {
+  return apiFetch<FinancialGoal>(`/api/goals/${goalId}/mark-achieved`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function createQuickAchievement(payload: QuickAchievementPayload) {
+  return apiFetch<FinancialGoal>('/api/goals/quick-achievement', {
+    method: 'POST',
     body: JSON.stringify(payload),
   })
 }

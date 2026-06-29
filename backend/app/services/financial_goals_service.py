@@ -26,7 +26,11 @@ class GoalComputation:
     shortfall_amount: Decimal
     months_remaining: int | None
     required_monthly_saving: Decimal | None
-    status: str
+    progress_status: str
+    is_achieved: bool
+    final_amount: Decimal
+    variance_amount: Decimal
+    variance_pct: Decimal | None
 
 
 def _to_decimal(value: object | None) -> Decimal:
@@ -129,6 +133,10 @@ def compute_goal_metrics(db: Session, goal: FinancialGoal, average_monthly_net_s
     today = date.today()
     target_amount = max(_to_decimal(goal.target_amount), ZERO)
     resolved_current_amount = max(_resolve_current_amount(db, goal), ZERO)
+    is_achieved = goal.status == "achieved"
+    final_amount = max(_to_decimal(goal.achieved_amount), ZERO) if goal.achieved_amount is not None else resolved_current_amount
+    variance_amount = final_amount - target_amount
+    variance_pct = ((variance_amount / target_amount) * HUNDRED) if target_amount > 0 else None
     raw_progress_pct = (resolved_current_amount / target_amount) * HUNDRED if target_amount > 0 else ZERO
     progress_pct = min(raw_progress_pct, HUNDRED)
     shortfall_amount = max(target_amount - resolved_current_amount, ZERO)
@@ -137,35 +145,35 @@ def compute_goal_metrics(db: Session, goal: FinancialGoal, average_monthly_net_s
     if months_remaining is not None and months_remaining > 0 and shortfall_amount > 0:
         required_monthly_saving = shortfall_amount / Decimal(months_remaining)
 
-    if raw_progress_pct >= HUNDRED:
-        status = "completed"
+    if is_achieved or raw_progress_pct >= HUNDRED:
+        progress_status = "completed"
     elif goal.target_date is not None and goal.target_date < today:
-        status = "behind"
+        progress_status = "behind"
     else:
-        status = "unknown"
+        progress_status = "unknown"
         if required_monthly_saving is not None and average_monthly_net_savings is not None:
             if average_monthly_net_savings <= 0:
-                status = "behind"
+                progress_status = "behind"
             else:
                 ratio = required_monthly_saving / average_monthly_net_savings
                 if ratio <= Decimal("0.7"):
-                    status = "on_track"
+                    progress_status = "on_track"
                 elif ratio <= Decimal("1"):
-                    status = "watch"
+                    progress_status = "watch"
                 else:
-                    status = "behind"
+                    progress_status = "behind"
         elif goal.target_date is None:
-            status = "unknown"
+            progress_status = "unknown"
         elif progress_pct > 0:
-            status = "watch"
+            progress_status = "watch"
 
         if goal.target_date is not None and goal.target_date > today:
             total_months = _months_between(goal.created_at.date(), goal.target_date) if goal.created_at else None
             months_elapsed = _months_between(goal.created_at.date(), today) if goal.created_at else None
             if total_months and months_elapsed is not None and total_months > 0:
                 expected_progress = (Decimal(months_elapsed) / Decimal(total_months)) * HUNDRED
-                if raw_progress_pct + Decimal("5") < expected_progress and status in {"on_track", "watch", "unknown"}:
-                    status = "watch" if status != "unknown" else "behind"
+                if raw_progress_pct + Decimal("5") < expected_progress and progress_status in {"on_track", "watch", "unknown"}:
+                    progress_status = "watch" if progress_status != "unknown" else "behind"
 
     return GoalComputation(
         resolved_current_amount=resolved_current_amount,
@@ -173,7 +181,11 @@ def compute_goal_metrics(db: Session, goal: FinancialGoal, average_monthly_net_s
         shortfall_amount=shortfall_amount,
         months_remaining=months_remaining,
         required_monthly_saving=required_monthly_saving,
-        status=status,
+        progress_status=progress_status,
+        is_achieved=is_achieved,
+        final_amount=final_amount,
+        variance_amount=variance_amount,
+        variance_pct=variance_pct,
     )
 
 
@@ -196,13 +208,24 @@ def serialize_financial_goal(
         linked_source_map=goal.linked_source_map,
         priority=goal.priority,
         notes=goal.notes,
+        status=goal.status,
+        achieved_date=goal.achieved_date,
+        achieved_amount=_to_decimal(goal.achieved_amount) if goal.achieved_amount is not None else None,
+        achievement_type=goal.achievement_type,
+        payment_source=goal.payment_source,
+        is_big_purchase=goal.is_big_purchase,
+        purchase_notes=goal.purchase_notes,
         is_active=goal.is_active,
         resolved_current_amount=metrics.resolved_current_amount,
         progress_pct=metrics.progress_pct,
         shortfall_amount=metrics.shortfall_amount,
         months_remaining=metrics.months_remaining,
         required_monthly_saving=metrics.required_monthly_saving,
-        status=metrics.status,
+        progress_status=metrics.progress_status,
+        is_achieved=metrics.is_achieved,
+        final_amount=metrics.final_amount,
+        variance_amount=metrics.variance_amount,
+        variance_pct=metrics.variance_pct,
         created_at=goal.created_at,
         updated_at=goal.updated_at,
     )
@@ -215,9 +238,9 @@ def list_financial_goals(db: Session, active_only: bool | None = None) -> list[F
         FinancialGoal.created_at.desc(),
     )
     if active_only is True:
-        query = query.where(FinancialGoal.is_active.is_(True))
+        query = query.where(FinancialGoal.status.in_(["active", "paused"]))
     elif active_only is False:
-        query = query.where(FinancialGoal.is_active.is_(False))
+        query = query.where(FinancialGoal.status.in_(["achieved", "cancelled"]))
 
     average_monthly_net_savings = _average_monthly_net_savings(db)
     goals = db.scalars(query).all()
@@ -226,8 +249,8 @@ def list_financial_goals(db: Session, active_only: bool | None = None) -> list[F
 
 def build_financial_goals_summary(db: Session, goals: list[FinancialGoalRead] | None = None) -> FinancialGoalSummary:
     goal_rows = goals or list_financial_goals(db)
-    active_goals = [goal for goal in goal_rows if goal.is_active]
-    completed_goals_count = sum(1 for goal in active_goals if goal.status == "completed")
+    active_goals = [goal for goal in goal_rows if goal.status in {"active", "paused"}]
+    achieved_goals = [goal for goal in goal_rows if goal.status == "achieved"]
     total_target_amount = sum((goal.target_amount for goal in active_goals), ZERO)
     total_current_amount = sum((goal.resolved_current_amount for goal in active_goals), ZERO)
     total_shortfall_amount = sum((goal.shortfall_amount for goal in active_goals), ZERO)
@@ -237,27 +260,40 @@ def build_financial_goals_summary(db: Session, goals: list[FinancialGoalRead] | 
         else ZERO
     )
     monthly_saving_needed_total = sum(
-        (goal.required_monthly_saving or ZERO for goal in active_goals if goal.status != "completed"),
+        (goal.required_monthly_saving or ZERO for goal in active_goals if goal.progress_status != "completed"),
         ZERO,
     )
     status_counts: dict[str, int] = {}
     for goal in active_goals:
-        status_counts[goal.status] = status_counts.get(goal.status, 0) + 1
+        status_counts[goal.progress_status] = status_counts.get(goal.progress_status, 0) + 1
 
     priority_rank = {"high": 0, "medium": 1, "low": 2, None: 3}
     top_goals = sorted(
         active_goals,
         key=lambda goal: (
             priority_rank.get(goal.priority, 3),
-            0 if goal.status == "behind" else 1 if goal.status == "watch" else 2 if goal.status == "on_track" else 3,
+            0 if goal.progress_status == "behind" else 1 if goal.progress_status == "watch" else 2 if goal.progress_status == "on_track" else 3,
             -(goal.shortfall_amount),
         ),
     )[:3]
     largest_shortfall_goal = max(active_goals, key=lambda goal: goal.shortfall_amount, default=None)
+    current_year = date.today().year
+    total_achieved_amount = sum((goal.final_amount for goal in achieved_goals), ZERO)
+    big_purchases_count = sum(1 for goal in achieved_goals if goal.is_big_purchase)
+    this_year_achieved_amount = sum(
+        (goal.final_amount for goal in achieved_goals if goal.achieved_date and goal.achieved_date.year == current_year),
+        ZERO,
+    )
+    average_achieved_amount = total_achieved_amount / Decimal(len(achieved_goals)) if achieved_goals else ZERO
+    recent_achieved_goal = max(
+        achieved_goals,
+        key=lambda goal: goal.achieved_date or goal.updated_at.date(),
+        default=None,
+    )
 
     return FinancialGoalSummary(
         active_goals_count=len(active_goals),
-        completed_goals_count=completed_goals_count,
+        achieved_goals_count=len(achieved_goals),
         total_target_amount=total_target_amount,
         total_current_amount=total_current_amount,
         total_shortfall_amount=total_shortfall_amount,
@@ -265,6 +301,11 @@ def build_financial_goals_summary(db: Session, goals: list[FinancialGoalRead] | 
         monthly_saving_needed_total=monthly_saving_needed_total,
         largest_shortfall_goal_name=largest_shortfall_goal.name if largest_shortfall_goal else None,
         largest_shortfall_amount=largest_shortfall_goal.shortfall_amount if largest_shortfall_goal else ZERO,
+        total_achieved_amount=total_achieved_amount,
+        big_purchases_count=big_purchases_count,
+        this_year_achieved_amount=this_year_achieved_amount,
+        average_achieved_amount=average_achieved_amount,
+        recent_achieved_goal=recent_achieved_goal,
         status_counts=status_counts,
         top_goals=top_goals,
     )

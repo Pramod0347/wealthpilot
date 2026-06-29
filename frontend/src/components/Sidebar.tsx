@@ -57,9 +57,6 @@ export default function Sidebar({
               : 'mt-4 max-w-45 opacity-100 translate-x-0',
           ].join(' ')}
         >
-          <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.05em] text-slate-400 dark:text-slate-500">
-            Personal Finance
-          </div>
         </div>
       </div>
 

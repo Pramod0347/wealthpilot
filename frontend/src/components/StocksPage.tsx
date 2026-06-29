@@ -117,6 +117,7 @@ type HoldingFormState = {
 }
 
 type FormErrors = Partial<Record<keyof HoldingFormState, string>>
+type HoldingSortOption = 'value_desc' | 'pnl_desc' | 'return_desc' | 'name_asc' | 'asset_type'
 
 const defaultHoldingForm: HoldingFormState = {
   symbol: '',
@@ -260,6 +261,23 @@ function getRefreshSupported(holding: ApiHolding) {
 
 function getHoldingGroup(holding: ApiHolding) {
   return getInvestmentClass(holding)
+}
+
+function sortHoldings(holdings: ApiHolding[], sortOption: HoldingSortOption) {
+  const rows = [...holdings]
+
+  rows.sort((left, right) => {
+    if (sortOption === 'value_desc') return toNumber(right.current_value) - toNumber(left.current_value)
+    if (sortOption === 'pnl_desc') return toNumber(right.pnl) - toNumber(left.pnl)
+    if (sortOption === 'return_desc') return toNumber(right.return_pct) - toNumber(left.return_pct)
+    if (sortOption === 'asset_type') {
+      const typeCompare = getInvestmentClassLabel(left).localeCompare(getInvestmentClassLabel(right))
+      if (typeCompare !== 0) return typeCompare
+    }
+    return left.company_name.localeCompare(right.company_name)
+  })
+
+  return rows
 }
 
 function buildHoldingGroups(holdings: ApiHolding[]) {
@@ -461,6 +479,7 @@ function getCountryDefaults(country: string) {
 }
 
 const sectionLabel = 't-micro text-slate-500 dark:text-slate-500'
+const brokerColumnLabel = 'text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-500'
 
 function SectionCard({ title, children, className = '' }: { title?: string; children: ReactNode; className?: string }) {
   return (
@@ -542,8 +561,8 @@ export default function StocksPage() {
   const [statusTone, setStatusTone] = useState<'emerald' | 'rose' | 'amber' | 'slate'>('emerald')
   const [activeRange, setActiveRange] = useState<PortfolioRange>('6M')
   const [savingSnapshot, setSavingSnapshot] = useState(false)
-  const [expandedHoldingId, setExpandedHoldingId] = useState<number | null>(null)
-  const [selectedMobileHoldingId, setSelectedMobileHoldingId] = useState<number | null>(null)
+  const [selectedHoldingId, setSelectedHoldingId] = useState<number | null>(null)
+  const [sortOption, setSortOption] = useState<HoldingSortOption>('value_desc')
   const holdingsQuery = useHoldingsQuery()
   const analyticsQuery = useHoldingsAnalyticsQuery()
   const portfolioPerformanceQuery = usePortfolioPerformanceQuery(activeRange)
@@ -709,9 +728,10 @@ export default function StocksPage() {
       .sort((left, right) => right.getTime() - left.getTime())[0] ?? null
   }, [holdings])
 
-  const selectedMobileHolding = useMemo(
-    () => holdings.find((holding) => holding.id === selectedMobileHoldingId) ?? null,
-    [holdings, selectedMobileHoldingId],
+  const sortedHoldings = useMemo(() => sortHoldings(filteredHoldings, sortOption), [filteredHoldings, sortOption])
+  const selectedHolding = useMemo(
+    () => holdings.find((holding) => holding.id === selectedHoldingId) ?? null,
+    [holdings, selectedHoldingId],
   )
 
   async function refreshData() {
@@ -905,8 +925,8 @@ export default function StocksPage() {
 
     try {
       await apiFetch(`/api/holdings/${holding.id}`, { method: 'DELETE' })
-      if (selectedMobileHoldingId === holding.id) {
-        setSelectedMobileHoldingId(null)
+      if (selectedHoldingId === holding.id) {
+        setSelectedHoldingId(null)
       }
       setStatusTone('emerald')
       setStatusMessage(`Deleted ${holding.symbol}.`)
@@ -1132,7 +1152,7 @@ export default function StocksPage() {
                 <div className="mt-1 text-[12px] text-slate-500">Try a different asset bucket or search term.</div>
               </div>
             ) : (
-              filteredHoldings.map((row) => {
+              sortedHoldings.map((row) => {
                 const currentValue = toNumber(row.current_value)
                 const pnl = toNumber(row.pnl)
                 const pct = toNumber(row.return_pct)
@@ -1145,7 +1165,7 @@ export default function StocksPage() {
                   <button
                     key={`mobile-row-${row.id}`}
                     type="button"
-                    onClick={() => setSelectedMobileHoldingId(row.id)}
+                    onClick={() => setSelectedHoldingId(row.id)}
                     className="w-full rounded-[24px] bg-slate-900/75 px-4 py-4 text-left ring-1 ring-slate-800/80 transition-colors hover:ring-slate-700"
                   >
                     <div className="flex items-start gap-3">
@@ -1337,25 +1357,23 @@ export default function StocksPage() {
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
                 <div>
-                  <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Holdings</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">Tracked investments</div>
-                  <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Filter positions by bucket and search across symbols, companies, or funds.</div>
+                  <div className={brokerColumnLabel}>Holdings</div>
+                  <div className="mt-1 text-sm font-semibold tracking-[-0.01em] text-slate-900 dark:text-slate-100">Broker-style portfolio list</div>
+                  <div className="mt-1 text-xs font-medium text-slate-400 dark:text-slate-400">Scan positions by symbol, value, and P&amp;L without opening each holding.</div>
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center xl:justify-end">
-                  <div className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-slate-500 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-400">
-                    <Icon name="due" className="h-4 w-4" />
-                    <span className="text-sm">{latestUpdate ? `Updated ${formatCompactTimestamp(latestUpdate.toISOString())}` : 'No updates yet'}</span>
-                  </div>
-                  <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-500 shadow-sm focus-within:border-accent-500 focus-within:ring-2 focus-within:ring-accent-500/15 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 sm:min-w-[18rem]">
-                    <Icon name="search" className="h-4 w-4 shrink-0" />
-                    <input
-                      value={searchTerm}
-                      onChange={(event) => setSearchTerm(event.target.value)}
-                      placeholder="Search by symbol, company, or fund"
-                      className="w-full bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none"
-                    />
-                  </label>
+                  <select
+                    value={sortOption}
+                    onChange={(event) => setSortOption(event.target.value as HoldingSortOption)}
+                    className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium tracking-[-0.01em] text-slate-700 shadow-sm focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/15 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                  >
+                    <option value="value_desc">Value high to low</option>
+                    <option value="pnl_desc">P&amp;L high to low</option>
+                    <option value="return_desc">Return % high to low</option>
+                    <option value="name_asc">Name A-Z</option>
+                    <option value="asset_type">Asset type</option>
+                  </select>
 
                   <button
                     type="button"
@@ -1414,8 +1432,27 @@ export default function StocksPage() {
               </div>
             </div>
           ) : (
-            <div className="space-y-4 px-3 py-3 sm:px-4 sm:py-4">
-              {filteredHoldings.map((row) => {
+            <div className="px-3 py-3 sm:px-4 sm:py-4">
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700/60 dark:bg-slate-950/35">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full border-collapse">
+                    <thead className="bg-slate-50/80 dark:bg-slate-900/80">
+                      <tr>
+                        <th className="sticky left-0 z-10 bg-slate-50/95 px-4 py-3 text-left dark:bg-slate-900/95">
+                          <span className={brokerColumnLabel}>Symbol / Name</span>
+                        </th>
+                        <th className="px-3 py-3 text-right"><span className={brokerColumnLabel}>Units</span></th>
+                        <th className="px-3 py-3 text-right"><span className={brokerColumnLabel}>Avg Buy</span></th>
+                        <th className="px-3 py-3 text-right"><span className={brokerColumnLabel}>Invested</span></th>
+                        <th className="px-3 py-3 text-right"><span className={brokerColumnLabel}>LTP/NAV</span></th>
+                        <th className="px-3 py-3 text-right"><span className={brokerColumnLabel}>Current Value</span></th>
+                        <th className="px-3 py-3 text-right"><span className={brokerColumnLabel}>P&amp;L</span></th>
+                        <th className="px-3 py-3 text-right"><span className={brokerColumnLabel}>Return %</span></th>
+                        <th className="px-4 py-3 text-right"><span className={brokerColumnLabel}>Details</span></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedHoldings.map((row) => {
                 const invested = toNumber(row.invested_amount)
                 const currentValue = toNumber(row.current_value)
                 const pnl = toNumber(row.pnl)
@@ -1423,205 +1460,81 @@ export default function StocksPage() {
                 const nativeInvested = toNumber(row.native_invested_amount)
                 const nativeCurrent = toNumber(row.native_current_value)
                 const nativePnl = toNumber(row.native_pnl ?? nativeCurrent - nativeInvested)
-                const refreshSupported = getRefreshSupported(row)
                 const sourceMeta = getSourceBadgeMeta(row)
-                const freshnessMeta = getFreshnessMeta(row)
                 const rowTone = getRowToneMeta(row)
-                const isExpanded = expandedHoldingId === row.id
+                const quantityLabel = row.asset_type === 'mutual_fund' ? 'Units' : 'Qty'
 
                 return (
-                  <div
+                  <tr
                     key={row.id}
                     className={[
-                      'overflow-hidden rounded-2xl border bg-slate-950/65 transition-all duration-200',
-                      rowTone.border,
-                      rowTone.glow,
+                      'group cursor-pointer border-t border-slate-100 transition-colors first:border-t-0 hover:bg-slate-50/80 dark:border-slate-800 dark:hover:bg-slate-900/45',
                     ].join(' ')}
+                    onClick={() => setSelectedHoldingId(row.id)}
                   >
-                    <button
-                      type="button"
-                      onClick={() => setExpandedHoldingId((current) => (current === row.id ? null : row.id))}
-                      className="flex w-full items-stretch gap-3 px-3 py-3 text-left transition-colors duration-150 hover:bg-slate-900/40 sm:gap-4 sm:px-4 sm:py-4"
-                    >
-                      <span className={['mt-0.5 h-auto w-1 shrink-0 rounded-full sm:mt-1', rowTone.accent].join(' ')} />
-
-                      <div className="min-w-0 flex-1">
-                        <div className="sm:hidden">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="truncate text-base font-semibold tracking-[-0.02em] text-white">{row.symbol}</span>
-                                <span className="inline-flex rounded-full bg-teal-500/15 px-2 py-0.5 text-[10px] font-semibold text-teal-300">
-                                  {row.country === 'US' ? 'US' : 'IN'}
-                                </span>
-                                <span className={getInvestmentClassBadgeClass(getInvestmentClass(row))}>{getInvestmentClassLabel(row)}</span>
-                              </div>
-                              <div className="mt-1 truncate text-[12px] text-slate-400">{row.company_name}</div>
-                            </div>
-                            <div className="text-right">
-                              <div className="font-mono text-base font-semibold text-white">
-                                {renderNativeAndInr(nativeCurrent, currentValue, row.currency)}
-                              </div>
-                              <div className={['mt-1 text-xs font-semibold', privacyMode ? 'text-slate-300 dark:text-slate-300' : rowTone.text].join(' ')}>
-                                <PrivateValue value={formatSignedPct(pct)} mask="••••" hideColor />
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <td className="sticky left-0 z-10 bg-white px-4 py-3 align-middle dark:bg-slate-950/35">
+                      <div className="flex items-stretch gap-3">
+                        <span className={['w-1 shrink-0 rounded-full', rowTone.accent].join(' ')} />
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="truncate text-sm font-semibold tracking-[-0.01em] text-slate-900 dark:text-white">{row.symbol}</span>
+                            <span className="inline-flex rounded-full bg-teal-500/15 px-2 py-0.5 text-[10px] font-semibold text-teal-300">
+                              {row.country === 'US' ? 'US' : 'IN'}
+                            </span>
+                            <span className={getInvestmentClassBadgeClass(getInvestmentClass(row))}>{getInvestmentClassLabel(row)}</span>
                             <span className={sourceMeta.className} title={sourceMeta.title}>
                               <Icon name={sourceMeta.icon} className="h-3.5 w-3.5" />
                               {sourceMeta.label}
                             </span>
-                            <span className={freshnessMeta.className} title={freshnessMeta.title}>
-                              {freshnessMeta.label}
-                            </span>
                           </div>
-
-                          <div className="mt-3 grid grid-cols-3 gap-2">
-                            <div className="rounded-xl border border-slate-800 bg-slate-900/70 px-2.5 py-2">
-                              <div className={sectionLabel}>Price</div>
-                              <div className="mt-1 text-[13px] font-semibold text-slate-100">
-                                <PrivateValue value={formatNativeMoney(toNumber(row.current_price), row.currency)} mask="••••" hideColor />
-                              </div>
-                              <div className="mt-1 text-[10px] text-slate-500">
-                                {privacyMode ? '••••' : formatCompactTimestamp(row.last_price_refreshed_at ?? row.updated_at)}
-                              </div>
-                            </div>
-                            <div className="rounded-xl border border-slate-800 bg-slate-900/70 px-2.5 py-2">
-                              <div className={sectionLabel}>P&L</div>
-                              <div className={['mt-1 text-[13px] font-semibold', privacyMode ? 'text-slate-300 dark:text-slate-300' : rowTone.text].join(' ')}>
-                                {renderNativeAndInr(nativePnl, pnl, row.currency)}
-                              </div>
-                              <div className={['mt-1 text-[10px]', privacyMode ? 'text-slate-400 dark:text-slate-400' : rowTone.text].join(' ')}>
-                                <PrivateValue value={formatPct(pct)} mask="••••" hideColor />
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-end">
-                              <div className="grid h-10 w-10 place-items-center rounded-xl border border-slate-700 bg-slate-900 text-slate-400">
-                                <Icon name={isExpanded ? 'chevronUp' : 'chevronDown'} className="h-5 w-5" />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="hidden flex-col gap-4 lg:flex-row lg:items-center lg:justify-between sm:flex">
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="t-title text-white">{row.symbol}</span>
-                              <span className="inline-flex rounded-full bg-teal-500/15 px-2.5 py-1 text-[11px] font-semibold text-teal-300">
-                                {row.country === 'US' ? 'US' : 'IN'}
-                              </span>
-                              <span className={getInvestmentClassBadgeClass(getInvestmentClass(row))}>{getInvestmentClassLabel(row)}</span>
-                              <span className={sourceMeta.className} title={sourceMeta.title}>
-                                <Icon name={sourceMeta.icon} className="h-3.5 w-3.5" />
-                                {sourceMeta.label}
-                              </span>
-                              <span className={freshnessMeta.className} title={freshnessMeta.title}>
-                                {freshnessMeta.label}
-                              </span>
-                            </div>
-                            <div className="mt-2 t-body text-slate-400">{row.company_name}</div>
-                          </div>
-
-                          <div className="flex shrink-0 items-center gap-5">
-                            <div className="text-right">
-                              <div className="t-metric text-white">
-                                <PrivateValue value={formatNativeMoney(toNumber(row.current_price), row.currency)} mask="••••" hideColor />
-                              </div>
-                              <div className="mt-1 t-meta text-slate-400">
-                                {privacyMode ? '••••' : formatCompactTimestamp(row.last_price_refreshed_at ?? row.updated_at)}
-                              </div>
-                            </div>
-
-                            <div className="text-right">
-                              <div className={['inline-flex items-center gap-1 t-metric', privacyMode ? 'text-slate-300 dark:text-slate-300' : rowTone.text].join(' ')}>
-                                {rowTone.arrow ? <Icon name={rowTone.arrow} className="h-4 w-4" /> : null}
-                                <PrivateValue value={formatPct(pct)} mask="••••" hideColor />
-                              </div>
-                              <div className={['mt-1 t-nav', privacyMode ? 'text-slate-400 dark:text-slate-400' : rowTone.text].join(' ')}>
-                                {renderNativeAndInr(nativePnl, pnl, row.currency)}
-                              </div>
-                            </div>
-
-                            <div className="grid h-10 w-10 place-items-center rounded-xl border border-slate-700 bg-slate-900 text-slate-400">
-                              <Icon name={isExpanded ? 'chevronUp' : 'chevronDown'} className="h-5 w-5" />
-                            </div>
-                          </div>
+                          <div className="mt-1 truncate text-xs font-medium text-slate-400 dark:text-slate-400">{row.company_name}</div>
                         </div>
                       </div>
-                    </button>
-
-                    {isExpanded ? (
-                      <div className="border-t border-slate-800 bg-slate-900/70 px-4 py-4 sm:px-5">
-                        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
-                          <div className="min-w-0 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                            <div>
-                              <div className={sectionLabel}>Qty / Units</div>
-                              <div className="mt-1 t-num text-slate-200">{toNumber(row.quantity)}</div>
-                            </div>
-                            <div>
-                              <div className={sectionLabel}>Avg Buy</div>
-                              <div className="mt-1 t-num text-slate-200">
-                                <PrivateValue value={formatNativeMoney(toNumber(row.avg_buy_price), row.currency)} mask="••••" hideColor />
-                              </div>
-                            </div>
-                            <div>
-                              <div className={sectionLabel}>Invested</div>
-                              <div className="mt-1 t-num text-slate-200">{renderNativeAndInr(nativeInvested, invested, row.currency)}</div>
-                            </div>
-                            <div>
-                              <div className={sectionLabel}>Current Value</div>
-                              <div className="mt-1 t-num text-slate-200">{renderNativeAndInr(nativeCurrent, currentValue, row.currency)}</div>
-                            </div>
-                            <div className="min-w-0">
-                              <div className={sectionLabel}>Exchange / Market</div>
-                              <div className="mt-1 truncate t-nav text-slate-300" title={getHoldingMarketSymbol(row)}>
-                                {getHoldingMarketSymbol(row)}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:justify-end">
-                            {refreshSupported ? (
-                              <button
-                                type="button"
-                                onClick={() => handleRefreshHolding(row)}
-                                disabled={refreshingHoldingId === row.id || isRefreshingAllPrices}
-                                title="Refresh market price"
-                                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-sky-500/25 bg-sky-500/10 px-3 text-sm font-semibold text-sky-200 shadow-sm transition-all duration-150 hover:border-sky-400/40 hover:bg-sky-500/15 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-                              >
-                                <Icon name="refresh" className={['h-4 w-4', refreshingHoldingId === row.id ? 'animate-spin' : ''].join(' ')} />
-                                {refreshingHoldingId === row.id ? 'Refreshing...' : 'Refresh Price'}
-                              </button>
-                            ) : (
-                              <span className="inline-flex h-10 w-full items-center justify-center rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 text-sm font-semibold text-amber-200 sm:w-auto">
-                                Manual price required
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => openEditModal(row)}
-                              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 text-sm font-semibold text-slate-200 transition-all duration-150 hover:bg-slate-700 active:scale-95 sm:w-auto"
-                            >
-                              <Icon name="edit" className="h-4 w-4" />
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteHolding(row)}
-                              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 text-sm font-semibold text-rose-200 transition-all duration-150 hover:bg-rose-500/15 active:scale-95 sm:w-auto"
-                            >
-                              <Icon name="remove" className="h-4 w-4" />
-                              Delete
-                            </button>
-                          </div>
-                        </div>
+                    </td>
+                    <td className="px-3 py-3 text-right align-middle">
+                      <div className="font-mono text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">{privacyMode ? '••••' : toNumber(row.quantity)}</div>
+                    </td>
+                    <td className="px-3 py-3 text-right align-middle">
+                      <div className="font-mono text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                        <PrivateValue value={formatNativeMoney(toNumber(row.avg_buy_price), row.currency)} mask="••••" hideColor />
                       </div>
-                    ) : null}
-                  </div>
+                    </td>
+                    <td className="px-3 py-3 text-right align-middle">
+                      <div className="font-mono text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">{renderNativeAndInr(nativeInvested, invested, row.currency)}</div>
+                    </td>
+                    <td className="px-3 py-3 text-right align-middle">
+                      <div className="font-mono text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                        <PrivateValue value={formatNativeMoney(toNumber(row.current_price), row.currency)} mask="••••" hideColor />
+                      </div>
+                      <div className="mt-1 text-[11px] font-medium text-slate-400 dark:text-slate-400">
+                        {privacyMode ? '••••' : formatCompactTimestamp(row.last_price_refreshed_at ?? row.updated_at)}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-right align-middle">
+                      <div className="font-mono text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">{renderNativeAndInr(nativeCurrent, currentValue, row.currency)}</div>
+                    </td>
+                    <td className="px-3 py-3 text-right align-middle">
+                      <div className={['font-mono text-sm font-semibold tabular-nums', privacyMode ? 'text-slate-300 dark:text-slate-300' : rowTone.text].join(' ')}>
+                        {renderNativeAndInr(nativePnl, pnl, row.currency)}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-right align-middle">
+                      <div className={['font-mono text-sm font-semibold tabular-nums', privacyMode ? 'text-slate-300 dark:text-slate-300' : rowTone.text].join(' ')}>
+                        <PrivateValue value={formatSignedPct(pct)} mask="••••" hideColor />
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right align-middle">
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 transition-colors group-hover:border-slate-300 group-hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:group-hover:border-slate-600 dark:group-hover:bg-slate-800">
+                        <Icon name="chevronDown" className="h-5 w-5 -rotate-90" />
+                      </span>
+                    </td>
+                  </tr>
                 )
               })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
         </SectionCard>
@@ -1629,34 +1542,36 @@ export default function StocksPage() {
       </div>
 
       <BottomSheet
-        open={selectedMobileHolding !== null}
-        onClose={() => setSelectedMobileHoldingId(null)}
-        title={selectedMobileHolding ? `${selectedMobileHolding.symbol} · ${selectedMobileHolding.company_name}` : 'Investment'}
-        subtitle={selectedMobileHolding ? getInvestmentClassLabel(selectedMobileHolding) : ''}
+        open={selectedHolding !== null}
+        onClose={() => setSelectedHoldingId(null)}
+        title={selectedHolding ? `${selectedHolding.symbol} · ${selectedHolding.company_name}` : 'Investment'}
+        subtitle={selectedHolding ? getInvestmentClassLabel(selectedHolding) : ''}
+        overlayClassName="md:hidden"
+        className="md:hidden"
       >
-        {selectedMobileHolding ? (
+        {selectedHolding ? (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
                 <div className={sectionLabel}>Current Value</div>
                 <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  {renderNativeAndInr(toNumber(selectedMobileHolding.native_current_value), toNumber(selectedMobileHolding.current_value), selectedMobileHolding.currency)}
+                  {renderNativeAndInr(toNumber(selectedHolding.native_current_value), toNumber(selectedHolding.current_value), selectedHolding.currency)}
                 </div>
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
                 <div className={sectionLabel}>P&L</div>
-                <div className={['mt-1 text-sm font-semibold', privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(selectedMobileHolding.pnl))].join(' ')}>
-                  {renderNativeAndInr(toNumber(selectedMobileHolding.native_pnl), toNumber(selectedMobileHolding.pnl), selectedMobileHolding.currency)}
+                <div className={['mt-1 text-sm font-semibold', privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(selectedHolding.pnl))].join(' ')}>
+                  {renderNativeAndInr(toNumber(selectedHolding.native_pnl), toNumber(selectedHolding.pnl), selectedHolding.currency)}
                 </div>
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
                 <div className={sectionLabel}>Quantity / Units</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{toNumber(selectedMobileHolding.quantity)}</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{privacyMode ? '••••' : toNumber(selectedHolding.quantity)}</div>
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
                 <div className={sectionLabel}>Return %</div>
-                <div className={['mt-1 text-sm font-semibold', privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(selectedMobileHolding.return_pct))].join(' ')}>
-                  <PrivateValue value={formatSignedPct(toNumber(selectedMobileHolding.return_pct))} mask="••••" hideColor />
+                <div className={['mt-1 text-sm font-semibold', privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(selectedHolding.return_pct))].join(' ')}>
+                  <PrivateValue value={formatSignedPct(toNumber(selectedHolding.return_pct))} mask="••••" hideColor />
                 </div>
               </div>
             </div>
@@ -1665,45 +1580,60 @@ export default function StocksPage() {
               <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
                 <div className={sectionLabel}>Avg Buy</div>
                 <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  <PrivateValue value={formatNativeMoney(toNumber(selectedMobileHolding.avg_buy_price), selectedMobileHolding.currency)} mask="••••" hideColor />
+                  <PrivateValue value={formatNativeMoney(toNumber(selectedHolding.avg_buy_price), selectedHolding.currency)} mask="••••" hideColor />
                 </div>
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
                 <div className={sectionLabel}>Current Price</div>
                 <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  <PrivateValue value={formatNativeMoney(toNumber(selectedMobileHolding.current_price), selectedMobileHolding.currency)} mask="••••" hideColor />
+                  <PrivateValue value={formatNativeMoney(toNumber(selectedHolding.current_price), selectedHolding.currency)} mask="••••" hideColor />
                 </div>
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
                 <div className={sectionLabel}>Invested</div>
                 <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  {renderNativeAndInr(toNumber(selectedMobileHolding.native_invested_amount), toNumber(selectedMobileHolding.invested_amount), selectedMobileHolding.currency)}
+                  {renderNativeAndInr(toNumber(selectedHolding.native_invested_amount), toNumber(selectedHolding.invested_amount), selectedHolding.currency)}
                 </div>
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
                 <div className={sectionLabel}>Market</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{getHoldingMarketSymbol(selectedMobileHolding)}</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{getHoldingMarketSymbol(selectedHolding)}</div>
+              </div>
+              <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+                <div className={sectionLabel}>Last Updated</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{privacyMode ? '••••' : formatCompactTimestamp(selectedHolding.last_price_refreshed_at ?? selectedHolding.updated_at)}</div>
+              </div>
+              <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+                <div className={sectionLabel}>FX Rate</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{selectedHolding.country === 'US' ? (privacyMode ? '••••' : toNumber(selectedHolding.effective_fx_rate_to_inr).toFixed(2)) : '1.00'}</div>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <span className={getInvestmentClassBadgeClass(getInvestmentClass(selectedMobileHolding))}>{getInvestmentClassLabel(selectedMobileHolding)}</span>
-              <span className={getSourceBadgeMeta(selectedMobileHolding).className}>
-                <Icon name={getSourceBadgeMeta(selectedMobileHolding).icon} className="h-3.5 w-3.5" />
-                {getSourceBadgeMeta(selectedMobileHolding).label}
+              <span className={getInvestmentClassBadgeClass(getInvestmentClass(selectedHolding))}>{getInvestmentClassLabel(selectedHolding)}</span>
+              <span className={getSourceBadgeMeta(selectedHolding).className}>
+                <Icon name={getSourceBadgeMeta(selectedHolding).icon} className="h-3.5 w-3.5" />
+                {getSourceBadgeMeta(selectedHolding).label}
               </span>
             </div>
 
+            {selectedHolding.notes ? (
+              <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+                <div className={sectionLabel}>Notes</div>
+                <div className="mt-1 text-sm font-medium tracking-[-0.01em] text-slate-600 dark:text-slate-300">{selectedHolding.notes}</div>
+              </div>
+            ) : null}
+
             <div className="grid grid-cols-1 gap-3">
-              {getRefreshSupported(selectedMobileHolding) ? (
+              {getRefreshSupported(selectedHolding) ? (
                 <button
                   type="button"
-                  onClick={() => void handleRefreshHolding(selectedMobileHolding)}
-                  disabled={refreshingHoldingId === selectedMobileHolding.id || isRefreshingAllPrices}
+                  onClick={() => void handleRefreshHolding(selectedHolding)}
+                  disabled={refreshingHoldingId === selectedHolding.id || isRefreshingAllPrices}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-sky-500/25 bg-sky-500/10 text-sm font-semibold text-sky-300 disabled:opacity-60"
                 >
-                  <Icon name="refresh" className={['h-4 w-4', refreshingHoldingId === selectedMobileHolding.id ? 'animate-spin' : ''].join(' ')} />
-                  {refreshingHoldingId === selectedMobileHolding.id ? 'Refreshing…' : 'Refresh Price'}
+                  <Icon name="refresh" className={['h-4 w-4', refreshingHoldingId === selectedHolding.id ? 'animate-spin' : ''].join(' ')} />
+                  {refreshingHoldingId === selectedHolding.id ? 'Refreshing…' : 'Refresh Price'}
                 </button>
               ) : (
                 <div className="inline-flex h-11 items-center justify-center rounded-2xl border border-amber-500/25 bg-amber-500/10 text-sm font-semibold text-amber-300">
@@ -1713,8 +1643,8 @@ export default function StocksPage() {
               <button
                 type="button"
                 onClick={() => {
-                  setSelectedMobileHoldingId(null)
-                  openEditModal(selectedMobileHolding)
+                  setSelectedHoldingId(null)
+                  openEditModal(selectedHolding)
                 }}
                 className={['h-11 justify-center', secondaryButtonClass].join(' ')}
               >
@@ -1723,7 +1653,7 @@ export default function StocksPage() {
               </button>
               <button
                 type="button"
-                onClick={() => void handleDeleteHolding(selectedMobileHolding)}
+                onClick={() => void handleDeleteHolding(selectedHolding)}
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-rose-500/20 bg-rose-500/10 text-sm font-semibold text-rose-300"
               >
                 <Icon name="remove" className="h-4 w-4" />
@@ -1733,6 +1663,160 @@ export default function StocksPage() {
           </div>
         ) : null}
       </BottomSheet>
+
+      {selectedHolding ? (
+        <div
+          className="fixed inset-0 z-40 hidden bg-slate-950/50 backdrop-blur-sm md:block"
+          onClick={() => setSelectedHoldingId(null)}
+          aria-hidden="true"
+        >
+          <section
+            className="absolute right-0 top-0 flex h-full w-full max-w-[32rem] flex-col border-l border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="border-b border-slate-200 px-6 py-5 dark:border-slate-800">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-base font-semibold tracking-[-0.01em] text-slate-900 dark:text-white">{selectedHolding.symbol}</span>
+                    <span className={getInvestmentClassBadgeClass(getInvestmentClass(selectedHolding))}>{getInvestmentClassLabel(selectedHolding)}</span>
+                    <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                      {selectedHolding.country} · {selectedHolding.currency}
+                    </span>
+                    <span className={getSourceBadgeMeta(selectedHolding).className}>
+                      <Icon name={getSourceBadgeMeta(selectedHolding).icon} className="h-3.5 w-3.5" />
+                      {getSourceBadgeMeta(selectedHolding).label}
+                    </span>
+                  </div>
+                  <div className="mt-2 text-sm font-medium tracking-[-0.01em] text-slate-500 dark:text-slate-400">{selectedHolding.company_name}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedHoldingId(null)}
+                  className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700/50"
+                >
+                  <Icon name="close" className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+                  <div className={sectionLabel}>Quantity / Units</div>
+                  <div className="mt-1 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-slate-100">{privacyMode ? '••••' : toNumber(selectedHolding.quantity)}</div>
+                </div>
+                <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+                  <div className={sectionLabel}>Return %</div>
+                  <div className={['mt-1 font-mono text-base font-semibold tabular-nums', privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(selectedHolding.return_pct))].join(' ')}>
+                    <PrivateValue value={formatSignedPct(toNumber(selectedHolding.return_pct))} mask="••••" hideColor />
+                  </div>
+                </div>
+                <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+                  <div className={sectionLabel}>Avg Buy</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    <PrivateValue value={formatNativeMoney(toNumber(selectedHolding.avg_buy_price), selectedHolding.currency)} mask="••••" hideColor />
+                  </div>
+                </div>
+                <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+                  <div className={sectionLabel}>Current Price / LTP / NAV</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    <PrivateValue value={formatNativeMoney(toNumber(selectedHolding.current_price), selectedHolding.currency)} mask="••••" hideColor />
+                  </div>
+                </div>
+                <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+                  <div className={sectionLabel}>Invested Value</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    {renderNativeAndInr(toNumber(selectedHolding.native_invested_amount), toNumber(selectedHolding.invested_amount), selectedHolding.currency)}
+                  </div>
+                </div>
+                <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+                  <div className={sectionLabel}>Current Value</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    {renderNativeAndInr(toNumber(selectedHolding.native_current_value), toNumber(selectedHolding.current_value), selectedHolding.currency)}
+                  </div>
+                </div>
+                <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+                  <div className={sectionLabel}>P&amp;L</div>
+                  <div className={['mt-1 text-sm font-semibold', privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(selectedHolding.pnl))].join(' ')}>
+                    {renderNativeAndInr(toNumber(selectedHolding.native_pnl), toNumber(selectedHolding.pnl), selectedHolding.currency)}
+                  </div>
+                </div>
+                <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+                  <div className={sectionLabel}>Exchange / Currency</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{getHoldingMarketSymbol(selectedHolding)} · {selectedHolding.currency}</div>
+                </div>
+                <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+                  <div className={sectionLabel}>Last Updated</div>
+                  <div className="mt-1 font-mono text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                    {privacyMode ? '••••' : formatCompactTimestamp(selectedHolding.last_price_refreshed_at ?? selectedHolding.updated_at)}
+                  </div>
+                </div>
+                <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+                  <div className={sectionLabel}>FX Rate</div>
+                  <div className="mt-1 font-mono text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                    {selectedHolding.country === 'US' ? (privacyMode ? '••••' : toNumber(selectedHolding.effective_fx_rate_to_inr).toFixed(2)) : '1.00'}
+                  </div>
+                </div>
+              </div>
+
+              {selectedHolding.notes ? (
+                <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+                  <div className={sectionLabel}>Notes</div>
+                  <div className="mt-1 text-sm font-medium tracking-[-0.01em] text-slate-600 dark:text-slate-300">{selectedHolding.notes}</div>
+                </div>
+              ) : null}
+
+              <div className="mt-4">
+                {getRefreshSupported(selectedHolding) ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleRefreshHolding(selectedHolding)}
+                    disabled={refreshingHoldingId === selectedHolding.id || isRefreshingAllPrices}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-sky-500/25 bg-sky-500/10 px-4 text-sm font-semibold text-sky-300 disabled:opacity-60"
+                  >
+                    <Icon name="refresh" className={['h-4 w-4', refreshingHoldingId === selectedHolding.id ? 'animate-spin' : ''].join(' ')} />
+                    {refreshingHoldingId === selectedHolding.id ? 'Refreshing…' : 'Refresh Price'}
+                  </button>
+                ) : (
+                  <div className="inline-flex h-11 items-center justify-center rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 text-sm font-semibold text-amber-300">
+                    Manual price required
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setSelectedHoldingId(null)}
+                className={secondaryButtonClass}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedHoldingId(null)
+                  openEditModal(selectedHolding)
+                }}
+                className={secondaryButtonClass}
+              >
+                <Icon name="edit" className="h-4 w-4" />
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDeleteHolding(selectedHolding)}
+                className="inline-flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-sm font-semibold text-rose-300 transition-colors duration-200 hover:bg-rose-500/15 active:scale-[0.98]"
+              >
+                <Icon name="remove" className="h-4 w-4" />
+                Delete
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {isHoldingDrawerMounted ? (
         <div

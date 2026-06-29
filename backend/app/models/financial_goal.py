@@ -22,6 +22,13 @@ class FinancialGoal(Base):
     linked_source_map: Mapped[dict[str, list[int]] | None] = mapped_column(JSON, nullable=True)
     priority: Mapped[str | None] = mapped_column(String(16), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active", server_default="active")
+    achieved_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    achieved_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    achievement_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    payment_source: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    is_big_purchase: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    purchase_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

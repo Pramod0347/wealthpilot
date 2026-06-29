@@ -9,6 +9,7 @@ type BottomSheetProps = {
   children: ReactNode
   footer?: ReactNode
   className?: string
+  overlayClassName?: string
 }
 
 export default function BottomSheet({
@@ -19,6 +20,7 @@ export default function BottomSheet({
   children,
   footer,
   className = '',
+  overlayClassName = '',
 }: BottomSheetProps) {
   useEffect(() => {
     if (!open) return
@@ -34,6 +36,7 @@ export default function BottomSheet({
       className={[
         'fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 backdrop-blur-sm transition-opacity duration-200 ease-out motion-reduce:transition-none',
         open ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
+        overlayClassName,
       ].join(' ')}
       onClick={onClose}
       aria-hidden={!open}
