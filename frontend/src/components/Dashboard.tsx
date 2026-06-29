@@ -10,6 +10,7 @@ import { maskSensitiveText } from '../utils/privacy'
 import { usePrivacyMode } from '../context/PrivacyContext'
 import { useBankAccountsQuery, useCreditCardsQuery, useDashboardSummaryQuery, useHoldingsQuery, usePortfolioPerformanceQuery } from '../queries/hooks'
 import { queryKeys } from '../queries/queryKeys'
+import { secondaryButtonClass } from '../styles/buttonStyles'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -137,7 +138,7 @@ const assetTypePalette: Record<string, { label: string; color: string }> = {
   other: { label: 'Other Assets', color: '#64748b' },
 }
 
-const LABEL = 'text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500'
+const LABEL = 'text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-500'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -417,7 +418,7 @@ export default function Dashboard({
           statusTone === 'amber' ? 'border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-100' :
           'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300',
         ].join(' ')}>
-          <span>{statusMessage}</span>
+          <span className="text-sm font-medium tracking-[-0.01em]">{statusMessage}</span>
           <button type="button" onClick={() => setStatusMessage(null)} className="shrink-0 opacity-60 hover:opacity-100">
             <Icon name="close" className="h-4 w-4" />
           </button>
@@ -427,13 +428,13 @@ export default function Dashboard({
       {/* ── Prices bar ── */}
       <div className="hidden items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3 shadow-sm dark:border-slate-700/50 dark:bg-slate-900/80 md:flex">
         <Icon name="refresh" className="h-4 w-4 shrink-0 text-slate-400" />
-        <span className="text-sm text-slate-500 dark:text-slate-400">Prices last updated</span>
+        <span className="text-xs font-medium text-slate-400 dark:text-slate-400">Prices last updated</span>
         {latestHoldingUpdate ? (
-          <span className="truncate max-w-35 sm:max-w-none text-sm font-semibold text-slate-900 dark:text-white">
+          <span className="max-w-35 truncate font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white sm:max-w-none">
             {formatShortDateTime(latestHoldingUpdate)}
           </span>
         ) : (
-          <span className="text-sm text-slate-400">Not available</span>
+          <span className="text-xs font-medium text-slate-400">Not available</span>
         )}
         <div className="ml-auto flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
@@ -451,15 +452,15 @@ export default function Dashboard({
             {/* NET WORTH */}
             <div>
               <div className={LABEL}>Net Worth</div>
-              <div className="mt-2.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
+              <div className="mt-2.5 font-mono text-xl font-bold tabular-nums text-slate-900 dark:text-white">
                 {summaryLoading ? '—' : <PrivateValue value={formatMoney(netWorth)} mask="••••" hideColor />}
               </div>
               {portfolioHasSnapshots ? (
-                <div className={['mt-1.5 text-xs font-semibold', privacyMode ? 'text-slate-400 dark:text-slate-400' : getTrendClass(toNumber(latestSnapshotReturn ?? 0))].join(' ')}>
+                <div className={['mt-1.5 font-mono text-xs font-medium tabular-nums', privacyMode ? 'text-slate-400 dark:text-slate-400' : getTrendClass(toNumber(latestSnapshotReturn ?? 0))].join(' ')}>
                   {privacyMode ? 'Portfolio hidden' : `${toNumber(latestSnapshotReturn ?? 0) >= 0 ? '↑' : '↓'} ${formatPct(Math.abs(toNumber(latestSnapshotReturn ?? 0)))}`}
                 </div>
               ) : (
-                <div className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">No snapshot</div>
+                <div className="mt-1.5 text-xs font-medium text-slate-400 dark:text-slate-400">No snapshot</div>
               )}
             </div>
 
@@ -469,7 +470,7 @@ export default function Dashboard({
               <div className="mt-2.5 font-mono text-xl font-bold tabular-nums text-slate-900 dark:text-white">
                 {summaryLoading ? '—' : <PrivateValue value={formatMoney(toNumber(summary?.total_assets))} mask="••••" hideColor />}
               </div>
-              <div className="mt-1.5 text-xs text-slate-500 dark:text-slate-500">
+              <div className="mt-1.5 text-xs font-medium text-slate-400 dark:text-slate-400">
                 {summary ? `${summary.holdings_count + summary.bank_accounts_count + summary.fixed_savings_accounts_count} accounts` : '—'}
               </div>
             </div>
@@ -480,7 +481,7 @@ export default function Dashboard({
               <div className={['mt-2.5 font-mono text-xl font-bold tabular-nums', privacyMode ? 'text-slate-400 dark:text-slate-400' : toNumber(summary?.total_liabilities) > 0 ? 'text-rose-500 dark:text-rose-400' : 'text-slate-900 dark:text-white'].join(' ')}>
                 {summaryLoading ? '—' : <PrivateValue value={formatMoney(toNumber(summary?.total_liabilities))} mask="••••" hideColor />}
               </div>
-              <div className="mt-1.5 text-xs text-slate-500 dark:text-slate-500">
+              <div className="mt-1.5 text-xs font-medium text-slate-400 dark:text-slate-400">
                 {summary ? `${creditCards.length} cards` : '—'}
               </div>
             </div>
@@ -488,12 +489,12 @@ export default function Dashboard({
             {/* LAST UPDATED */}
             <div>
               <div className={LABEL}>Last Updated</div>
-              <div className="mt-2.5 text-sm font-semibold text-slate-900 dark:text-white">
+              <div className="mt-2.5 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white">
                 {latestHoldingUpdate ? formatCompactDateTime(latestHoldingUpdate) : '—'}
               </div>
               <div className="mt-1.5 flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                <span className="text-xs text-emerald-500 dark:text-emerald-400">Live</span>
+                <span className="text-xs font-medium text-emerald-500 dark:text-emerald-400">Live</span>
               </div>
             </div>
           </div>
@@ -509,7 +510,7 @@ export default function Dashboard({
                 </div>
                 <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
                   {allocationData.map(entry => (
-                    <button key={entry.key} type="button" onClick={() => setSelectedBucketKey(entry.key)} className="inline-flex items-center gap-1.5 text-xs text-slate-500 transition-opacity hover:opacity-80 dark:text-slate-400">
+                    <button key={entry.key} type="button" onClick={() => setSelectedBucketKey(entry.key)} className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400 transition-opacity hover:opacity-80 dark:text-slate-400">
                       <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
                       {entry.label} {privacyMode ? '•••' : `${entry.percentage.toFixed(1)}%`}
                     </button>
@@ -529,7 +530,7 @@ export default function Dashboard({
             {actionItems.map((item, i) => (
               <div key={`${item.title}-${i}`} className="flex items-start justify-between gap-3 py-3.5 first:pt-0">
                 <div className="min-w-0">
-                  <div className="text-sm font-medium text-slate-900 dark:text-slate-200 truncate">{item.title}</div>
+                  <div className="truncate text-sm font-medium tracking-[-0.01em] text-slate-900 dark:text-slate-200">{item.title}</div>
                   <div className={[
                     'mt-0.5 text-xs font-medium',
                     item.statusTone === 'rose' ? 'text-rose-500 dark:text-rose-400' :
@@ -541,7 +542,7 @@ export default function Dashboard({
                   </div>
                 </div>
                 <div className="shrink-0 text-right">
-                  <div className="font-mono text-sm font-bold tabular-nums text-slate-900 dark:text-white">
+                  <div className="font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white">
                     <PrivateValue value={item.amount} mask="••••" hideColor />
                   </div>
                   <div className="mt-1.5">
@@ -555,13 +556,13 @@ export default function Dashboard({
             {portfolioHasSnapshots ? (
               <div className="flex items-start justify-between gap-3 pt-3.5 pb-0">
                 <div className="min-w-0">
-                  <div className="text-sm font-medium text-slate-900 dark:text-slate-200">
+                  <div className="text-sm font-medium tracking-[-0.01em] text-slate-900 dark:text-slate-200">
                     {privacyMode ? 'Portfolio snapshot hidden' : `Portfolio ${toNumber(latestSnapshotReturn ?? 0) >= 0 ? 'up' : 'down'} ${formatPct(Math.abs(toNumber(latestSnapshotReturn ?? 0)))}`}
                   </div>
-                  <div className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">From latest snapshot</div>
+                  <div className="mt-0.5 text-xs font-medium text-slate-400 dark:text-slate-400">From latest snapshot</div>
                 </div>
                 <div className="shrink-0 text-right">
-                  <div className="font-mono text-sm font-bold tabular-nums text-slate-900 dark:text-white">
+                  <div className="font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white">
                     <PrivateValue value={formatSignedPct(toNumber(latestSnapshotReturn ?? 0))} mask="••••" hideColor />
                   </div>
                   <div className="mt-1.5">
@@ -583,7 +584,7 @@ export default function Dashboard({
         {/* Portfolio Value */}
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm">
           <div className={LABEL}>Portfolio Value</div>
-          <div className="mt-2.5 font-mono text-lg font-bold tabular-nums text-slate-900 dark:text-white">
+          <div className="mt-2.5 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white">
             {summaryLoading ? '—' : <PrivateValue value={formatMoney(toNumber(summary?.current_value))} mask="••••" hideColor />}
           </div>
           <div className="mt-3 grid h-7 w-7 place-items-center rounded-lg bg-teal-500/15">
@@ -594,7 +595,7 @@ export default function Dashboard({
         {/* Bank Balance */}
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm">
           <div className={LABEL}>Bank Balance</div>
-          <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', toNumber(summary?.total_bank_cash) > 0 ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'].join(' ')}>
+          <div className={['mt-2.5 font-mono text-base font-semibold tabular-nums', toNumber(summary?.total_bank_cash) > 0 ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'].join(' ')}>
             {summaryLoading ? '—' : toNumber(summary?.total_bank_cash) > 0 ? <PrivateValue value={formatMoney(toNumber(summary?.total_bank_cash))} mask="••••" hideColor /> : 'Not added'}
           </div>
           <div className="mt-3 grid h-7 w-7 place-items-center rounded-lg bg-orange-500/15">
@@ -605,10 +606,10 @@ export default function Dashboard({
         {/* PF / EPF */}
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm">
           <div className={LABEL}>PF / EPF</div>
-          <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', toNumber(summary?.total_fixed_savings_value) > 0 ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'].join(' ')}>
+          <div className={['mt-2.5 font-mono text-base font-semibold tabular-nums', toNumber(summary?.total_fixed_savings_value) > 0 ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'].join(' ')}>
             {summaryLoading ? '—' : toNumber(summary?.total_fixed_savings_value) > 0 ? <PrivateValue value={formatMoney(toNumber(summary?.total_fixed_savings_value))} mask="••••" hideColor /> : 'Not added'}
           </div>
-          <div className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+          <div className="mt-1.5 text-xs font-medium text-slate-400 dark:text-slate-400">
             {summaryLoading ? 'Loading...' : toNumber(summary?.total_fixed_savings_value) > 0 ? `${summary?.fixed_savings_accounts_count ?? 0} accounts` : 'No PF / PPF accounts'}
           </div>
           <div className="mt-3 grid h-7 w-7 place-items-center rounded-lg bg-emerald-500/15">
@@ -619,10 +620,10 @@ export default function Dashboard({
         {/* US Stocks */}
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 p-4 shadow-sm">
           <div className={LABEL}>US Stocks</div>
-          <div className={['mt-2.5 font-mono text-lg font-bold tabular-nums', usStocksValue > 0 ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'].join(' ')}>
+          <div className={['mt-2.5 font-mono text-base font-semibold tabular-nums', usStocksValue > 0 ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'].join(' ')}>
             {usStocksValue > 0 ? <PrivateValue value={formatMoney(usStocksValue)} mask="••••" hideColor /> : 'Not added'}
           </div>
-          <div className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+          <div className="mt-1.5 text-xs font-medium text-slate-400 dark:text-slate-400">
             {usStocksValue > 0 && liveUsdInrRate > 0 ? (privacyMode ? 'Live USD/INR ••••' : `Live USD/INR ${liveUsdInrRate.toFixed(2)}`) : 'No US holdings'}
           </div>
           <div className="mt-3 grid h-7 w-7 place-items-center rounded-lg bg-sky-500/15">
@@ -632,8 +633,8 @@ export default function Dashboard({
 
         {/* Card Dues — rose tinted */}
         <div className="rounded-2xl border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 p-4 shadow-sm">
-          <div className="text-[10px] font-semibold uppercase tracking-widest text-rose-500/80 dark:text-rose-400/70">Card Dues</div>
-          <div className="mt-2.5 font-mono text-lg font-bold tabular-nums text-rose-700 dark:text-rose-400">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-rose-500/80 dark:text-rose-400/70">Card Dues</div>
+          <div className="mt-2.5 font-mono text-base font-semibold tabular-nums text-rose-700 dark:text-rose-400">
             {summaryLoading ? '—' : <PrivateValue value={formatMoney(toNumber(summary?.total_credit_card_dues))} mask="••••" hideColor />}
           </div>
           <div className="mt-3 grid h-7 w-7 place-items-center rounded-lg bg-rose-500/20">
@@ -647,7 +648,7 @@ export default function Dashboard({
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className={LABEL}>Monthly Cashflow</div>
-            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <div className="mt-1 text-xs font-medium text-slate-400 dark:text-slate-400">
               {summaryLoading
                 ? 'Loading cashflow...'
                 : trackedMonthsCount > 0
@@ -661,13 +662,13 @@ export default function Dashboard({
         </div>
 
         {summaryLoading ? (
-          <div className="mt-4 text-sm text-slate-400">Loading cashflow...</div>
+          <div className="mt-4 text-sm font-medium tracking-[-0.01em] text-slate-400">Loading cashflow...</div>
         ) : !monthlyHasData && !averageCashflowHasData ? (
           <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/40">
-            <div className="text-sm text-slate-500 dark:text-slate-400">No monthly cashflow added yet</div>
+            <div className="text-sm font-medium tracking-[-0.01em] text-slate-400 dark:text-slate-400">No monthly cashflow added yet</div>
             <button
               type="button"
-              className="text-sm font-medium text-accent-600 transition-colors hover:text-accent-500 dark:text-accent-400 dark:hover:text-accent-300"
+              className="text-sm font-medium tracking-[-0.01em] text-accent-600 transition-colors hover:text-accent-500 dark:text-accent-400 dark:hover:text-accent-300"
             >
               Add from Transactions
             </button>
@@ -677,40 +678,40 @@ export default function Dashboard({
             <div className="grid grid-cols-2 sm:grid-cols-4">
               <div className="px-4 py-3 sm:px-4 sm:py-3">
                 <div className={LABEL}>Income</div>
-                <div className={['mt-1.5 font-mono text-base font-bold tabular-nums sm:text-lg', monthlyHasData ? (privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-emerald-500 dark:text-emerald-400') : 'text-slate-400 dark:text-slate-500'].join(' ')}>
+                <div className={['mt-1.5 font-mono text-base font-semibold tabular-nums', monthlyHasData ? (privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-emerald-500 dark:text-emerald-400') : 'text-slate-400 dark:text-slate-500'].join(' ')}>
                   {formatCashflowCurrentValue(toNumber(currentCashflow?.income), 'money')}
                 </div>
-                <div className="mt-1 text-[11px] leading-4 text-slate-500 dark:text-slate-400">
+                <div className="mt-1 text-xs font-medium text-slate-400 dark:text-slate-400">
                   {formatCashflowAverageMeta(averageCashflowHasData ? toNumber(averageCashflow?.income) : null, 'money')}
                 </div>
               </div>
 
               <div className="border-l border-slate-200 dark:border-slate-700 px-4 py-3">
                 <div className={LABEL}>Spend</div>
-                <div className={['mt-1.5 font-mono text-base font-bold tabular-nums sm:text-lg', monthlyHasData ? (privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-rose-500 dark:text-rose-400') : 'text-slate-400 dark:text-slate-500'].join(' ')}>
+                <div className={['mt-1.5 font-mono text-base font-semibold tabular-nums', monthlyHasData ? (privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-rose-500 dark:text-rose-400') : 'text-slate-400 dark:text-slate-500'].join(' ')}>
                   {formatCashflowCurrentValue(toNumber(currentCashflow?.expense), 'money')}
                 </div>
-                <div className="mt-1 text-[11px] leading-4 text-slate-500 dark:text-slate-400">
+                <div className="mt-1 text-xs font-medium text-slate-400 dark:text-slate-400">
                   {formatCashflowAverageMeta(averageCashflowHasData ? toNumber(averageCashflow?.expense) : null, 'money')}
                 </div>
               </div>
 
               <div className="border-t border-slate-200 dark:border-slate-700 sm:border-t-0 sm:border-l px-4 py-3">
                 <div className={LABEL}>Net Savings</div>
-                <div className={['mt-1.5 font-mono text-base font-bold tabular-nums sm:text-lg', !monthlyHasData ? 'text-slate-400 dark:text-slate-500' : privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(currentCashflow?.net_savings))].join(' ')}>
+                <div className={['mt-1.5 font-mono text-base font-semibold tabular-nums', !monthlyHasData ? 'text-slate-400 dark:text-slate-500' : privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(currentCashflow?.net_savings))].join(' ')}>
                   {formatCashflowCurrentValue(toNumber(currentCashflow?.net_savings), 'money')}
                 </div>
-                <div className="mt-1 text-[11px] leading-4 text-slate-500 dark:text-slate-400">
+                <div className="mt-1 text-xs font-medium text-slate-400 dark:text-slate-400">
                   {formatCashflowAverageMeta(averageCashflowHasData ? toNumber(averageCashflow?.net_savings) : null, 'money')}
                 </div>
               </div>
 
               <div className="border-l border-t border-slate-200 dark:border-slate-700 sm:border-t-0 px-4 py-3">
                 <div className={LABEL}>Savings Rate</div>
-                <div className={['mt-1.5 font-mono text-base font-bold tabular-nums sm:text-lg', !monthlyHasData || currentCashflow?.savings_rate == null ? 'text-slate-400 dark:text-slate-500' : privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(currentCashflow?.savings_rate))].join(' ')}>
+                <div className={['mt-1.5 font-mono text-base font-semibold tabular-nums', !monthlyHasData || currentCashflow?.savings_rate == null ? 'text-slate-400 dark:text-slate-500' : privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(toNumber(currentCashflow?.savings_rate))].join(' ')}>
                   {formatCashflowCurrentValue(currentCashflow?.savings_rate == null ? null : toNumber(currentCashflow.savings_rate), 'pct')}
                 </div>
-                <div className="mt-1 text-[11px] leading-4 text-slate-500 dark:text-slate-400">
+                <div className="mt-1 text-xs font-medium text-slate-400 dark:text-slate-400">
                   {formatCashflowAverageMeta(averageCashflowHasData && averageCashflow?.savings_rate != null ? toNumber(averageCashflow.savings_rate) : null, 'pct')}
                 </div>
               </div>
@@ -723,7 +724,7 @@ export default function Dashboard({
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className={LABEL}>Goals</div>
-            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <div className="mt-1 text-xs font-medium text-slate-400 dark:text-slate-400">
               {summaryLoading
                 ? 'Loading goals...'
                 : (goalsSummary?.active_goals_count ?? 0) > 0
@@ -734,7 +735,7 @@ export default function Dashboard({
           <button
             type="button"
             onClick={onOpenGoals}
-            className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800/50"
+            className={['px-3 py-2 text-xs', secondaryButtonClass].join(' ')}
           >
             <Icon name="portfolio" className="h-4 w-4" />
             View Goals
@@ -742,9 +743,9 @@ export default function Dashboard({
         </div>
 
         {summaryLoading ? (
-          <div className="mt-4 text-sm text-slate-500 dark:text-slate-400">Loading goals...</div>
+          <div className="mt-4 text-sm font-medium tracking-[-0.01em] text-slate-400 dark:text-slate-400">Loading goals...</div>
         ) : !topGoals.length ? (
-          <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
+          <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm font-medium tracking-[-0.01em] text-slate-400 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
             No financial goals added yet.
           </div>
         ) : (
@@ -752,14 +753,14 @@ export default function Dashboard({
             {topGoals.map((goal) => (
               <div key={goal.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-700/50 dark:bg-slate-900/40">
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-slate-900 dark:text-white">{goal.name}</div>
-                  <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{goal.status.replace('_', ' ')} · {goal.target_date ? formatDisplayDate(goal.target_date) : 'No target date'}</div>
+                  <div className="truncate text-sm font-semibold tracking-[-0.01em] text-slate-900 dark:text-white">{goal.name}</div>
+                  <div className="mt-1 text-xs font-medium text-slate-400 dark:text-slate-400">{goal.status.replace('_', ' ')} · {goal.target_date ? formatDisplayDate(goal.target_date) : 'No target date'}</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-semibold text-slate-900 dark:text-white">
+                  <div className="font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white">
                     <PrivateValue value={formatPct(toNumber(goal.progress_pct))} mask="••••" hideColor />
                   </div>
-                  <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  <div className="mt-1 font-mono text-xs font-medium tabular-nums text-slate-400 dark:text-slate-400">
                     <PrivateValue value={formatMoney(toNumber(goal.shortfall_amount))} mask="••••" hideColor />
                   </div>
                 </div>
@@ -804,7 +805,7 @@ export default function Dashboard({
                 <button key={entry.key} type="button" onClick={() => setSelectedBucketKey(entry.key)} className="flex w-full items-center gap-3 text-left transition-opacity hover:opacity-85">
                   <div className="flex w-28 shrink-0 items-center gap-2">
                     <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: entry.color }} />
-                    <span className="truncate text-sm text-slate-600 dark:text-slate-300">{entry.label}</span>
+                    <span className="truncate text-sm font-medium tracking-[-0.01em] text-slate-600 dark:text-slate-300">{entry.label}</span>
                   </div>
                   <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                     <div
@@ -812,27 +813,27 @@ export default function Dashboard({
                       className="h-full rounded-full transition-all duration-500"
                     />
                   </div>
-                  <span className="w-9 shrink-0 text-right text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-200">
+                  <span className="w-9 shrink-0 text-right font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-slate-200">
                     {entry.percentage.toFixed(0)}%
                   </span>
                 </button>
               ))}
             </div>
           ) : (
-            <div className="mt-5 py-8 text-center text-sm text-slate-400">Add holdings to see allocation.</div>
+            <div className="mt-5 py-8 text-center text-sm font-medium tracking-[-0.01em] text-slate-400">Add holdings to see allocation.</div>
           )}
 
           {allocationData.length > 0 ? (
             <div className="mt-6 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-4">
               <div>
                 <div className={LABEL}>Equity</div>
-                <div className="mt-0.5 text-sm font-semibold text-slate-900 dark:text-white">
+                <div className="mt-0.5 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white">
                   <PrivateValue value={formatPct(equityExposurePct)} mask="••••" hideColor />
                 </div>
               </div>
               <div className="text-right">
                 <div className={LABEL}>Diversification</div>
-                <div className="mt-0.5 text-sm font-semibold text-emerald-500">Balanced</div>
+                <div className="mt-0.5 text-sm font-semibold tracking-[-0.01em] text-emerald-500">Balanced</div>
               </div>
             </div>
           ) : null}
@@ -852,10 +853,10 @@ export default function Dashboard({
               bankAccounts.map(account => (
                 <div key={account.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
                 <div className="min-w-0">
-                  <div className="text-sm font-medium text-slate-900 dark:text-slate-200">{account.bank_name}</div>
-                  <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-500">{account.account_type}</div>
+                  <div className="text-sm font-medium tracking-[-0.01em] text-slate-900 dark:text-slate-200">{account.bank_name}</div>
+                  <div className="mt-0.5 text-xs font-medium text-slate-400 dark:text-slate-400">{account.account_type}</div>
                 </div>
-                <div className="shrink-0 font-mono text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
+                <div className="shrink-0 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white">
                     <PrivateValue value={formatMoney(toNumber(account.balance))} mask="••••" hideColor />
                 </div>
                 </div>
@@ -878,11 +879,11 @@ export default function Dashboard({
                 return (
                   <div key={card.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-200">{card.card_name}</div>
-                      <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-500">{formatDisplayDate(card.due_date)}</div>
+                      <div className="truncate text-sm font-medium tracking-[-0.01em] text-slate-900 dark:text-slate-200">{card.card_name}</div>
+                      <div className="mt-0.5 font-mono text-xs font-medium tabular-nums text-slate-400 dark:text-slate-400">{formatDisplayDate(card.due_date)}</div>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      <span className="font-mono text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
+                      <span className="font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white">
                         <PrivateValue value={formatMoney(toNumber(card.current_bill_amount))} mask="••••" hideColor />
                       </span>
                       <StatusPill tone={tone} label={card.status === 'overdue' ? 'Overdue' : 'Due Soon'} />
@@ -911,7 +912,7 @@ export default function Dashboard({
                   ].join(' ')}>
                     <Icon name={insight.tone === 'amber' || insight.tone === 'rose' ? 'warning' : 'stocks'} className="h-4 w-4" />
                   </div>
-                  <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">{maskSensitiveText(insight.text, privacyMode, '••••')}</p>
+                  <p className="text-sm font-medium tracking-[-0.01em] leading-relaxed text-slate-600 dark:text-slate-300">{maskSensitiveText(insight.text, privacyMode, '••••')}</p>
                 </div>
               ))
             ) : (

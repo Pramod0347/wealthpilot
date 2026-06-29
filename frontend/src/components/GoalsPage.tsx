@@ -16,6 +16,7 @@ import { Icon } from './Icon'
 import PrivateValue from './ui/PrivateValue'
 import { useBankAccountsQuery, useFinancialGoalsQuery, useFinancialGoalsSummaryQuery, useFixedSavingsAccountsQuery } from '../queries/hooks'
 import { queryKeys } from '../queries/queryKeys'
+import { primaryButtonClass, secondaryButtonClass } from '../styles/buttonStyles'
 
 type GoalFormState = {
   name: string
@@ -424,7 +425,7 @@ export default function GoalsPage() {
         <button
           type="button"
           onClick={openCreateModal}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-accent-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-700"
+          className={['justify-center', primaryButtonClass].join(' ')}
         >
           <Icon name="add" className="h-4 w-4" />
           Add Goal
@@ -532,7 +533,7 @@ export default function GoalsPage() {
                     <button
                       type="button"
                       onClick={() => openEditModal(goal)}
-                      className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700/50"
+                      className={['h-10 flex-1 justify-center', secondaryButtonClass].join(' ')}
                     >
                       <Icon name="edit" className="h-4 w-4" />
                       Edit
@@ -692,10 +693,10 @@ export default function GoalsPage() {
               </div>
 
               <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4 dark:border-slate-800">
-                <button type="button" onClick={() => setIsModalOpen(false)} disabled={isSaving} className="inline-flex h-10 items-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                <button type="button" onClick={() => setIsModalOpen(false)} disabled={isSaving} className={secondaryButtonClass}>
                   Cancel
                 </button>
-                <button type="submit" disabled={isSaving} className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-4 text-sm font-semibold text-white disabled:opacity-60">
+                <button type="submit" disabled={isSaving} className={primaryButtonClass}>
                   {isSaving ? <Icon name="refresh" className="h-4 w-4 animate-spin" /> : <Icon name="add" className="h-4 w-4" />}
                   {isSaving ? 'Saving...' : editingGoal ? 'Save Changes' : 'Create Goal'}
                 </button>

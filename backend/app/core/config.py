@@ -9,6 +9,7 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 class Settings(BaseSettings):
     app_name: str = "WealthPilot API"
     app_env: str = "development"
+    dev_auth_bypass: bool = False
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/wealthpilot"
     # Comma-separated list of allowed frontend origins, e.g. "https://money.pramodgoudar.com"
     frontend_url: str = ""
@@ -35,6 +36,10 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
+
+
+def auth_bypass_enabled() -> bool:
+    return settings.app_env != "production" and settings.dev_auth_bypass
 
 
 def normalize_database_url(url: str) -> str:

@@ -20,6 +20,7 @@ import PortfolioPerformanceChart from './ui/PortfolioPerformanceChart'
 import WealthBucketModal from './ui/WealthBucketModal'
 import { useAnalyticsSummaryQuery, useDashboardSummaryQuery, usePortfolioIntelligenceQuery, usePortfolioPerformanceQuery } from '../queries/hooks'
 import { queryKeys } from '../queries/queryKeys'
+import { secondaryButtonClass } from '../styles/buttonStyles'
 
 type TrendPoint = {
   label: string
@@ -447,28 +448,30 @@ export default function AnalyticsPage() {
 
       <SectionCard className="overflow-hidden p-0">
         <div className="flex flex-col gap-4 border-b border-slate-200 px-4 py-4 dark:border-slate-700/50 sm:px-6 sm:py-5 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3 shadow-sm dark:border-slate-700/50 dark:bg-slate-900/80">
+          <div className="flex flex-1 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-700/50 dark:bg-slate-900/40">
             <Icon name="analytics" className="h-4 w-4 shrink-0 text-slate-400" />
-            <span className="text-sm font-semibold text-slate-900 dark:text-white">Financial Analytics</span>
-            <span className="hidden text-sm text-slate-500 dark:text-slate-400 sm:inline">· Net worth, risk, allocation, cashflow, and credit health</span>
-            <div className="ml-auto flex items-center gap-1.5">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-slate-900 dark:text-white">Financial Analytics</div>
+              <div className="hidden text-sm text-slate-500 dark:text-slate-400 sm:block">Net worth, risk, allocation, cashflow, and credit health</div>
+            </div>
+            <div className="ml-auto hidden items-center gap-1.5 sm:inline-flex">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
               <span className="text-xs font-medium text-emerald-500 dark:text-emerald-400">Live</span>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-700/70 bg-slate-900/60 px-3 py-2 t-badge text-slate-300">
+            <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 t-badge text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
               <Icon name="calendar" className="h-3.5 w-3.5" />
               Last updated {statusMeta.lastUpdated}
             </div>
-            <div className={['inline-flex items-center gap-2 rounded-full px-3 py-2 t-badge', statusMeta.stale ? 'border border-amber-500/20 bg-amber-500/10 text-amber-300' : 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-300'].join(' ')}>
+            <div className={['inline-flex items-center gap-2 rounded-xl px-3 py-2 t-badge', statusMeta.stale ? 'border border-amber-500/20 bg-amber-500/10 text-amber-300' : 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-300'].join(' ')}>
               <span className={['h-1.5 w-1.5 rounded-full', statusMeta.stale ? 'bg-amber-400' : 'bg-emerald-400'].join(' ')} />
               {statusMeta.stale ? 'Stale' : 'Live'}
             </div>
             <button
               type="button"
               onClick={refreshAnalytics}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-700/70 bg-slate-900/60 px-3 py-2 t-badge text-slate-300 transition-colors hover:border-slate-600 hover:text-white"
+              className={secondaryButtonClass}
             >
               <Icon name="refresh" className="h-3.5 w-3.5" />
               Refresh
@@ -500,7 +503,7 @@ export default function AnalyticsPage() {
                 <div className={sectionLabel}>Projected Net Worth</div>
                 <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Based on saved portfolio snapshots</div>
               </div>
-              <span className="rounded-full bg-slate-800 px-2.5 py-1 t-badge text-slate-300">{snapshotCount} snapshots</span>
+              <span className="rounded-xl border border-slate-200 bg-white px-2.5 py-1 t-badge text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">{snapshotCount} snapshots</span>
             </div>
             {hasPerformance ? (
               <div className="space-y-3">

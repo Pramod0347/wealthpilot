@@ -47,19 +47,16 @@ export default function Sidebar({
       ].join(' ')}
     >
       {/* Logo + brand */}
-      <div className={collapsed ? 'flex items-center justify-center' : 'flex items-center gap-3'}>
-        <Logo />
+      <div className={collapsed ? 'flex items-center justify-center' : 'flex flex-col items-start'}>
+        <Logo collapsed={collapsed} />
         <div
           className={[
             'min-w-0 overflow-hidden transition-all duration-300 ease-in-out motion-reduce:transition-none',
             collapsed
               ? 'max-w-0 opacity-0 -translate-x-2 pointer-events-none'
-              : 'max-w-45 opacity-100 translate-x-0',
+              : 'mt-4 max-w-45 opacity-100 translate-x-0',
           ].join(' ')}
         >
-          <div className="text-[18px] font-bold leading-none tracking-[-0.03em] text-slate-900 dark:text-white truncate">
-            WealthPilot
-          </div>
           <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.05em] text-slate-400 dark:text-slate-500">
             Personal Finance
           </div>
@@ -115,7 +112,7 @@ export default function Sidebar({
                     : 'max-w-[140px] opacity-100',
                 ].join(' ')}
               >
-                <span className="text-[15px] font-medium truncate">{item.label}</span>
+                <span className="truncate text-sm font-medium tracking-[-0.01em]">{item.label}</span>
               </span>
 
               {/* Active dot */}
@@ -149,7 +146,7 @@ export default function Sidebar({
           ].join(' ')}
         />
         {!collapsed && (
-          <span className="text-[13px] font-medium">Collapse</span>
+          <span className="text-sm font-medium tracking-[-0.01em]">Collapse</span>
         )}
       </button>
     </aside>

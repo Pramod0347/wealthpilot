@@ -9,6 +9,7 @@ import { formatINR, formatINRShort, formatPct, formatSignedPct, getTrendClass } 
 import { usePrivacyMode } from '../context/PrivacyContext'
 import { useHoldingsAnalyticsQuery, useHoldingsQuery, usePortfolioPerformanceQuery } from '../queries/hooks'
 import { queryKeys } from '../queries/queryKeys'
+import { primaryButtonClass, secondaryButtonClass } from '../styles/buttonStyles'
 
 type ApiHolding = {
   id: number
@@ -1100,7 +1101,7 @@ export default function StocksPage() {
                 type="button"
                 onClick={handleRefreshAllPrices}
                 disabled={isRefreshingAllPrices}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-950 text-sm font-medium text-slate-300 disabled:opacity-60"
+                className={['h-11 justify-center', secondaryButtonClass].join(' ')}
               >
                 <Icon name="refresh" className={['h-4 w-4', isRefreshingAllPrices ? 'animate-spin' : ''].join(' ')} />
                 Refresh
@@ -1108,7 +1109,7 @@ export default function StocksPage() {
               <button
                 type="button"
                 onClick={openCreateModal}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-accent-600 text-sm font-semibold text-white"
+                className={['h-11 justify-center', primaryButtonClass].join(' ')}
               >
                 <Icon name="add" className="h-4 w-4" />
                 Add
@@ -1234,7 +1235,7 @@ export default function StocksPage() {
             type="button"
             onClick={handleRefreshAllPrices}
             disabled={isRefreshingAllPrices}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 shadow-sm transition-all duration-150 hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-700/50 sm:h-10"
+            className={secondaryButtonClass}
           >
             <Icon name="refresh" className={['h-4 w-4', isRefreshingAllPrices ? 'animate-spin' : ''].join(' ')} />
             <span className="hidden sm:inline">{isRefreshingAllPrices ? 'Refreshing...' : 'Refresh Prices'}</span>
@@ -1242,7 +1243,7 @@ export default function StocksPage() {
           <button
             type="button"
             onClick={openCreateModal}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-accent-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-accent-700 active:bg-accent-800 sm:h-10"
+            className={primaryButtonClass}
           >
             <Icon name="add" className="h-4 w-4" />
             Add Investment
@@ -1332,8 +1333,42 @@ export default function StocksPage() {
         </div>
 
         <SectionCard className="overflow-hidden">
-            <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-700 sm:px-6 sm:py-4">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="border-b border-slate-200 px-4 py-4 dark:border-slate-700 sm:px-6 sm:py-5">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Holdings</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">Tracked investments</div>
+                  <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Filter positions by bucket and search across symbols, companies, or funds.</div>
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center xl:justify-end">
+                  <div className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 text-slate-500 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-400">
+                    <Icon name="due" className="h-4 w-4" />
+                    <span className="text-sm">{latestUpdate ? `Updated ${formatCompactTimestamp(latestUpdate.toISOString())}` : 'No updates yet'}</span>
+                  </div>
+                  <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-500 shadow-sm focus-within:border-accent-500 focus-within:ring-2 focus-within:ring-accent-500/15 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 sm:min-w-[18rem]">
+                    <Icon name="search" className="h-4 w-4 shrink-0" />
+                    <input
+                      value={searchTerm}
+                      onChange={(event) => setSearchTerm(event.target.value)}
+                      placeholder="Search by symbol, company, or fund"
+                      className="w-full bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none"
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={handleRefreshAllPrices}
+                    disabled={isRefreshingAllPrices}
+                    className={['justify-center', secondaryButtonClass].join(' ')}
+                  >
+                    <Icon name="refresh" className={['h-4 w-4', isRefreshingAllPrices ? 'animate-spin' : ''].join(' ')} />
+                    Refresh Prices
+                  </button>
+                </div>
+              </div>
+
               <div className="no-scrollbar flex items-center gap-2 overflow-x-auto">
                 {filterChips.map((filter) => (
                   <button
@@ -1341,7 +1376,7 @@ export default function StocksPage() {
                     type="button"
                     onClick={() => setAssetTypeFilter(filter.value)}
                     className={[
-                      'h-9 whitespace-nowrap rounded-full px-4 t-badge transition-all duration-200 ease-out active:scale-[0.98] motion-reduce:transition-none',
+                      'h-9 whitespace-nowrap rounded-xl px-4 t-badge transition-all duration-200 ease-out active:scale-[0.98] motion-reduce:transition-none',
                       assetTypeFilter === filter.value
                         ? 'bg-accent-600 text-white'
                         : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 hover:text-slate-900 dark:hover:text-white',
@@ -1350,32 +1385,6 @@ export default function StocksPage() {
                     {filter.label} <span className="opacity-80">({filter.count})</span>
                   </button>
                 ))}
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div className="hidden h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 t-nav text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 xl:inline-flex">
-                  <Icon name="due" className="h-4 w-4" />
-                  <span>{latestUpdate ? `Updated ${formatCompactTimestamp(latestUpdate.toISOString())}` : 'No updates yet'}</span>
-                </div>
-                <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-slate-500 shadow-sm focus-within:border-accent-500 focus-within:ring-2 focus-within:ring-accent-500/15 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 sm:min-w-[16rem]">
-                  <Icon name="search" className="h-4 w-4 shrink-0" />
-                  <input
-                    value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.target.value)}
-                    placeholder="Search by symbol, company, or fund"
-                    className="w-full bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none"
-                  />
-                </label>
-
-                <button
-                  type="button"
-                  onClick={handleRefreshAllPrices}
-                  disabled={isRefreshingAllPrices}
-                  className="hidden h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 shadow-sm transition-all duration-150 hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-700/50 sm:inline-flex"
-                >
-                  <Icon name="refresh" className={['h-4 w-4', isRefreshingAllPrices ? 'animate-spin' : ''].join(' ')} />
-                  Refresh Prices
-                </button>
               </div>
             </div>
           </div>
@@ -1707,7 +1716,7 @@ export default function StocksPage() {
                   setSelectedMobileHoldingId(null)
                   openEditModal(selectedMobileHolding)
                 }}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                className={['h-11 justify-center', secondaryButtonClass].join(' ')}
               >
                 <Icon name="edit" className="h-4 w-4" />
                 Edit Investment
@@ -1954,7 +1963,7 @@ export default function StocksPage() {
                 <button
                   type="button"
                   onClick={() => setIsHoldingModalOpen(false)}
-                  className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-600 dark:text-slate-300 shadow-sm transition-all duration-150 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-slate-300 dark:hover:border-slate-600"
+                  className={secondaryButtonClass}
                   disabled={isSavingHolding}
                 >
                   Cancel
@@ -1962,7 +1971,7 @@ export default function StocksPage() {
                 <button
                   type="submit"
                   disabled={isSavingHolding}
-                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-accent-700 active:bg-accent-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  className={primaryButtonClass}
                 >
                   {isSavingHolding ? <Icon name="refresh" className="h-4 w-4 animate-spin" /> : <Icon name="add" className="h-4 w-4" />}
                   {isSavingHolding ? 'Saving...' : editingHoldingId === null ? 'Create Investment' : 'Save Changes'}

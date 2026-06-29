@@ -15,6 +15,7 @@ import { Icon } from './Icon'
 import PrivateValue from './ui/PrivateValue'
 import { useCashflowEntriesQuery, useCashflowMonthsQuery, useCashflowSummaryQuery } from '../queries/hooks'
 import { queryKeys } from '../queries/queryKeys'
+import { primaryButtonClass, secondaryButtonClass } from '../styles/buttonStyles'
 
 const incomeCategories = ['Salary', 'Freelance', 'Bonus', 'Interest', 'Other'] as const
 const expenseCategories = ['Food', 'Grocery', 'Bike', 'Social Life', 'House Rent', 'Personal Exp', 'Utilities', 'Subscription', 'Other', 'Going Home', 'Home'] as const
@@ -371,7 +372,7 @@ export default function CashflowPage() {
         <button
           type="button"
           onClick={openCreate}
-          className="inline-flex items-center gap-2 rounded-xl bg-teal-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-200 hover:bg-teal-400 active:scale-[0.98]"
+          className={primaryButtonClass}
         >
           <Icon name="add" className="h-4 w-4" />
           Add Entry
@@ -485,7 +486,7 @@ export default function CashflowPage() {
             <button
               type="button"
               onClick={openCreate}
-              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-teal-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-200 hover:bg-teal-400 active:scale-[0.98]"
+              className={['mt-5', primaryButtonClass].join(' ')}
             >
               <Icon name="add" className="h-4 w-4" />
               Add Entry
@@ -593,10 +594,10 @@ export default function CashflowPage() {
                 </FormField>
               </div>
               <div className="flex items-center justify-end gap-3 border-t border-slate-800 px-6 py-4">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-300 transition-colors duration-200 hover:bg-slate-800 active:scale-[0.98]">
+                <button type="button" onClick={() => setIsModalOpen(false)} className={secondaryButtonClass}>
                   Cancel
                 </button>
-                <button type="submit" disabled={isSaving} className="inline-flex items-center gap-2 rounded-xl bg-teal-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-200 hover:bg-teal-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60">
+                <button type="submit" disabled={isSaving} className={primaryButtonClass}>
                   <Icon name="add" className="h-4 w-4" />
                   {isSaving ? 'Saving...' : editingId === null ? 'Add Entry' : 'Save Changes'}
                 </button>

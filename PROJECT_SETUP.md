@@ -16,15 +16,55 @@ WealthPilot is a premium fintech dashboard for personal wealth management. Built
 
 ### Type Scale
 
-| Usage | Size | Weight | Line Height | Letter Spacing |
-|-------|------|--------|-------------|-----------------|
-| Page Title (h1) | 28px | 700 | 1.2 | -0.5px |
-| Section Title (h2) | 20px | 700 | 1.3 | -0.25px |
-| Card Title (h3) | 14px | 600 | 1.4 | 0 |
-| Body (p) | 14px | 400 | 1.6 | 0 |
-| Small (caption) | 12px | 500 | 1.5 | 0.3px |
-| Tiny (label) | 11px | 600 | 1.4 | 0.5px |
-| Mono (data) | 13px | 500 | 1.5 | 0 |
+Use these typography tokens consistently across the product. Do not create one-off sizes for section subtitles, card labels, or sidebar items.
+
+| Usage | Tailwind class | Size | Weight | Line Height | Letter Spacing |
+|-------|----------------|------|--------|-------------|-----------------|
+| Page Title (h1) | `text-xl font-semibold tracking-[-0.02em]` | 20px | 600 | 1.25 | -0.02em |
+| Page Subtitle | `text-xs font-medium text-slate-400` | 12px | 500 | 1.5 | 0 |
+| Sidebar Item | `text-sm font-medium tracking-[-0.01em]` | 14px | 500 | 1.4 | -0.01em |
+| Sidebar Section Label | `text-[10px] font-semibold uppercase tracking-[0.14em]` | 10px | 600 | 1.4 | 0.14em |
+| Section Title (h2) | `text-sm font-semibold tracking-[-0.01em]` | 14px | 600 | 1.4 | -0.01em |
+| Card Title (h3) | `text-sm font-semibold tracking-[-0.01em]` | 14px | 600 | 1.4 | -0.01em |
+| Card Subtitle / Meta | `text-xs font-medium text-slate-400` | 12px | 500 | 1.45 | 0 |
+| Body (p) | `text-sm font-normal` | 14px | 400 | 1.6 | 0 |
+| Small (caption) | `text-xs font-medium` | 12px | 500 | 1.5 | 0 |
+| Tiny (label) | `text-[10px] font-semibold uppercase tracking-[0.12em]` | 10px | 600 | 1.4 | 0.12em |
+| Mono (data) | `font-mono text-sm font-semibold tabular-nums` | 14px | 600 | 1.45 | 0 |
+| Mini Metric Value | `font-mono text-base font-semibold tabular-nums` | 16px | 600 | 1.35 | 0 |
+| Hero Metric Value | `font-mono text-xl font-bold tabular-nums` | 20px | 700 | 1.25 | -0.01em |
+
+### Typography Consistency Rules
+
+- Use **Plus Jakarta Sans** for every UI label, heading, sidebar item, card title, subtitle, and description.
+- Use **JetBrains Mono only for numeric financial values**, percentages, dates when displayed as data, and masked financial values.
+- Do not mix random `text-lg`, `text-base`, or `tracking-widest` in dashboard cards unless it maps to a token above.
+- Sidebar nav text, page subtitles, and card subtitles should feel like the same product: same font family, similar weight, and similar muted color.
+- Section labels such as `MONTHLY CASHFLOW`, `PERFORMANCE`, `GOALS`, `COMPOSITION` must use the Tiny Label token.
+- Card headings such as `Monthly Cashflow`, `Portfolio Value`, `Bank Balance`, and `Action Center` must use the Card Title token.
+- Supporting text such as `Based on 3 tracked months`, `Quick command center for your money`, and `Across active goals` must use Card Subtitle / Meta.
+- Avoid ultra-wide letter spacing for normal readable text. Reserve uppercase tracking only for tiny section labels.
+- Keep line height compact in dashboards: headings 1.25–1.4, meta 1.45–1.5, body 1.6.
+
+### Dashboard Text Pattern
+
+Use this exact text hierarchy inside dashboard cards:
+
+```html
+<section class="rounded-2xl border border-slate-700/50 bg-slate-900/80 p-4">
+  <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+    MONTHLY CASHFLOW
+  </p>
+  <h3 class="mt-1 text-sm font-semibold tracking-[-0.01em] text-slate-100">
+    Monthly Cashflow
+  </h3>
+  <p class="mt-0.5 text-xs font-medium text-slate-400">
+    Based on 3 tracked months
+  </p>
+</section>
+```
+
+If a card has only a section label and meta text, still use the same token classes. Do not use different font sizes for similar card headers.
 
 ---
 
@@ -150,35 +190,62 @@ box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
 
 #### Primary (CTA)
 ```css
-background: #0d9488
+display: inline-flex
+align-items: center
+gap: 8px
+background: #14b8a6
 color: white
 padding: 10px 16px (py-2.5 px-4)
-border-radius: 8px
+border-radius: 12px
 font-weight: 600
 font-size: 14px
 border: none
 cursor: pointer
-transition: background 200ms
+transition: background-color 200ms
 
-hover: #0f766e
-active: #115e59
+hover: #2dd4bf
+active: scale(0.98)
 disabled: #cbd5e1 (slate-300)
+```
+
+Tailwind standard:
+
+```html
+inline-flex items-center gap-2 rounded-xl bg-teal-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-200 hover:bg-teal-400 active:scale-[0.98]
 ```
 
 #### Secondary (Default)
 ```css
-background: transparent
-color: #475569 (slate-600)
+display: inline-flex
+align-items: center
+gap: 8px
+background: #ffffff
+color: #334155 (slate-700)
 border: 1px solid #e2e8f0 (slate-200)
 padding: 10px 16px
-border-radius: 8px
+border-radius: 12px
 font-weight: 600
 font-size: 14px
+transition: background-color 200ms, border-color 200ms, transform 200ms
 
-hover: background #f1f5f9 (slate-50)
-dark: color #cbd5e1, border #334155
-dark:hover: background #334155
+hover: background #f8fafc (slate-50), border #cbd5e1
+active: scale(0.98)
+dark: background #1e293b, color #e2e8f0, border #334155
+dark:hover: background #334155, border #475569
 ```
+
+Tailwind standard:
+
+```html
+inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors duration-200 hover:border-slate-300 hover:bg-slate-50 active:scale-[0.98] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-700/50
+```
+
+Button system rule:
+
+- Use **Primary** for the main page CTA: add, save, create, submit, confirm.
+- Use **Secondary** for neutral actions: cancel, close, edit, open details, alternate toolbar actions.
+- Do not introduce one-off accent button variants unless the action is semantically different, such as destructive (`rose`) or success/info state actions.
+- Prefer `rounded-xl` for standard action buttons across WealthPilot. Reserve smaller radii only for icon-only controls or dense utility actions.
 
 #### Ghost (Minimal)
 ```css
@@ -316,6 +383,28 @@ main:
   min-width: 0
   overflow-x: hidden
 ```
+
+### Sidebar Typography & Logo
+
+The sidebar sets the baseline typography for the app. Dashboard card text should visually match this scale rather than using unrelated sizes.
+
+```html
+<nav class="space-y-1">
+  <a class="flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium tracking-[-0.01em] text-slate-400 transition hover:bg-slate-800/60 hover:text-slate-100">
+    <Icon class="h-5 w-5" />
+    <span>Dashboard</span>
+  </a>
+</nav>
+```
+
+Sidebar rules:
+
+- Nav text: `text-sm font-medium tracking-[-0.01em]`.
+- Active nav text: `text-teal-300`; inactive nav text: `text-slate-400`.
+- Sidebar section label: `text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500`.
+- Logo wordmark should not introduce a different font scale inside the sidebar. Prefer an SVG/PNG logo mark + wordmark at a controlled height, or render text using `text-base font-bold tracking-[-0.02em]`.
+- Keep the logo area compact: max logo height `h-9` to `h-10` in expanded sidebar. Avoid large rectangular logo backgrounds.
+
 
 ### Header (Sticky)
 ```css
@@ -529,6 +618,18 @@ export default {
 | Text (secondary) | #475569 | — | #cbd5e1 | — | — |
 
 ---
+
+## UI Consistency Checklist
+
+Before shipping a page, verify:
+
+- Sidebar items, card titles, and dashboard subtitles all use Plus Jakarta Sans.
+- Financial numbers and masked financial values use JetBrains Mono.
+- Card section labels are uppercase 10px labels, not normal body text.
+- Card titles are 14px semibold, not 16px/18px unless it is a page-level section.
+- Meta text is 12px medium muted slate.
+- Similar components use the same text token across Dashboard, Analytics, Goals, Tax Center, Transactions, Cards, Banks, and Stocks.
+- Privacy masked values should keep the same metric typography as real values.
 
 ## Notes for Implementation
 

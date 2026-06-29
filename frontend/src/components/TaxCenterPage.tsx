@@ -35,6 +35,7 @@ import { Icon } from './Icon'
 import PrivateValue from './ui/PrivateValue'
 import { useTaxDeductionsQuery, useTaxDocumentsQuery, useTaxIncomeQuery, useTaxPaymentsQuery, useTaxSummaryQuery, useTaxYearsQuery } from '../queries/hooks'
 import { queryKeys } from '../queries/queryKeys'
+import { primaryButtonClass, secondaryButtonClass } from '../styles/buttonStyles'
 
 type ModalKind = 'year' | 'income' | 'deduction' | 'document' | 'payment' | null
 
@@ -551,7 +552,7 @@ export default function TaxCenterPage() {
             <button
               type="button"
               onClick={() => openYearModal()}
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-accent-600 px-4 text-sm font-semibold text-white"
+              className={primaryButtonClass}
             >
               <Icon name="add" className="h-4 w-4" />
               Add FY
@@ -566,7 +567,7 @@ export default function TaxCenterPage() {
             title="No tax year added yet"
             text="Create FY 2025-26 to start tracking tax income, documents, and filing readiness."
             action={
-              <button type="button" onClick={() => openYearModal()} className="inline-flex h-10 items-center gap-2 rounded-xl bg-accent-600 px-4 text-sm font-semibold text-white">
+              <button type="button" onClick={() => openYearModal()} className={primaryButtonClass}>
                 <Icon name="add" className="h-4 w-4" />
                 Add Tax Year
               </button>
@@ -674,7 +675,7 @@ export default function TaxCenterPage() {
                   ))}
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <button type="button" onClick={() => openYearModal(selectedYear ?? undefined)} className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                  <button type="button" onClick={() => openYearModal(selectedYear ?? undefined)} className={secondaryButtonClass}>
                     <Icon name="edit" className="h-4 w-4" />
                     Edit FY
                   </button>
@@ -691,7 +692,7 @@ export default function TaxCenterPage() {
             <SectionCard
               title="Income Items"
               subtitle="Track salary, interest, dividends, capital gains, freelance, and other taxable income."
-              action={<button type="button" onClick={() => openIncomeModal()} className="inline-flex h-10 items-center gap-2 rounded-xl bg-accent-600 px-4 text-sm font-semibold text-white"><Icon name="add" className="h-4 w-4" />Add Income</button>}
+              action={<button type="button" onClick={() => openIncomeModal()} className={primaryButtonClass}><Icon name="add" className="h-4 w-4" />Add Income</button>}
             >
               {incomeItems.length === 0 ? (
                 <EmptyState title="No tax income added" text="Add tax-relevant income to start the estimate." />
@@ -734,7 +735,7 @@ export default function TaxCenterPage() {
               <SectionCard
                 title="Allowed Adjustments"
                 subtitle="New regime keeps this narrow. Standard deduction is auto-applied when salary exists."
-                action={<button type="button" onClick={() => openDeductionModal()} className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"><Icon name="add" className="h-4 w-4" />Add Adjustment</button>}
+                action={<button type="button" onClick={() => openDeductionModal()} className={secondaryButtonClass}><Icon name="add" className="h-4 w-4" />Add Adjustment</button>}
               >
                 {deductions.length === 0 ? (
                   <EmptyState title="No adjustments added" text="Add NPS employer or other allowed records if applicable." />
@@ -765,7 +766,7 @@ export default function TaxCenterPage() {
               <SectionCard
                 title="TDS and Tax Payments"
                 subtitle="Track advance tax, self-assessment, refunds, and extra TDS entries."
-                action={<button type="button" onClick={() => openPaymentModal()} className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"><Icon name="add" className="h-4 w-4" />Add Payment</button>}
+                action={<button type="button" onClick={() => openPaymentModal()} className={secondaryButtonClass}><Icon name="add" className="h-4 w-4" />Add Payment</button>}
               >
                 <div className="mb-4 grid gap-3 sm:grid-cols-2">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/50">
@@ -807,7 +808,7 @@ export default function TaxCenterPage() {
             <SectionCard
               title="Document Checklist"
               subtitle={`${summary.documents_summary.total_required} required documents · readiness ${privacyMode ? '••••' : formatPct(toNumber(summary.documents_summary.readiness_score))}`}
-              action={<button type="button" onClick={() => openDocumentModal()} className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"><Icon name="add" className="h-4 w-4" />Add Document</button>}
+              action={<button type="button" onClick={() => openDocumentModal()} className={secondaryButtonClass}><Icon name="add" className="h-4 w-4" />Add Document</button>}
             >
               <div className="mb-4 grid gap-3 sm:grid-cols-3">
                 <MetricCard label="Available" value={String(summary.documents_summary.available_count)} meta="Uploaded or verified" tone="slate" />
@@ -1038,10 +1039,10 @@ export default function TaxCenterPage() {
             </div>
 
             <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4 dark:border-slate-800">
-              <button type="button" onClick={() => setModalKind(null)} className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+              <button type="button" onClick={() => setModalKind(null)} className={secondaryButtonClass}>
                 Cancel
               </button>
-              <button type="button" onClick={() => void handleSave()} disabled={isSaving} className="inline-flex h-10 items-center gap-2 rounded-xl bg-accent-600 px-4 text-sm font-semibold text-white disabled:opacity-60">
+              <button type="button" onClick={() => void handleSave()} disabled={isSaving} className={primaryButtonClass}>
                 {isSaving ? <Icon name="refresh" className="h-4 w-4 animate-spin" /> : <Icon name="add" className="h-4 w-4" />}
                 {isSaving ? 'Saving...' : 'Save'}
               </button>

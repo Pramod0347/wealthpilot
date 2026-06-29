@@ -3,6 +3,7 @@ import { getTrendClass } from '../lib/format'
 import { useTheme } from '../context/ThemeContext'
 import { usePrivacyMode } from '../context/PrivacyContext'
 import { Icon } from './Icon'
+import Logo from './Logo'
 import { type MarketOverviewItem } from '../lib/api'
 import { useMarketOverviewQuery } from '../queries/hooks'
 
@@ -166,13 +167,16 @@ export default function Header({
     >
       <div className="lg:hidden">
         <div className="flex min-h-[76px] items-center justify-between gap-4 py-3">
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-bold tracking-[-0.25px] leading-none text-slate-900 dark:text-white">
-              {title}
-            </h1>
-            {subtitle ? (
-              <p className="mt-1 truncate pr-2 text-[12px] text-slate-500 dark:text-slate-400">{subtitle}</p>
-            ) : null}
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <Logo mobile />
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate text-lg font-bold tracking-[-0.25px] leading-none text-slate-900 dark:text-white">
+                {title}
+              </h1>
+              {subtitle ? (
+                <p className="mt-1 truncate pr-2 text-[12px] text-slate-500 dark:text-slate-400">{subtitle}</p>
+              ) : null}
+            </div>
           </div>
 
           <div className="flex shrink-0 items-center gap-2">

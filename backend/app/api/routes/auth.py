@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel
 
 from app.api.deps import get_request_auth_token
-from app.core.config import settings
+from app.core.config import auth_bypass_enabled, settings
 from app.core.session import create_session_token, verify_session_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -103,6 +103,9 @@ def login(body: LoginRequest, response: Response) -> dict:
 
 @router.get("/me")
 def me(request: Request) -> dict:
+    if auth_bypass_enabled():
+        return {"authenticated": True, "bypass": True}
+
     token = get_request_auth_token(request)
     if token and settings.secret_key and verify_session_token(token, settings.secret_key):
         return {"authenticated": True}

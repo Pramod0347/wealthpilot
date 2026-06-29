@@ -16,6 +16,7 @@ import BottomSheet from './ui/BottomSheet'
 import { usePrivacyMode } from '../context/PrivacyContext'
 import { useBankAccountsQuery, useBankAccountsSummaryQuery } from '../queries/hooks'
 import { queryKeys } from '../queries/queryKeys'
+import { primaryButtonClass, secondaryButtonClass } from '../styles/buttonStyles'
 
 type BankAccountFormState = {
   bank_name: string
@@ -421,7 +422,7 @@ export default function BanksPage() {
               <button
                 type="button"
                 onClick={openCreateModal}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-accent-600 px-3.5 text-[12px] font-semibold text-white"
+                className={['h-10 justify-center rounded-full px-3.5 py-0 text-[12px]', primaryButtonClass].join(' ')}
               >
                 <Icon name="add" className="h-4 w-4" />
                 Add
@@ -468,7 +469,7 @@ export default function BanksPage() {
             <button
               type="button"
               onClick={openCreateModal}
-              className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl bg-accent-600 text-sm font-semibold text-white"
+              className={['h-11 flex-1 justify-center', primaryButtonClass].join(' ')}
             >
               <Icon name="add" className="h-4 w-4" />
               Add Bank
@@ -477,7 +478,7 @@ export default function BanksPage() {
               type="button"
               onClick={() => highestBalanceAccount && openEditModal(highestBalanceAccount)}
               disabled={!highestBalanceAccount}
-              className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-900/80 text-sm font-semibold text-slate-200 disabled:opacity-50"
+              className={['h-11 flex-1 justify-center', secondaryButtonClass].join(' ')}
             >
               <Icon name="edit" className="h-4 w-4" />
               Update Balance
@@ -497,7 +498,7 @@ export default function BanksPage() {
               <button
                 type="button"
                 onClick={openCreateModal}
-                className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-accent-600 px-4 text-sm font-semibold text-white"
+                className={['mt-4 h-11 justify-center', primaryButtonClass].join(' ')}
               >
                 <Icon name="add" className="h-4 w-4" />
                 Add Bank Account
@@ -566,7 +567,7 @@ export default function BanksPage() {
             <button
               type="button"
               onClick={openCreateModal}
-              className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg bg-accent-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-accent-700 active:bg-accent-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className={primaryButtonClass}
             >
               <Icon name="add" className="h-4 w-4" />
               Add Bank Account
@@ -626,7 +627,7 @@ export default function BanksPage() {
                 <button
                   type="button"
                   onClick={openCreateModal}
-                  className="mt-5 inline-flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-accent-700 active:bg-accent-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  className={['mt-5', primaryButtonClass].join(' ')}
                 >
                   <Icon name="add" className="h-4 w-4 text-white" />
                   Add Bank Account
@@ -752,20 +753,20 @@ export default function BanksPage() {
           subtitle="Manual bank balance entry"
           footer={
             <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                disabled={isSaving}
-              >
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className={['h-11 justify-center', secondaryButtonClass].join(' ')}
+                  disabled={isSaving}
+                >
                 Cancel
               </button>
-              <button
-                type="submit"
-                form="bank-account-form"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-accent-600 text-sm font-semibold text-white disabled:opacity-60"
-                disabled={isSaving}
-              >
+                <button
+                  type="submit"
+                  form="bank-account-form"
+                  className={['h-11 justify-center', primaryButtonClass].join(' ')}
+                  disabled={isSaving}
+                >
                 <Icon name="add" className="h-4 w-4" />
                 {isSaving ? 'Saving...' : 'Save'}
               </button>
@@ -948,14 +949,14 @@ export default function BanksPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-600 dark:text-slate-300 shadow-sm transition-all duration-150 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                  className={secondaryButtonClass}
                   disabled={isSaving}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-accent-700 active:bg-accent-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  className={primaryButtonClass}
                   disabled={isSaving}
                 >
                   <Icon name="add" className="h-4 w-4 text-white" />

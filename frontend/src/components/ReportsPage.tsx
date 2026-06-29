@@ -20,6 +20,7 @@ import {
   useMonthlyCashflowReportQuery,
   useNetWorthSnapshotsReportQuery,
 } from '../queries/hooks'
+import { secondaryButtonClass } from '../styles/buttonStyles'
 
 function toNumber(value: string | number | null | undefined) {
   return Number(value ?? 0)
@@ -272,7 +273,7 @@ export default function ReportsPage() {
           <button
             type="button"
             onClick={() => downloadCsv('monthly_cashflow_report.csv', ['Month', 'Total Income', 'Total Expense', 'Net Savings', 'Savings Rate', 'Top Expense Category', 'Top Income Source'], cashflowCsvRows)}
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            className={secondaryButtonClass}
           >
             <Icon name="download" className="h-4 w-4" />
             Export CSV
@@ -328,7 +329,7 @@ export default function ReportsPage() {
           <button
             type="button"
             onClick={() => downloadCsv('credit_card_bill_payments.csv', ['Card Name', 'Billing Cycle', 'Bill Generated Date', 'Due Date', 'Bill Amount', 'Paid Amount', 'Paid Date', 'Status', 'Notes'], billCsvRows)}
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            className={secondaryButtonClass}
           >
             <Icon name="download" className="h-4 w-4" />
             Export CSV
@@ -396,7 +397,7 @@ export default function ReportsPage() {
           <button
             type="button"
             onClick={() => downloadCsv('networth_snapshots.csv', ['Date', 'Portfolio Value', 'Change Amount', 'Change %'], snapshotCsvRows)}
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            className={secondaryButtonClass}
           >
             <Icon name="download" className="h-4 w-4" />
             Export CSV
@@ -434,7 +435,7 @@ export default function ReportsPage() {
           <button
             type="button"
             onClick={() => downloadCsv('investment_holdings.csv', ['Symbol', 'Name', 'Asset Type', 'Country', 'Invested Value', 'Current Value', 'P&L', 'Return %', 'Quantity/Units', 'Avg Buy', 'Current Price', 'Last Updated'], holdingCsvRows)}
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            className={secondaryButtonClass}
           >
             <Icon name="download" className="h-4 w-4" />
             Export CSV

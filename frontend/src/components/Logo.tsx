@@ -1,19 +1,38 @@
-export default function Logo() {
+import wealthPilotLogo from '../assets/logo.png'
+import wealthPilotMobileLogo from '../assets/logo_mobile.png'
+
+export default function Logo({
+  collapsed = false,
+  mobile = false,
+}: {
+  collapsed?: boolean
+  mobile?: boolean
+}) {
+  if (mobile) {
+    return (
+      <img
+        src={wealthPilotMobileLogo}
+        alt="WealthPilot"
+        className="h-11 w-11 shrink-0 rounded-2xl object-cover"
+      />
+    )
+  }
+
+  if (collapsed) {
+    return (
+      <img
+        src={wealthPilotMobileLogo}
+        alt="WealthPilot"
+        className="h-12 w-12 shrink-0 rounded-2xl object-cover"
+      />
+    )
+  }
+
   return (
-    <div className="grid h-13 w-13 shrink-0 place-items-center rounded-2xl bg-linear-to-br from-accent-400 to-accent-700 text-white shadow-lg shadow-accent-600/30">
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="h-6 w-6"
-        aria-hidden="true"
-      >
-        <path d="M3 17l5-5 4 3 6-7" />
-        <path d="M14 8h4v4" />
-      </svg>
-    </div>
+    <img
+      src={wealthPilotLogo}
+      alt="WealthPilot"
+      className="h-auto w-[198px] max-w-full shrink-0"
+    />
   )
 }

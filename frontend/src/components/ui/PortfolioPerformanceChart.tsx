@@ -149,8 +149,8 @@ export default function PortfolioPerformanceChart({
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">{title}</div>
-          <div className="mt-1 max-w-2xl text-xs leading-5 text-slate-500 dark:text-slate-400">{helperText}</div>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-500">{title}</div>
+          <div className="mt-1 max-w-2xl text-xs font-medium text-slate-400 dark:text-slate-400">{helperText}</div>
         </div>
         <div className="no-scrollbar -mx-1 flex overflow-x-auto px-1 sm:mx-0 sm:px-0">
           <div className="flex min-w-max items-center gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
@@ -174,26 +174,26 @@ export default function PortfolioPerformanceChart({
       {isCompact ? (
         <div className="grid grid-cols-2 gap-3 rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 dark:border-slate-700/50 dark:bg-slate-900/30 xl:grid-cols-4">
           <div className="min-w-0">
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Latest</div>
-            <div className="mt-1 text-base font-bold text-slate-900 dark:text-white sm:text-lg">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-500">Latest</div>
+            <div className="mt-1 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white">
               {latestValue === null ? '—' : <PrivateValue value={formatMoney(latestValue)} mask="••••" hideColor />}
             </div>
           </div>
           <div className="min-w-0">
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Change</div>
-            <div className={['mt-1 text-base font-bold sm:text-lg', privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(changePct ?? 0)].join(' ')}>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-500">Change</div>
+            <div className={['mt-1 font-mono text-base font-semibold tabular-nums', privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(changePct ?? 0)].join(' ')}>
               {changePct === null ? '—' : <PrivateValue value={formatSignedPct(changePct)} mask="••••" hideColor />}
             </div>
           </div>
           <div className="min-w-0">
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Snapshots</div>
-            <div className="mt-1 text-base font-bold text-slate-900 dark:text-white sm:text-lg">{data?.summary.snapshot_count ?? 0}</div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-500">Snapshots</div>
+            <div className="mt-1 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white">{data?.summary.snapshot_count ?? 0}</div>
           </div>
           <div className="min-w-0">
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-500">
               {range === '1M' ? 'Est. 7D' : range === '3M' ? 'Est. 30D' : range === '6M' ? 'Est. 60D' : 'Est. 90D'}
             </div>
-            <div className="mt-1 text-base font-bold text-slate-900 dark:text-white sm:text-lg">
+            <div className="mt-1 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white">
               {projectedValue === null ? '—' : <PrivateValue value={formatMoney(projectedValue)} mask="••••" hideColor />}
             </div>
           </div>
@@ -201,35 +201,35 @@ export default function PortfolioPerformanceChart({
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Latest Value</div>
-            <div className="mt-2 text-lg font-bold text-slate-900 dark:text-white">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-500">Latest Value</div>
+            <div className="mt-2 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white">
               {latestValue === null ? '—' : <PrivateValue value={formatMoney(latestValue)} mask="••••" hideColor />}
             </div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Change</div>
-            <div className={['mt-2 text-lg font-bold', privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(changeAmount ?? 0)].join(' ')}>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-500">Change</div>
+            <div className={['mt-2 font-mono text-base font-semibold tabular-nums', privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(changeAmount ?? 0)].join(' ')}>
               {changeAmount === null ? '—' : <PrivateValue value={formatMoney(changeAmount)} mask="••••" hideColor />}
             </div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Change %</div>
-            <div className={['mt-2 text-lg font-bold', privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(changePct ?? 0)].join(' ')}>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-500">Change %</div>
+            <div className={['mt-2 font-mono text-base font-semibold tabular-nums', privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(changePct ?? 0)].join(' ')}>
               {changePct === null ? '—' : <PrivateValue value={formatSignedPct(changePct)} mask="••••" hideColor />}
             </div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Snapshot Count</div>
-            <div className="mt-2 text-lg font-bold text-slate-900 dark:text-white">{data?.summary.snapshot_count ?? 0}</div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-500">Snapshot Count</div>
+            <div className="mt-2 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white">{data?.summary.snapshot_count ?? 0}</div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-500">
               {range === '1M' ? 'Estimated 7D Value' : range === '3M' ? 'Estimated 30D Value' : range === '6M' ? 'Estimated 60D Value' : 'Estimated 90D Value'}
             </div>
-            <div className="mt-2 text-lg font-bold text-slate-900 dark:text-white">
+            <div className="mt-2 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white">
               {projectedValue === null ? '—' : <PrivateValue value={formatMoney(projectedValue)} mask="••••" hideColor />}
             </div>
-            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <div className="mt-1 text-xs font-medium text-slate-400 dark:text-slate-400">
               {predictionAvailable ? `Based on ${data?.prediction.method.replaceAll('_', ' ')}` : 'More snapshots needed for prediction'}
             </div>
           </div>
@@ -237,7 +237,7 @@ export default function PortfolioPerformanceChart({
       )}
 
       {predictionAvailable ? (
-        <div className={['flex flex-wrap items-center text-xs text-slate-500 dark:text-slate-400', isCompact ? 'gap-2 sm:gap-3' : 'gap-2'].join(' ')}>
+        <div className={['flex flex-wrap items-center text-xs font-medium text-slate-400 dark:text-slate-400', isCompact ? 'gap-2 sm:gap-3' : 'gap-2'].join(' ')}>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-amber-300">
             <Icon name="analytics" className="h-3.5 w-3.5" />
             Estimated Growth
@@ -250,8 +250,8 @@ export default function PortfolioPerformanceChart({
           )}
         </div>
       ) : (
-        <div className="rounded-xl border border-dashed border-slate-200 px-4 py-3 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-          <div className="font-medium text-slate-900 dark:text-white">
+          <div className="rounded-xl border border-dashed border-slate-200 px-4 py-3 text-sm font-medium tracking-[-0.01em] text-slate-400 dark:border-slate-700 dark:text-slate-400">
+          <div className="text-sm font-semibold tracking-[-0.01em] text-slate-900 dark:text-white">
             {!hasAnyData
               ? 'Loading chart...'
               : hasSnapshots
@@ -266,11 +266,11 @@ export default function PortfolioPerformanceChart({
 
       {loading ? (
         <div className={['flex items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/40', isCompact ? 'h-[200px] sm:h-[240px]' : 'h-[240px] sm:h-[280px]'].join(' ')}>
-          <span className="text-sm text-slate-400">Loading chart…</span>
+          <span className="text-sm font-medium tracking-[-0.01em] text-slate-400">Loading chart…</span>
         </div>
       ) : !hasSnapshots ? null : (
         <>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500 dark:text-slate-400">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-medium text-slate-400 dark:text-slate-400">
             <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-teal-400" />Actual</span>
             <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-400" />Estimated</span>
           </div>
@@ -335,7 +335,7 @@ export default function PortfolioPerformanceChart({
             type="button"
             onClick={onSaveSnapshot}
             disabled={savingSnapshot}
-            className="text-sm font-medium text-teal-500 transition-colors hover:text-teal-600 disabled:opacity-50 dark:text-teal-400 dark:hover:text-teal-300"
+            className="text-sm font-medium tracking-[-0.01em] text-teal-500 transition-colors hover:text-teal-600 disabled:opacity-50 dark:text-teal-400 dark:hover:text-teal-300"
           >
             {savingSnapshot ? 'Saving…' : 'Save Snapshot'}
           </button>

@@ -1,4 +1,5 @@
 import Logo from '../Logo'
+import { primaryButtonClass } from '../../styles/buttonStyles'
 
 type BootstrapState =
   | 'checking_server'
@@ -99,7 +100,7 @@ export default function ServerWakeScreen({
           <button
             type="button"
             onClick={onRetry}
-            className="mt-6 inline-flex h-12 w-full items-center justify-center rounded-xl bg-accent-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-700 active:scale-[0.99]"
+            className={['mt-6 h-12 w-full justify-center', primaryButtonClass].join(' ')}
           >
             Retry
           </button>

@@ -14,6 +14,7 @@ import { Icon } from './Icon'
 import PrivateValue from './ui/PrivateValue'
 import { useFixedSavingsAccountsQuery, useFixedSavingsSummaryQuery } from '../queries/hooks'
 import { queryKeys } from '../queries/queryKeys'
+import { primaryButtonClass, secondaryButtonClass } from '../styles/buttonStyles'
 
 type AccountType = FixedSavingsAccount['account_type']
 
@@ -431,7 +432,7 @@ export default function FixedSavingsPage() {
         <button
           type="button"
           onClick={openCreate}
-          className="inline-flex items-center gap-2 rounded-xl bg-teal-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-200 hover:bg-teal-400 active:scale-[0.98]"
+          className={primaryButtonClass}
         >
           <Icon name="add" className="h-4 w-4" />
           Add Account
@@ -506,7 +507,7 @@ export default function FixedSavingsPage() {
             <button
               type="button"
               onClick={openCreate}
-              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-teal-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-200 hover:bg-teal-400 active:scale-[0.98]"
+              className={['mt-5', primaryButtonClass].join(' ')}
             >
               <Icon name="add" className="h-4 w-4" />
               Add Account
@@ -805,14 +806,14 @@ export default function FixedSavingsPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-300 transition-colors duration-200 hover:bg-slate-800 active:scale-[0.98]"
+                  className={secondaryButtonClass}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="inline-flex items-center gap-2 rounded-xl bg-teal-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-200 hover:bg-teal-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                  className={primaryButtonClass}
                 >
                   <Icon name="add" className="h-4 w-4" />
                   {isSaving ? 'Saving...' : editingId === null ? 'Add Account' : 'Save Changes'}

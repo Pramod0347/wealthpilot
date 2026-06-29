@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import Logo from '../Logo'
 import { ApiError } from '../../lib/api'
+import { primaryButtonClass } from '../../styles/buttonStyles'
 
 type LoginPageProps = {
   onLogin: (email: string, phone: string) => Promise<void>
@@ -98,7 +99,7 @@ export default function LoginPage({ onLogin, initialError = null }: LoginPagePro
           <button
             type="submit"
             disabled={isLoading}
-            className="mt-2 inline-flex h-12 w-full items-center justify-center rounded-xl bg-accent-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-700 active:scale-[0.99] disabled:opacity-60"
+            className={['mt-2 h-12 w-full justify-center', primaryButtonClass].join(' ')}
           >
             {isLoading ? 'Checking...' : 'Continue'}
           </button>
