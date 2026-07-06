@@ -21,6 +21,7 @@ from app.schemas.cashflow import (
 )
 from app.schemas.credit_card import CreditCardCreate, CreditCardRead, CreditCardUpdate
 from app.schemas.credit_card import CardStatus
+from app.schemas.deposit import DepositCreate, DepositRead, DepositSummary, DepositUpdate
 from app.schemas.credit_card_bill import (
     BillStatus,
     CreditCardBillCreate,

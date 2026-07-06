@@ -86,6 +86,8 @@ def serialize_holding(holding: Holding) -> HoldingRead:
         last_price_refreshed_at=holding.last_price_refreshed_at,
         sector=holding.sector,
         notes=holding.notes,
+        tags=holding.tags,
+        status=holding.status,
         as_of_date=holding.as_of_date,
         created_at=holding.created_at,
         updated_at=holding.updated_at,

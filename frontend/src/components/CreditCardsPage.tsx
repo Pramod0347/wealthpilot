@@ -425,6 +425,7 @@ export default function CreditCardsPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.analyticsSummary }),
       queryClient.invalidateQueries({ queryKey: queryKeys.reports('credit-card-bills') }),
     ])
+    await queryClient.refetchQueries({ queryKey: queryKeys.dashboardSummary, exact: true, type: 'active' })
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {

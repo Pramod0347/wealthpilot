@@ -7,6 +7,7 @@ import AnalyticsPage from './components/AnalyticsPage'
 import StocksPage from './components/StocksPage'
 import CreditCardsPage from './components/CreditCardsPage'
 import BanksPage from './components/BanksPage'
+import DepositsPage from './components/DepositsPage'
 import FixedSavingsPage from './components/FixedSavingsPage'
 import CashflowPage from './components/CashflowPage'
 import GoalsPage from './components/GoalsPage'
@@ -19,7 +20,7 @@ import { Icon, type IconName } from './components/Icon'
 import { ApiError, checkAuth, checkServerHealth, getStoredAuthToken, loginUser, logoutUser, setStoredAuthToken } from './lib/api'
 import { queryKeys } from './queries/queryKeys'
 
-type PageKey = 'dashboard' | 'stocks' | 'banks' | 'pfepf' | 'cards' | 'transactions' | 'analytics' | 'goals' | 'tax' | 'reports'
+type PageKey = 'dashboard' | 'stocks' | 'banks' | 'deposits' | 'pfepf' | 'cards' | 'transactions' | 'analytics' | 'goals' | 'tax' | 'reports'
 type BootstrapState =
   | 'checking_server'
   | 'server_warming'
@@ -39,6 +40,7 @@ const mobilePrimaryNav: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
   { key: 'stocks', label: 'Stocks', icon: 'stocks' },
   { key: 'banks', label: 'Banks', icon: 'banks' },
+  { key: 'deposits', label: 'Deposits', icon: 'portfolio' },
   { key: 'cards', label: 'Cards', icon: 'cards' },
   { key: 'more', label: 'More', icon: 'menu' },
 ]
@@ -54,7 +56,7 @@ const mobileMoreNav: NavItem[] = [
 ]
 
 function isPageKey(value: NavItem['key']): value is PageKey {
-  return ['dashboard', 'stocks', 'banks', 'pfepf', 'cards', 'transactions', 'analytics', 'goals', 'tax', 'reports'].includes(value)
+  return ['dashboard', 'stocks', 'banks', 'deposits', 'pfepf', 'cards', 'transactions', 'analytics', 'goals', 'tax', 'reports'].includes(value)
 }
 
 const HEALTH_RETRY_MS = 3_000
@@ -201,6 +203,11 @@ export default function App() {
       title: 'Banks',
       subtitle: 'Cash accounts and balances across your banks',
       content: <BanksPage />,
+    },
+    deposits: {
+      title: 'Deposits',
+      subtitle: 'Track refundable deposits separately from bank cash',
+      content: <DepositsPage />,
     },
     pfepf: {
       title: 'PF / EPF',

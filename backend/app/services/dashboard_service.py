@@ -5,10 +5,11 @@ from sqlalchemy.orm import Session
 
 from app.models.bank_account import BankAccount
 from app.models.credit_card import CreditCard
+from app.models.deposit import Deposit
 from app.models.fixed_savings_account import FixedSavingsAccount
 from app.models.holding import Holding
 from app.schemas.dashboard import DashboardSummary
-from app.services.cashflow_service import build_cashflow_summary, build_dashboard_cashflow_metrics, current_month_string
+from app.services.cashflow_service import build_cashflow_summary, build_dashboard_cashflow_metrics, get_reporting_month
 from app.services.financial_goals_service import build_financial_goals_summary, list_financial_goals
 from app.services.holdings_service import serialize_holding
 from app.services.wealth_bucket_service import build_wealth_buckets
@@ -44,7 +45,16 @@ def build_dashboard_summary(db: Session) -> DashboardSummary:
     total_fixed_savings_value = Decimal(fixed_savings_stats[0])
     fixed_savings_accounts_count = int(fixed_savings_stats[1])
 
-    total_assets = current_value + total_bank_cash + total_fixed_savings_value
+    deposit_stats = db.execute(
+        select(
+            func.coalesce(func.sum(case((Deposit.status == "active", Deposit.amount), else_=0)), 0),
+            func.count(Deposit.id),
+        )
+    ).one()
+    total_deposit_value = Decimal(deposit_stats[0])
+    deposits = db.scalars(select(Deposit).order_by(Deposit.updated_at.desc())).all()
+
+    total_assets = current_value + total_bank_cash + total_fixed_savings_value + total_deposit_value
     bank_accounts = db.scalars(select(BankAccount).order_by(BankAccount.updated_at.desc())).all()
     fixed_savings_accounts = db.scalars(select(FixedSavingsAccount).order_by(FixedSavingsAccount.updated_at.desc())).all()
 
@@ -72,9 +82,10 @@ def build_dashboard_summary(db: Session) -> DashboardSummary:
         bank_accounts=bank_accounts,
         fixed_savings_accounts=fixed_savings_accounts,
         credit_cards=credit_cards,
+        deposits=deposits,
         total_assets=total_assets,
     )
-    cashflow_month = current_month_string()
+    cashflow_month = get_reporting_month(db)
     cashflow_summary = build_cashflow_summary(db, cashflow_month)
     cashflow_metrics = build_dashboard_cashflow_metrics(db, cashflow_month)
     goals = list_financial_goals(db, active_only=True)

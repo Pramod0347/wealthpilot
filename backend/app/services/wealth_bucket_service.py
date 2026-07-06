@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from app.models.bank_account import BankAccount
 from app.models.credit_card import CreditCard
+from app.models.deposit import Deposit
 from app.models.fixed_savings_account import FixedSavingsAccount
 from app.models.holding import Holding
 from app.schemas.dashboard import AssetAllocationItem, WealthBucketItem
@@ -49,6 +50,7 @@ def _bucket_label(key: str) -> str:
         "epf": "EPF",
         "us_stocks": "US Stocks",
         "banks": "Banks",
+        "deposits": "Deposits",
         "liabilities": "Liabilities",
     }[key]
 
@@ -68,6 +70,7 @@ def build_wealth_buckets(
     bank_accounts: list[BankAccount],
     fixed_savings_accounts: list[FixedSavingsAccount],
     credit_cards: list[CreditCard],
+    deposits: list[Deposit],
     total_assets: Decimal,
 ) -> tuple[list[AssetAllocationItem], AssetAllocationItem | None]:
     bucket_items: dict[str, list[WealthBucketItem]] = {
@@ -76,6 +79,7 @@ def build_wealth_buckets(
         "epf": [],
         "us_stocks": [],
         "banks": [],
+        "deposits": [],
     }
     bucket_values: dict[str, Decimal] = {key: Decimal("0") for key in bucket_items}
 
@@ -140,8 +144,27 @@ def build_wealth_buckets(
         bucket_items["banks"].append(item)
         bucket_values["banks"] += Decimal(account.balance)
 
+    for deposit in deposits:
+        if deposit.status != "active":
+            continue
+        item = WealthBucketItem(
+            id=deposit.id,
+            type="deposit",
+            name=deposit.name,
+            symbol=None,
+            value=Decimal(deposit.amount),
+            pnl=None,
+            return_pct=None,
+            meta=deposit.property_name or deposit.type.replace("_", " ").title(),
+            native_value=None,
+            native_currency="INR",
+            badge=deposit.type.replace("_", " ").title(),
+        )
+        bucket_items["deposits"].append(item)
+        bucket_values["deposits"] += Decimal(deposit.amount)
+
     asset_buckets: list[AssetAllocationItem] = []
-    for key in ["ind_stocks", "mutual_funds", "epf", "us_stocks", "banks"]:
+    for key in ["ind_stocks", "mutual_funds", "epf", "us_stocks", "banks", "deposits"]:
         amount = bucket_values[key]
         if amount <= 0:
             continue

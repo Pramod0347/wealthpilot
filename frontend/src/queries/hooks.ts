@@ -11,6 +11,8 @@ import {
   getCreditCardBills,
   getCreditCards,
   getDashboardSummary,
+  getDeposits,
+  getDepositsSummary,
   getFinancialGoals,
   getFinancialGoalsSummary,
   getFixedSavingsAccounts,
@@ -18,6 +20,7 @@ import {
   getHoldings,
   getHoldingsAnalytics,
   getInvestmentHoldingsReport,
+  getInvestmentTransactions,
   getMarketOverview,
   getMonthlyCashflowReport,
   getNetWorthSnapshotsReport,
@@ -48,6 +51,7 @@ export function useDashboardSummaryQuery() {
   return useQuery({
     queryKey: queryKeys.dashboardSummary,
     queryFn: ({ signal }) => getDashboardSummary(signal),
+    refetchOnMount: 'always',
   })
 }
 
@@ -70,6 +74,14 @@ export function useHoldingsAnalyticsQuery() {
   return useQuery({
     queryKey: queryKeys.holdingsAnalytics,
     queryFn: ({ signal }) => getHoldingsAnalytics(signal),
+  })
+}
+
+export function useInvestmentTransactionsQuery(investmentId?: number, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.investmentTransactions(investmentId),
+    queryFn: ({ signal }) => getInvestmentTransactions(investmentId, signal),
+    enabled,
   })
 }
 
@@ -112,6 +124,20 @@ export function useFixedSavingsSummaryQuery() {
   return useQuery({
     queryKey: queryKeys.fixedSavingsSummary,
     queryFn: ({ signal }) => getFixedSavingsSummary(signal),
+  })
+}
+
+export function useDepositsQuery() {
+  return useQuery({
+    queryKey: queryKeys.deposits,
+    queryFn: ({ signal }) => getDeposits(signal),
+  })
+}
+
+export function useDepositsSummaryQuery() {
+  return useQuery({
+    queryKey: queryKeys.depositsSummary,
+    queryFn: ({ signal }) => getDepositsSummary(signal),
   })
 }
 

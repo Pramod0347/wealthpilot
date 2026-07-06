@@ -22,6 +22,8 @@ from app.services.holdings_service import (
 )
 from app.services.portfolio_snapshot_service import upsert_today_snapshot
 from app.services.market_price_service import fetch_latest_market_price, MarketPriceUnavailableError
+from app.models.investment_transaction import InvestmentTransaction
+from app.services.investment_transactions_service import recalculate_holding
 
 router = APIRouter(prefix="/holdings", tags=["holdings"])
 
@@ -47,9 +49,22 @@ def get_holding(holding_id: int, db: Session = Depends(get_db)) -> HoldingRead:
 
 @router.post("", response_model=HoldingRead, status_code=status.HTTP_201_CREATED)
 def create_holding(payload: HoldingCreate, db: Session = Depends(get_db)) -> HoldingRead:
-    holding = Holding(**payload.model_dump(exclude_none=True))
+    values = payload.model_dump(exclude_none=True)
+    opening_quantity = values.pop("quantity")
+    opening_price = values.pop("avg_buy_price")
+    holding = Holding(**values, quantity=0, avg_buy_price=0)
     mark_holding_priced_manually(holding)
     db.add(holding)
+    db.flush()
+    if opening_quantity > 0:
+        db.add(InvestmentTransaction(
+            investment_id=holding.id, transaction_type="BUY", transaction_mode="One Time",
+            quantity=opening_quantity, price_per_unit=opening_price, fees=0, taxes=0,
+            exchange_rate=holding.fx_rate_to_inr, transaction_date=holding.as_of_date,
+            notes="Opening balance",
+        ))
+        db.flush()
+    recalculate_holding(db, holding)
     db.commit()
     db.refresh(holding)
     try:
@@ -66,12 +81,20 @@ def update_holding(holding_id: int, payload: HoldingUpdate, db: Session = Depend
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Holding not found")
 
     updates = payload.model_dump(exclude_unset=True)
+    requested_price_source = updates.pop("price_source", None)
+    if "current_price" in updates and holding.price_source != "manual" and requested_price_source != "manual":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current price is automatically updated from the market feed.",
+        )
     for field, value in updates.items():
         setattr(holding, field, value)
 
     normalize_holding_location_fields(holding)
-    if "current_price" in updates:
+    if requested_price_source == "manual" or "current_price" in updates:
         mark_holding_priced_manually(holding)
+    elif requested_price_source == "yfinance":
+        mark_holding_refreshed(holding)
 
     db.commit()
     db.refresh(holding)

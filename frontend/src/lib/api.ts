@@ -162,6 +162,41 @@ export type FixedSavingsSummary = {
   by_type: FixedSavingsByTypeSummary[]
 }
 
+export type Deposit = {
+  id: number
+  name: string
+  type: 'rent_deposit' | 'security_deposit' | 'office_deposit' | 'other'
+  amount: string | number
+  property_name: string | null
+  description: string | null
+  paid_date: string | null
+  refundable: boolean
+  status: 'active' | 'returned'
+  returned_date: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type DepositPayload = {
+  name: string
+  type: Deposit['type']
+  amount: string
+  property_name: string | null
+  description: string | null
+  paid_date: string | null
+  refundable: boolean
+  status: Deposit['status']
+  returned_date: string | null
+}
+
+export type DepositSummary = {
+  total_deposits: string | number
+  active_deposits: string | number
+  refundable_amount: string | number
+  deposits_count: number
+  active_count: number
+}
+
 export type FixedSavingsAccountPayload = {
   account_type: 'epf' | 'ppf' | 'vpf' | 'nps' | 'fd' | 'rd' | 'other'
   account_name: string
@@ -217,6 +252,39 @@ export type Holding = {
   current_value: string | number
   pnl: string | number
   return_pct: string | number
+  tags: string | null
+  status: string
+}
+
+export type InvestmentTransaction = {
+  id: number
+  investment_id: number
+  investment_name: string
+  investment_symbol: string
+  investment_asset_type: string
+  transaction_type: 'BUY' | 'SELL'
+  transaction_mode: 'One Time' | 'SIP'
+  quantity: string | number
+  price_per_unit: string | number
+  fees: string | number
+  taxes: string | number
+  exchange_rate: string | number
+  transaction_date: string
+  notes: string | null
+  total: string | number
+  created_at: string
+}
+
+export type InvestmentTransactionPayload = {
+  transaction_type: 'BUY' | 'SELL'
+  transaction_mode: 'One Time' | 'SIP'
+  quantity: string
+  price_per_unit: string
+  fees: string
+  taxes: string
+  exchange_rate: string
+  transaction_date: string
+  notes: string | null
 }
 
 export type HoldingsAnalyticsResponse = {
@@ -1022,6 +1090,34 @@ export function getFixedSavingsSummary(signal?: AbortSignal) {
   return apiFetch<FixedSavingsSummary>('/api/fixed-savings/summary', { signal })
 }
 
+export function getDeposits(signal?: AbortSignal) {
+  return apiFetch<Deposit[]>('/api/deposits', { signal })
+}
+
+export function getDepositsSummary(signal?: AbortSignal) {
+  return apiFetch<DepositSummary>('/api/deposits/summary', { signal })
+}
+
+export function createDeposit(payload: DepositPayload) {
+  return apiFetch<Deposit>('/api/deposits', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateDeposit(depositId: number, payload: DepositPayload) {
+  return apiFetch<Deposit>(`/api/deposits/${depositId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteDeposit(depositId: number) {
+  return apiFetch<void>(`/api/deposits/${depositId}`, {
+    method: 'DELETE',
+  })
+}
+
 export function createFixedSavingsAccount(payload: FixedSavingsAccountPayload) {
   return apiFetch<FixedSavingsAccount>('/api/fixed-savings', {
     method: 'POST',
@@ -1137,6 +1233,27 @@ export function getDashboardSummary(signal?: AbortSignal) {
 
 export function getHoldings(signal?: AbortSignal) {
   return apiFetch<Holding[]>('/api/holdings', { signal })
+}
+
+export function getInvestmentTransactions(investmentId?: number, signal?: AbortSignal) {
+  const query = investmentId ? `?investment_id=${investmentId}` : ''
+  return apiFetch<InvestmentTransaction[]>(`/api/investment-transactions${query}`, { signal })
+}
+
+export function createInvestmentTransaction(investmentId: number, payload: InvestmentTransactionPayload) {
+  return apiFetch<InvestmentTransaction>(`/api/investment-transactions/investments/${investmentId}`, {
+    method: 'POST', body: JSON.stringify(payload),
+  })
+}
+
+export function updateInvestmentTransaction(id: number, payload: InvestmentTransactionPayload) {
+  return apiFetch<InvestmentTransaction>(`/api/investment-transactions/${id}`, {
+    method: 'PATCH', body: JSON.stringify(payload),
+  })
+}
+
+export function deleteInvestmentTransaction(id: number) {
+  return apiFetch<void>(`/api/investment-transactions/${id}`, { method: 'DELETE' })
 }
 
 export function getHoldingsAnalytics(signal?: AbortSignal) {

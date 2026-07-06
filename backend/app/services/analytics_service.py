@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.models.bank_account import BankAccount
 from app.models.cashflow_entry import CashflowEntry
 from app.models.credit_card import CreditCard
+from app.models.deposit import Deposit
 from app.models.fixed_savings_account import FixedSavingsAccount
 from app.models.holding import Holding
 from app.schemas.analytics import (
@@ -22,7 +23,7 @@ from app.schemas.analytics import (
     InvestmentTopHoldingItem,
 )
 from app.services.financial_goals_service import build_financial_goals_summary, list_financial_goals
-from app.services.cashflow_service import current_month_string
+from app.services.cashflow_service import current_month_string, get_reporting_month
 from app.services.holdings_service import serialize_holding
 from app.services.wealth_bucket_service import build_wealth_buckets
 
@@ -45,7 +46,8 @@ def _build_cashflow_analytics(
     overdue_count: int,
     due_soon_count: int,
 ) -> CashflowAnalyticsSummary:
-    current_month = current_month_string()
+    reporting_month = get_reporting_month(db)
+    current_month = reporting_month
     monthly_rows = db.execute(
         select(
             CashflowEntry.month,
@@ -60,6 +62,11 @@ def _build_cashflow_analytics(
     if not monthly_rows:
         return CashflowAnalyticsSummary(current_month=current_month)
 
+    months = [row[0] for row in monthly_rows]
+    latest_month = months[-1] if months else current_month
+    if len(months) > 1:
+        monthly_rows = [row for row in monthly_rows if row[0] != latest_month]
+
     months_count = len(monthly_rows)
     tracked_months = [row[0] for row in monthly_rows]
     monthly_map: dict[str, tuple[Decimal, Decimal, int]] = {
@@ -68,8 +75,8 @@ def _build_cashflow_analytics(
 
     total_income = sum((_to_decimal(row[1]) for row in monthly_rows), Decimal("0"))
     total_expense = sum((_to_decimal(row[2]) for row in monthly_rows), Decimal("0"))
-    average_income = total_income / Decimal(months_count)
-    average_expense = total_expense / Decimal(months_count)
+    average_income = total_income / Decimal(months_count) if months_count > 0 else Decimal("0")
+    average_expense = total_expense / Decimal(months_count) if months_count > 0 else Decimal("0")
     average_net_savings = average_income - average_expense
     average_savings_rate = (average_net_savings / average_income) * Decimal("100") if average_income != 0 else None
     cash_buffer_months = total_bank_cash / average_expense if average_expense != 0 else None
@@ -78,7 +85,7 @@ def _build_cashflow_analytics(
     current_net_savings = current_income - current_expense
     current_savings_rate = (current_net_savings / current_income) * Decimal("100") if current_income != 0 else None
 
-    expense_rows = db.execute(
+    expense_query = (
         select(
             CashflowEntry.category,
             func.coalesce(func.sum(CashflowEntry.amount), 0),
@@ -87,8 +94,8 @@ def _build_cashflow_analytics(
         .where(CashflowEntry.entry_type == "expense")
         .group_by(CashflowEntry.category)
         .order_by(func.sum(CashflowEntry.amount).desc(), CashflowEntry.category.asc())
-    ).all()
-    income_rows = db.execute(
+    )
+    income_query = (
         select(
             CashflowEntry.category,
             func.coalesce(func.sum(CashflowEntry.amount), 0),
@@ -97,7 +104,14 @@ def _build_cashflow_analytics(
         .where(CashflowEntry.entry_type == "income")
         .group_by(CashflowEntry.category)
         .order_by(func.sum(CashflowEntry.amount).desc(), CashflowEntry.category.asc())
-    ).all()
+    )
+
+    if len(months) > 1:
+        expense_query = expense_query.where(CashflowEntry.month != latest_month)
+        income_query = income_query.where(CashflowEntry.month != latest_month)
+
+    expense_rows = db.execute(expense_query).all()
+    income_rows = db.execute(income_query).all()
 
     average_expense_by_category = [
         AnalyticsCategoryAverageItem(
@@ -301,12 +315,14 @@ def _build_investment_analytics(
     bank_accounts = db.scalars(select(BankAccount).order_by(BankAccount.updated_at.desc())).all()
     fixed_savings_accounts = db.scalars(select(FixedSavingsAccount).order_by(FixedSavingsAccount.updated_at.desc())).all()
     credit_cards = db.scalars(select(CreditCard).order_by(CreditCard.updated_at.desc())).all()
+    deposits = db.scalars(select(Deposit).order_by(Deposit.updated_at.desc())).all()
 
     dashboard_buckets, _ = build_wealth_buckets(
         holdings=holdings,
         bank_accounts=bank_accounts,
         fixed_savings_accounts=fixed_savings_accounts,
         credit_cards=credit_cards,
+        deposits=deposits,
         total_assets=total_assets,
     )
 
@@ -400,10 +416,11 @@ def build_analytics_summary(db: Session) -> AnalyticsSummaryResponse:
     total_holdings_value = sum((item.current_value for item in serialized_holdings), Decimal("0"))
     total_fixed_savings_value = _to_decimal(db.scalar(select(func.coalesce(func.sum(FixedSavingsAccount.current_value), 0))))
     total_credit_card_dues = _to_decimal(db.scalar(select(func.coalesce(func.sum(CreditCard.current_bill_amount), 0))))
+    total_deposits_value = _to_decimal(db.scalar(select(func.coalesce(func.sum(case((Deposit.status == "active", Deposit.amount), else_=0)), 0))))
     overdue_count = int(db.scalar(select(func.count()).select_from(CreditCard).where(CreditCard.status == "overdue")) or 0)
     due_soon_count = int(db.scalar(select(func.count()).select_from(CreditCard).where(CreditCard.status == "due_soon")) or 0)
 
-    total_assets = total_holdings_value + total_bank_cash + total_fixed_savings_value
+    total_assets = total_holdings_value + total_bank_cash + total_fixed_savings_value + total_deposits_value
     total_liabilities = total_credit_card_dues
     net_worth = total_assets - total_liabilities
 

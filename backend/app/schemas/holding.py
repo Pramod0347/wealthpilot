@@ -23,6 +23,7 @@ class HoldingBase(BaseModel):
     current_price: Decimal
     sector: str | None = None
     notes: str | None = None
+    tags: str | None = None
     as_of_date: date | None = None
 
 
@@ -31,6 +32,7 @@ class HoldingCreate(HoldingBase):
 
 
 class HoldingUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     symbol: str | None = None
     company_name: str | None = None
     asset_type: AssetType | None = None
@@ -39,11 +41,12 @@ class HoldingUpdate(BaseModel):
     exchange: str | None = None
     exchange_symbol: str | None = None
     fx_rate_to_inr: Decimal | None = None
-    quantity: Decimal | None = None
-    avg_buy_price: Decimal | None = None
     current_price: Decimal | None = None
     sector: str | None = None
     notes: str | None = None
+    tags: str | None = None
+    price_source: Literal["manual", "yfinance"] | None = None
+    status: Literal["Active", "Closed"] | None = None
     as_of_date: date | None = None
 
 
@@ -64,6 +67,7 @@ class HoldingRead(HoldingBase):
     current_value: Decimal
     pnl: Decimal
     return_pct: Decimal
+    status: str
     model_config = ConfigDict(from_attributes=True)
 
 

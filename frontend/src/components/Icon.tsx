@@ -37,6 +37,7 @@ import {
   Download,
   Pencil,
   LogOut,
+  ShieldCheck,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -72,6 +73,7 @@ export const icons = {
   more: MoreVertical,
   buy: ShoppingCart,
   alert: Bell,
+  shield: ShieldCheck,
   view: Eye,
   viewOff: EyeOff,
   remove: Trash2,

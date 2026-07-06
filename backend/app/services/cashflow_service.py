@@ -13,6 +13,26 @@ def current_month_string() -> str:
     return date.today().strftime("%Y-%m")
 
 
+def previous_month_string() -> str:
+    today = date.today()
+    year = today.year
+    month = today.month - 1
+    if month == 0:
+        year -= 1
+        month = 12
+    return f"{year:04d}-{month:02d}"
+
+
+def get_reporting_month(db: Session) -> str:
+    current_month = current_month_string()
+    months = db.scalars(select(CashflowEntry.month).distinct().order_by(CashflowEntry.month.desc())).all()
+    if not months:
+        return current_month
+    if len(months) > 1:
+        return months[1]
+    return months[0]
+
+
 def serialize_cashflow_entry(entry: CashflowEntry) -> CashflowEntryRead:
     return CashflowEntryRead.model_validate(entry)
 
@@ -108,6 +128,10 @@ def build_dashboard_cashflow_metrics(db: Session, month: str | None = None) -> D
 
     current = CashflowMetricWindow()
     if monthly_rows:
+        months = [row[0] for row in monthly_rows]
+        if current_month_string() in months:
+            monthly_rows = [row for row in monthly_rows if row[0] != current_month_string()]
+
         monthly_map: dict[str, tuple[Decimal, Decimal, int]] = {
             month_key: (_to_decimal(income), _to_decimal(expense), int(entries_count))
             for month_key, income, expense, entries_count in monthly_rows
@@ -133,8 +157,8 @@ def build_dashboard_cashflow_metrics(db: Session, month: str | None = None) -> D
         months_count = len(monthly_rows)
         total_income = sum((_to_decimal(row[1]) for row in monthly_rows), Decimal("0"))
         total_expense = sum((_to_decimal(row[2]) for row in monthly_rows), Decimal("0"))
-        average_income = total_income / Decimal(months_count)
-        average_expense = total_expense / Decimal(months_count)
+        average_income = total_income / Decimal(months_count) if months_count > 0 else Decimal("0")
+        average_expense = total_expense / Decimal(months_count) if months_count > 0 else Decimal("0")
         average_net_savings = average_income - average_expense
         average_savings_rate: Decimal | None = None
         if average_income != 0:

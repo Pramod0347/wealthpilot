@@ -1,10 +1,11 @@
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.models.bank_account import BankAccount
 from app.models.credit_card import CreditCard
+from app.models.deposit import Deposit
 from app.models.fixed_savings_account import FixedSavingsAccount
 from app.models.holding import Holding
 from app.models.portfolio_snapshot import PortfolioSnapshot
@@ -19,7 +20,7 @@ from app.schemas.portfolio_intelligence import (
     PortfolioPerformanceOverview,
     PortfolioTopMovers,
 )
-from app.services.cashflow_service import build_cashflow_summary, current_month_string
+from app.services.cashflow_service import build_cashflow_summary, get_reporting_month
 from app.services.holdings_service import serialize_holding
 from app.services.wealth_bucket_service import build_wealth_buckets
 
@@ -53,6 +54,7 @@ def build_portfolio_intelligence(db: Session) -> PortfolioIntelligenceResponse:
     total_bank_cash = _to_decimal(db.scalar(select(func.coalesce(func.sum(BankAccount.balance), 0))))
     total_fixed_savings_value = _to_decimal(db.scalar(select(func.coalesce(func.sum(FixedSavingsAccount.current_value), 0))))
     total_credit_card_dues = _to_decimal(db.scalar(select(func.coalesce(func.sum(CreditCard.current_bill_amount), 0))))
+    total_deposit_value = _to_decimal(db.scalar(select(func.coalesce(func.sum(case((Deposit.status == "active", Deposit.amount), else_=0)), 0))))
 
     indian_stocks = Decimal("0")
     us_stocks = Decimal("0")
@@ -97,7 +99,7 @@ def build_portfolio_intelligence(db: Session) -> PortfolioIntelligenceResponse:
         )
 
     holdings_total_value = sum((item.current_value for item in serialized_holdings), Decimal("0"))
-    total_assets = holdings_total_value + total_bank_cash + total_fixed_savings_value
+    total_assets = holdings_total_value + total_bank_cash + total_fixed_savings_value + total_deposit_value
     total_liabilities = total_credit_card_dues
     net_worth = total_assets - total_liabilities
     liquid_assets = total_bank_cash
@@ -116,11 +118,13 @@ def build_portfolio_intelligence(db: Session) -> PortfolioIntelligenceResponse:
     bank_accounts = db.scalars(select(BankAccount).order_by(BankAccount.updated_at.desc())).all()
     fixed_savings_accounts = db.scalars(select(FixedSavingsAccount).order_by(FixedSavingsAccount.updated_at.desc())).all()
     credit_cards = db.scalars(select(CreditCard).order_by(CreditCard.updated_at.desc())).all()
+    deposits = db.scalars(select(Deposit).order_by(Deposit.updated_at.desc())).all()
     dashboard_buckets, liability_bucket = build_wealth_buckets(
         holdings=holdings,
         bank_accounts=bank_accounts,
         fixed_savings_accounts=fixed_savings_accounts,
         credit_cards=credit_cards,
+        deposits=deposits,
         total_assets=total_assets,
     )
     asset_allocation_items: list[PortfolioAllocationItem] = [
@@ -173,7 +177,8 @@ def build_portfolio_intelligence(db: Session) -> PortfolioIntelligenceResponse:
     biggest_losers = sorted(holding_movers, key=lambda item: item.pnl)[:3]
     largest_allocation = max(asset_allocation_items, key=lambda item: item.amount, default=None)
 
-    cashflow_summary = build_cashflow_summary(db, current_month_string())
+    cashflow_month = get_reporting_month(db)
+    cashflow_summary = build_cashflow_summary(db, cashflow_month)
     cashflow_has_data = (cashflow_summary.income_count + cashflow_summary.expense_count) > 0
     cashflow_context = PortfolioCashflowContext(
         month=cashflow_summary.month,

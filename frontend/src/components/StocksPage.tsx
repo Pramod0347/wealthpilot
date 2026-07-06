@@ -4,10 +4,10 @@ import { Icon } from './Icon'
 import PrivateValue from './ui/PrivateValue'
 import BottomSheet from './ui/BottomSheet'
 import PortfolioPerformanceChart from './ui/PortfolioPerformanceChart'
-import { ApiError, apiFetch, type PortfolioPerformanceData, type PortfolioRange } from '../lib/api'
+import { ApiError, apiFetch, createInvestmentTransaction, deleteInvestmentTransaction, updateInvestmentTransaction, type InvestmentTransaction, type InvestmentTransactionPayload, type PortfolioPerformanceData, type PortfolioRange } from '../lib/api'
 import { formatINR, formatINRShort, formatPct, formatSignedPct, getTrendClass } from '../lib/format'
 import { usePrivacyMode } from '../context/PrivacyContext'
-import { useHoldingsAnalyticsQuery, useHoldingsQuery, usePortfolioPerformanceQuery } from '../queries/hooks'
+import { useHoldingsAnalyticsQuery, useHoldingsQuery, useInvestmentTransactionsQuery, usePortfolioPerformanceQuery } from '../queries/hooks'
 import { queryKeys } from '../queries/queryKeys'
 import { primaryButtonClass, secondaryButtonClass } from '../styles/buttonStyles'
 
@@ -40,6 +40,8 @@ type ApiHolding = {
   current_value: string | number
   pnl: string | number
   return_pct: string | number
+  tags: string | null
+  status: string
 }
 
 type ApiHoldingsAnalytics = {
@@ -114,6 +116,9 @@ type HoldingFormState = {
   sector: string
   notes: string
   as_of_date: string
+  tags: string
+  price_source: string
+  status: string
 }
 
 type FormErrors = Partial<Record<keyof HoldingFormState, string>>
@@ -134,6 +139,14 @@ const defaultHoldingForm: HoldingFormState = {
   sector: '',
   notes: '',
   as_of_date: '',
+  tags: '',
+  price_source: 'manual',
+  status: 'Active',
+}
+
+const defaultTransactionForm: InvestmentTransactionPayload = {
+  transaction_type: 'BUY', transaction_mode: 'One Time', quantity: '', price_per_unit: '',
+  fees: '0', taxes: '0', exchange_rate: '1', transaction_date: new Date().toISOString().slice(0, 10), notes: null,
 }
 
 const assetTypeOptions = [
@@ -563,9 +576,19 @@ export default function StocksPage() {
   const [savingSnapshot, setSavingSnapshot] = useState(false)
   const [selectedHoldingId, setSelectedHoldingId] = useState<number | null>(null)
   const [sortOption, setSortOption] = useState<HoldingSortOption>('value_desc')
+  const [drawerTab, setDrawerTab] = useState<'overview' | 'transactions'>('overview')
+  const [pageTab, setPageTab] = useState<'holdings' | 'transactions'>('holdings')
+  const [transactionForm, setTransactionForm] = useState(defaultTransactionForm)
+  const [transactionModalOpen, setTransactionModalOpen] = useState(false)
+  const [editingTransactionId, setEditingTransactionId] = useState<number | null>(null)
+  const [transactionError, setTransactionError] = useState<string | null>(null)
+  const [savingTransaction, setSavingTransaction] = useState(false)
+  const [transactionFrom, setTransactionFrom] = useState('')
+  const [transactionTo, setTransactionTo] = useState('')
   const holdingsQuery = useHoldingsQuery()
   const analyticsQuery = useHoldingsAnalyticsQuery()
   const portfolioPerformanceQuery = usePortfolioPerformanceQuery(activeRange)
+  const transactionsQuery = useInvestmentTransactionsQuery(undefined)
   const holdings = (holdingsQuery.data ?? []) as ApiHolding[]
   const analytics = (analyticsQuery.data ?? null) as ApiHoldingsAnalytics | null
   const holdingsLoading = holdingsQuery.isLoading
@@ -733,6 +756,8 @@ export default function StocksPage() {
     () => holdings.find((holding) => holding.id === selectedHoldingId) ?? null,
     [holdings, selectedHoldingId],
   )
+  const transactions = transactionsQuery.data ?? []
+  const selectedTransactions = selectedHolding ? transactions.filter((row) => row.investment_id === selectedHolding.id) : []
 
   async function refreshData() {
     await Promise.all([
@@ -742,6 +767,7 @@ export default function StocksPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.analyticsSummary }),
       queryClient.invalidateQueries({ queryKey: queryKeys.portfolioIntelligence }),
       queryClient.invalidateQueries({ queryKey: ['reports', 'investment-holdings'] }),
+      queryClient.invalidateQueries({ queryKey: ['investmentTransactions'] }),
     ])
   }
 
@@ -819,7 +845,7 @@ export default function StocksPage() {
     setIsSavingHolding(true)
 
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         symbol,
         company_name: companyName,
         asset_type: backendAssetType,
@@ -834,6 +860,14 @@ export default function StocksPage() {
         sector: backendSector || null,
         notes: notes || null,
         as_of_date: asOfDate || null,
+        tags: holdingForm.tags.trim() || null,
+        price_source: holdingForm.price_source,
+        status: holdingForm.status,
+      }
+      if (editingHoldingId !== null) {
+        delete payload.quantity
+        delete payload.avg_buy_price
+        if (holdingForm.price_source !== 'manual') delete payload.current_price
       }
 
       const method = editingHoldingId === null ? 'POST' : 'PATCH'
@@ -913,10 +947,61 @@ export default function StocksPage() {
       sector: holding.sector ?? '',
       notes: holding.notes ?? '',
       as_of_date: holding.as_of_date,
+      tags: holding.tags ?? '',
+      price_source: holding.price_source,
+      status: holding.status,
     })
     setFormErrors({})
     setFormErrorMessage(null)
     setIsHoldingModalOpen(true)
+  }
+
+  function openTransactionModal(holding: ApiHolding, type: 'BUY' | 'SELL', row?: InvestmentTransaction) {
+    setSelectedHoldingId(holding.id)
+    setEditingTransactionId(row?.id ?? null)
+    setTransactionError(null)
+    setTransactionForm(row ? {
+      transaction_type: row.transaction_type, transaction_mode: row.transaction_mode,
+      quantity: String(row.quantity), price_per_unit: String(row.price_per_unit), fees: String(row.fees),
+      taxes: String(row.taxes), exchange_rate: String(row.exchange_rate), transaction_date: row.transaction_date, notes: row.notes,
+    } : {
+      ...defaultTransactionForm, transaction_type: type,
+      transaction_mode: holding.asset_type === 'mutual_fund' && type === 'BUY' ? 'SIP' : 'One Time',
+      exchange_rate: String(holding.fx_rate_to_inr ?? 1), price_per_unit: String(holding.current_price),
+    })
+    setTransactionModalOpen(true)
+  }
+
+  async function handleTransactionSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!selectedHolding) return
+    const quantity = Number(transactionForm.quantity)
+    if (!(quantity > 0)) return setTransactionError('Quantity must be greater than zero.')
+    if (transactionForm.transaction_type === 'SELL' && quantity > toNumber(selectedHolding.quantity)) {
+      return setTransactionError(`Cannot sell ${quantity}; only ${selectedHolding.quantity} is available.`)
+    }
+    setSavingTransaction(true)
+    setTransactionError(null)
+    try {
+      if (editingTransactionId) await updateInvestmentTransaction(editingTransactionId, transactionForm)
+      else await createInvestmentTransaction(selectedHolding.id, transactionForm)
+      setTransactionModalOpen(false)
+      await refreshData()
+    } catch (error) {
+      setTransactionError(formatApiError(error))
+    } finally {
+      setSavingTransaction(false)
+    }
+  }
+
+  async function handleDeleteTransaction(row: InvestmentTransaction) {
+    if (!window.confirm('Delete this transaction and recalculate the holding?')) return
+    try {
+      await deleteInvestmentTransaction(row.id)
+      await refreshData()
+    } catch (error) {
+      setStatusTone('rose'); setStatusMessage(formatApiError(error))
+    }
   }
 
   async function handleDeleteHolding(holding: ApiHolding) {
@@ -1249,6 +1334,19 @@ export default function StocksPage() {
           </div>
         </div>
 
+        <div className="my-4 flex gap-2 border-b border-slate-200 dark:border-slate-800">
+          <button type="button" onClick={() => setPageTab('holdings')} className={['px-4 py-3 text-sm font-semibold border-b-2', pageTab === 'holdings' ? 'border-accent-500 text-accent-500' : 'border-transparent text-slate-500'].join(' ')}>Holdings</button>
+          <button type="button" onClick={() => setPageTab('transactions')} className={['px-4 py-3 text-sm font-semibold border-b-2', pageTab === 'transactions' ? 'border-accent-500 text-accent-500' : 'border-transparent text-slate-500'].join(' ')}>Transactions</button>
+        </div>
+
+        {pageTab === 'transactions' ? (
+          <SectionCard className="mb-4 overflow-hidden">
+            <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 p-4 dark:border-slate-800"><input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search investment or notes" className="h-10 min-w-56 flex-1 rounded-lg border border-slate-200 bg-transparent px-3 text-sm dark:border-slate-700" /><select value={assetTypeFilter} onChange={(event) => setAssetTypeFilter(event.target.value)} className="h-10 rounded-lg border border-slate-200 bg-transparent px-3 text-sm dark:border-slate-700"><option value="all">All</option><option value="indian_stock">Stocks</option><option value="mutual_fund">Mutual Funds</option><option value="etf">ETF</option><option value="gold">Gold ETF</option><option value="us_stock">US Stocks</option></select><input aria-label="From date" type="date" value={transactionFrom} onChange={(event) => setTransactionFrom(event.target.value)} className="h-10 rounded-lg border border-slate-200 bg-transparent px-3 text-sm dark:border-slate-700" /><input aria-label="To date" type="date" value={transactionTo} onChange={(event) => setTransactionTo(event.target.value)} className="h-10 rounded-lg border border-slate-200 bg-transparent px-3 text-sm dark:border-slate-700" /><button type="button" onClick={() => { const header = 'Date,Investment,Type,Mode,Quantity,Price,Fees,Taxes,Amount,Notes'; const rows = transactions.map((row) => [row.transaction_date, row.investment_name, row.transaction_type, row.transaction_mode, row.quantity, row.price_per_unit, row.fees, row.taxes, row.total, JSON.stringify(row.notes ?? '')].join(',')); const blob = new Blob([[header, ...rows].join('\n')], { type: 'text/csv' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'investment-transactions.csv'; link.click(); URL.revokeObjectURL(link.href) }} className={secondaryButtonClass}>Export CSV</button></div>
+            <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-slate-50 text-left text-xs uppercase text-slate-500 dark:bg-slate-800/50"><tr>{['Date','Investment','Type','Mode','Quantity','Price','Fees','Taxes','Amount','Notes'].map((label) => <th key={label} className="px-3 py-3">{label}</th>)}</tr></thead><tbody>{transactions.filter((row) => { const holding = holdings.find((item) => item.id === row.investment_id); const matchesType = assetTypeFilter === 'all' || (holding && getInvestmentClass(holding) === assetTypeFilter); const matchesSearch = !searchTerm || `${row.investment_name} ${row.investment_symbol} ${row.notes ?? ''}`.toLowerCase().includes(searchTerm.toLowerCase()); return matchesType && matchesSearch && (!transactionFrom || row.transaction_date >= transactionFrom) && (!transactionTo || row.transaction_date <= transactionTo) }).map((row) => <tr key={row.id} className="border-t border-slate-100 dark:border-slate-800"><td className="px-3 py-3">{row.transaction_date}</td><td className="px-3 py-3 font-semibold">{row.investment_symbol}</td><td className={row.transaction_type === 'BUY' ? 'px-3 py-3 text-emerald-500' : 'px-3 py-3 text-rose-500'}>{row.transaction_type}</td><td className="px-3 py-3">{row.transaction_mode}</td><td className="px-3 py-3">{row.quantity}</td><td className="px-3 py-3">{row.price_per_unit}</td><td className="px-3 py-3">{row.fees}</td><td className="px-3 py-3">{row.taxes}</td><td className="px-3 py-3 font-semibold">{formatINR(toNumber(row.total))}</td><td className="max-w-48 truncate px-3 py-3">{row.notes}</td></tr>)}</tbody></table></div>
+          </SectionCard>
+        ) : null}
+
+        {pageTab === 'holdings' ? <>
         {/* Actions toolbar */}
         <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-row sm:items-center sm:justify-end my-4">
           <button
@@ -1538,6 +1636,7 @@ export default function StocksPage() {
             </div>
           )}
         </SectionCard>
+        </> : null}
         </div>
       </div>
 
@@ -1700,6 +1799,27 @@ export default function StocksPage() {
               </div>
             </div>
 
+            <div className="flex border-b border-slate-200 px-6 dark:border-slate-800">
+              {(['overview', 'transactions'] as const).map((tab) => (
+                <button key={tab} type="button" onClick={() => setDrawerTab(tab)} className={['px-4 py-3 text-sm font-semibold capitalize border-b-2', drawerTab === tab ? 'border-accent-500 text-accent-500' : 'border-transparent text-slate-500'].join(' ')}>{tab}</button>
+              ))}
+              {drawerTab === 'transactions' ? <button type="button" onClick={() => openTransactionModal(selectedHolding, 'BUY')} className="ml-auto text-sm font-semibold text-accent-500">+ Add Transaction</button> : null}
+            </div>
+
+            {drawerTab === 'transactions' ? (
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+                {selectedTransactions.length === 0 ? <div className="py-12 text-center text-sm text-slate-500">No transactions yet.</div> : (
+                  <div className="space-y-3">{selectedTransactions.map((row) => (
+                    <div key={row.id} className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+                      <div className="flex items-center justify-between"><span className={row.transaction_type === 'BUY' ? 'font-semibold text-emerald-500' : 'font-semibold text-rose-500'}>{row.transaction_type} · {row.transaction_mode}</span><span className="text-xs text-slate-500">{row.transaction_date}</span></div>
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-sm text-slate-600 dark:text-slate-300"><span>Quantity: {row.quantity}</span><span>Price: {formatNativeMoney(toNumber(row.price_per_unit), selectedHolding.currency)}</span><span>Fees: {row.fees}</span><span>Taxes: {row.taxes}</span><span className="font-semibold">Total: {formatINR(toNumber(row.total))}</span></div>
+                      {row.notes ? <div className="mt-2 text-xs text-slate-500">{row.notes}</div> : null}
+                      <div className="mt-3 flex gap-2"><button type="button" onClick={() => openTransactionModal(selectedHolding, row.transaction_type, row)} className="text-xs font-semibold text-sky-500">Edit</button><button type="button" onClick={() => void handleDeleteTransaction(row)} className="text-xs font-semibold text-rose-500">Delete</button></div>
+                    </div>
+                  ))}</div>
+                )}
+              </div>
+            ) : (
             <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
@@ -1785,8 +1905,11 @@ export default function StocksPage() {
                 )}
               </div>
             </div>
+            )}
 
             <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4 dark:border-slate-800">
+              <button type="button" onClick={() => openTransactionModal(selectedHolding, 'BUY')} className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white">Buy</button>
+              <button type="button" onClick={() => openTransactionModal(selectedHolding, 'SELL')} disabled={toNumber(selectedHolding.quantity) <= 0} className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40">Sell</button>
               <button
                 type="button"
                 onClick={() => setSelectedHoldingId(null)}
@@ -1815,6 +1938,28 @@ export default function StocksPage() {
               </button>
             </div>
           </section>
+        </div>
+      ) : null}
+
+      {transactionModalOpen && selectedHolding ? (
+        <div className="fixed inset-0 z-[70] grid place-items-center bg-slate-950/70 p-4" onClick={() => setTransactionModalOpen(false)}>
+          <form onSubmit={handleTransactionSubmit} onClick={(event) => event.stopPropagation()} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900">
+            <div className="flex items-start justify-between"><div><h2 className="text-lg font-semibold text-slate-900 dark:text-white">{editingTransactionId ? 'Edit' : 'Add'} Transaction</h2><p className="text-sm text-slate-500">{selectedHolding.symbol} · Available {selectedHolding.quantity}</p></div><button type="button" onClick={() => setTransactionModalOpen(false)}><Icon name="close" className="h-5 w-5" /></button></div>
+            {selectedHolding.asset_type === 'mutual_fund' && transactionForm.transaction_type === 'BUY' ? <label className="mt-4 flex items-center gap-2 text-sm"><input type="checkbox" checked={transactionForm.transaction_mode === 'SIP'} onChange={(event) => setTransactionForm((current) => ({ ...current, transaction_mode: event.target.checked ? 'SIP' : 'One Time', transaction_type: 'BUY' }))} /> Mark SIP Purchase</label> : null}
+            {transactionError ? <div className="mt-4 rounded-lg bg-rose-500/10 p-3 text-sm text-rose-500">{transactionError}</div> : null}
+            <div className="mt-5 grid grid-cols-2 gap-4">
+              <FormField label="Transaction Type"><select value={transactionForm.transaction_type} onChange={(event) => setTransactionForm((current) => ({ ...current, transaction_type: event.target.value as 'BUY' | 'SELL' }))} className="h-11 w-full rounded-lg border border-slate-300 bg-transparent px-3 dark:border-slate-700"><option>BUY</option><option>SELL</option></select></FormField>
+              <FormField label="Mode"><select value={transactionForm.transaction_mode} onChange={(event) => setTransactionForm((current) => ({ ...current, transaction_mode: event.target.value as 'One Time' | 'SIP' }))} className="h-11 w-full rounded-lg border border-slate-300 bg-transparent px-3 dark:border-slate-700"><option>One Time</option><option>SIP</option></select></FormField>
+              <FormField label={selectedHolding.asset_type === 'mutual_fund' ? 'Units' : 'Quantity'}><input required type="number" min="0.0001" step="any" value={transactionForm.quantity} onChange={(event) => setTransactionForm((current) => ({ ...current, quantity: event.target.value }))} className="h-11 w-full rounded-lg border border-slate-300 bg-transparent px-3 dark:border-slate-700" /></FormField>
+              <FormField label={selectedHolding.asset_type === 'mutual_fund' ? 'NAV' : 'Price per Unit'}><input required type="number" min="0" step="any" value={transactionForm.price_per_unit} onChange={(event) => setTransactionForm((current) => ({ ...current, price_per_unit: event.target.value }))} className="h-11 w-full rounded-lg border border-slate-300 bg-transparent px-3 dark:border-slate-700" /></FormField>
+              <FormField label="Fees"><input type="number" min="0" step="any" value={transactionForm.fees} onChange={(event) => setTransactionForm((current) => ({ ...current, fees: event.target.value }))} className="h-11 w-full rounded-lg border border-slate-300 bg-transparent px-3 dark:border-slate-700" /></FormField>
+              <FormField label="Taxes"><input type="number" min="0" step="any" value={transactionForm.taxes} onChange={(event) => setTransactionForm((current) => ({ ...current, taxes: event.target.value }))} className="h-11 w-full rounded-lg border border-slate-300 bg-transparent px-3 dark:border-slate-700" /></FormField>
+              {selectedHolding.country === 'US' ? <FormField label="Exchange Rate"><input type="number" min="0.0001" step="any" value={transactionForm.exchange_rate} onChange={(event) => setTransactionForm((current) => ({ ...current, exchange_rate: event.target.value }))} className="h-11 w-full rounded-lg border border-slate-300 bg-transparent px-3 dark:border-slate-700" /></FormField> : null}
+              <FormField label="Transaction Date"><input required type="date" value={transactionForm.transaction_date} onChange={(event) => setTransactionForm((current) => ({ ...current, transaction_date: event.target.value }))} className="h-11 w-full rounded-lg border border-slate-300 bg-transparent px-3 dark:border-slate-700" /></FormField>
+            </div>
+            <FormField label="Notes"><textarea rows={3} value={transactionForm.notes ?? ''} onChange={(event) => setTransactionForm((current) => ({ ...current, notes: event.target.value || null }))} className="mt-1 w-full rounded-lg border border-slate-300 bg-transparent p-3 dark:border-slate-700" /></FormField>
+            <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setTransactionModalOpen(false)} className={secondaryButtonClass}>Cancel</button><button type="submit" disabled={savingTransaction} className={primaryButtonClass}>{savingTransaction ? 'Saving...' : 'Save'}</button></div>
+          </form>
         </div>
       ) : null}
 
@@ -1963,6 +2108,7 @@ export default function StocksPage() {
                       placeholder={holdingForm.asset_type === 'mutual_fund' ? '450' : '40'}
                       inputMode="decimal"
                       step="any"
+                      disabled={editingHoldingId !== null}
                       className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     />
                   </FormField>
@@ -1974,6 +2120,7 @@ export default function StocksPage() {
                       placeholder={holdingForm.country === 'US' ? '180.50' : '2380'}
                       inputMode="decimal"
                       step="any"
+                      disabled={editingHoldingId !== null}
                       className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     />
                   </FormField>
@@ -1985,6 +2132,7 @@ export default function StocksPage() {
                       placeholder={holdingForm.asset_type === 'mutual_fund' ? '89.15' : '2910'}
                       inputMode="decimal"
                       step="any"
+                      disabled={editingHoldingId !== null && holdingForm.price_source !== 'manual'}
                       className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150"
                     />
                   </FormField>
@@ -2020,6 +2168,21 @@ export default function StocksPage() {
                     />
                   </FormField>
                 </div>
+
+                {editingHoldingId !== null ? <div className="mt-3 text-xs text-slate-500">Quantity, average buy price, and invested amount are calculated from investment transactions.</div> : null}
+
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <FormField label="Price Mode">
+                    <select value={holdingForm.price_source} onChange={(event) => setHoldingForm((current) => ({ ...current, price_source: event.target.value }))} className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-800">
+                      <option value="manual">Manual</option><option value="yfinance">Auto</option>
+                    </select>
+                  </FormField>
+                  <FormField label="Status">
+                    <select value={holdingForm.status} onChange={(event) => setHoldingForm((current) => ({ ...current, status: event.target.value }))} className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-800"><option>Active</option><option>Closed</option></select>
+                  </FormField>
+                  <FormField label="Tags"><input value={holdingForm.tags} onChange={(event) => setHoldingForm((current) => ({ ...current, tags: event.target.value }))} placeholder="long-term, retirement" className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-800" /></FormField>
+                </div>
+                {holdingForm.price_source !== 'manual' ? <div className="mt-3 rounded-lg bg-sky-500/10 px-4 py-3 text-sm text-sky-600">Current price is automatically updated from the market feed.</div> : null}
 
                 <FormField label="Notes" error={formErrors.notes}>
                   <textarea
