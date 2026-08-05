@@ -3,7 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from multiprocessing import get_context
+from multiprocessing.process import BaseProcess
 import re
+from queue import Empty
+from threading import Lock
+from time import monotonic
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
@@ -36,6 +41,17 @@ _usd_to_inr_cache: dict[str, datetime | float | None] = {
     "value": None,
     "fetched_at": None,
 }
+
+# Market providers are external services and can occasionally stall despite their
+# individual timeouts.  Never perform this work in an API request thread: an
+# unavailable provider should leave the dashboard with its last known values, not
+# make unrelated endpoints (including /health) wait.
+_market_overview_cache: list[MarketOverviewItem] = []
+_market_overview_lock = Lock()
+_market_overview_process: BaseProcess | None = None
+_market_overview_result_queue: object | None = None
+_market_overview_refresh_started_at: float | None = None
+MARKET_REFRESH_TIMEOUT_SECONDS = 30
 
 
 def _load_yfinance():
@@ -361,3 +377,79 @@ def fetch_market_overview() -> list[MarketOverviewItem]:
             )
 
     return items
+
+
+def get_cached_market_overview() -> list[MarketOverviewItem]:
+    """Return the latest market snapshot without doing network I/O."""
+    _collect_market_refresh_result()
+    with _market_overview_lock:
+        return list(_market_overview_cache)
+
+
+def _fetch_market_overview_in_worker(result_queue: object) -> None:
+    """Run provider code outside the API process."""
+    try:
+        latest = fetch_market_overview()
+        result_queue.put([item.model_dump(mode="json") for item in latest])  # type: ignore[attr-defined]
+    except Exception:
+        result_queue.put(None)  # type: ignore[attr-defined]
+
+
+def _clear_market_refresh_locked() -> None:
+    global _market_overview_process, _market_overview_result_queue, _market_overview_refresh_started_at
+    _market_overview_process = None
+    _market_overview_result_queue = None
+    _market_overview_refresh_started_at = None
+
+
+def _collect_market_refresh_result() -> None:
+    """Collect or terminate the isolated worker without blocking a request."""
+    global _market_overview_cache
+
+    with _market_overview_lock:
+        process = _market_overview_process
+        result_queue = _market_overview_result_queue
+        started_at = _market_overview_refresh_started_at
+        if process is None or result_queue is None:
+            return
+
+        try:
+            payload = result_queue.get_nowait()  # type: ignore[attr-defined]
+        except Empty:
+            if started_at is not None and monotonic() - started_at >= MARKET_REFRESH_TIMEOUT_SECONDS:
+                if process.is_alive():
+                    process.terminate()
+                process.join(timeout=0.1)
+                _clear_market_refresh_locked()
+            elif not process.is_alive():
+                process.join(timeout=0.1)
+                _clear_market_refresh_locked()
+            return
+
+        process.join(timeout=0.1)
+        _clear_market_refresh_locked()
+        if payload is not None:
+            _market_overview_cache = [MarketOverviewItem.model_validate(item) for item in payload]
+
+
+def request_market_overview_refresh() -> None:
+    """Start one best-effort refresh and return immediately.
+
+    A single isolated worker is deliberately allowed. If a provider hangs or
+    spins, it cannot consume the API process or degrade other routes.
+    """
+    global _market_overview_process, _market_overview_result_queue, _market_overview_refresh_started_at
+
+    _collect_market_refresh_result()
+
+    with _market_overview_lock:
+        if _market_overview_process is not None:
+            return
+
+        context = get_context("spawn")
+        result_queue = context.Queue()
+        process = context.Process(target=_fetch_market_overview_in_worker, args=(result_queue,), daemon=True)
+        process.start()
+        _market_overview_process = process
+        _market_overview_result_queue = result_queue
+        _market_overview_refresh_started_at = monotonic()

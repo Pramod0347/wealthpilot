@@ -729,12 +729,11 @@ export type InvestmentHoldingsReport = {
 
 export type TaxYear = {
   id: number
+  user_id: string
   financial_year: string
   assessment_year: string | null
-  regime: 'new'
-  filing_status: 'planning' | 'ready' | 'filed'
-  filing_date: string | null
-  notes: string | null
+  status: 'Draft' | 'Filed' | 'Verified'
+  filed_at: string | null
   created_at: string
   updated_at: string
 }
@@ -848,10 +847,8 @@ export type TaxYearSummary = {
 export type TaxYearPayload = {
   financial_year: string
   assessment_year: string | null
-  regime?: 'new'
-  filing_status: TaxYear['filing_status']
-  filing_date: string | null
-  notes: string | null
+  status: TaxYear['status']
+  filed_at: string | null
 }
 
 export type TaxIncomeItemPayload = {
@@ -1300,6 +1297,10 @@ export function getInvestmentHoldingsReport(signal?: AbortSignal) {
 
 export function getTaxYears(signal?: AbortSignal) {
   return apiFetch<TaxYear[]>('/api/tax/years', { signal })
+}
+
+export function getTaxDashboard(taxYearId: number, signal?: AbortSignal) {
+  return apiFetch<unknown>(`/api/tax/years/${taxYearId}/dashboard`, { signal })
 }
 
 export function createTaxYear(payload: TaxYearPayload) {

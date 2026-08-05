@@ -26,11 +26,6 @@ import {
   getNetWorthSnapshotsReport,
   getPortfolioIntelligence,
   getPortfolioPerformance,
-  getTaxDeductions,
-  getTaxDocuments,
-  getTaxIncomeItems,
-  getTaxPayments,
-  getTaxYearSummary,
   getTaxYears,
   getCreditCardBillPaymentsReport,
 } from '../lib/api'
@@ -240,42 +235,3 @@ export function useTaxYearsQuery() {
   })
 }
 
-export function useTaxSummaryQuery(taxYearId: number | null, enabled = true) {
-  return useQuery({
-    queryKey: taxYearId ? queryKeys.taxSummary(taxYearId) : ['taxSummary', 'none'],
-    queryFn: ({ signal }) => getTaxYearSummary(taxYearId as number, signal),
-    enabled: enabled && taxYearId !== null,
-  })
-}
-
-export function useTaxIncomeQuery(taxYearId: number | null, enabled = true) {
-  return useQuery({
-    queryKey: taxYearId ? queryKeys.taxIncome(taxYearId) : ['taxIncome', 'none'],
-    queryFn: ({ signal }) => getTaxIncomeItems(taxYearId as number, signal),
-    enabled: enabled && taxYearId !== null,
-  })
-}
-
-export function useTaxDeductionsQuery(taxYearId: number | null, enabled = true) {
-  return useQuery({
-    queryKey: taxYearId ? queryKeys.taxDeductions(taxYearId) : ['taxDeductions', 'none'],
-    queryFn: ({ signal }) => getTaxDeductions(taxYearId as number, signal),
-    enabled: enabled && taxYearId !== null,
-  })
-}
-
-export function useTaxDocumentsQuery(taxYearId: number | null, enabled = true) {
-  return useQuery({
-    queryKey: taxYearId ? queryKeys.taxDocuments(taxYearId) : ['taxDocuments', 'none'],
-    queryFn: ({ signal }) => getTaxDocuments(taxYearId as number, signal),
-    enabled: enabled && taxYearId !== null,
-  })
-}
-
-export function useTaxPaymentsQuery(taxYearId: number | null, enabled = true) {
-  return useQuery({
-    queryKey: taxYearId ? queryKeys.taxPayments(taxYearId) : ['taxPayments', 'none'],
-    queryFn: ({ signal }) => getTaxPayments(taxYearId as number, signal),
-    enabled: enabled && taxYearId !== null,
-  })
-}

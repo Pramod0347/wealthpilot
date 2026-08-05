@@ -23,10 +23,6 @@ from app.models.fixed_savings_account import FixedSavingsAccount  # noqa: F401
 from app.models.holding import Holding  # noqa: F401
 from app.models.investment_transaction import InvestmentTransaction  # noqa: F401
 from app.models.portfolio_snapshot import PortfolioSnapshot  # noqa: F401
-from app.models.tax_deduction import TaxDeduction  # noqa: F401
-from app.models.tax_document import TaxDocument  # noqa: F401
-from app.models.tax_income_item import TaxIncomeItem  # noqa: F401
-from app.models.tax_payment import TaxPayment  # noqa: F401
 from app.models.tax_year import TaxYear  # noqa: F401
 
 config = context.config

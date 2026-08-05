@@ -27,9 +27,4 @@ export const queryKeys = {
   financialGoalsSummary: ['goals', 'summary'] as const,
   reports: (reportType: string, filters?: Record<string, unknown>) => ['reports', reportType, filters ?? {}] as const,
   taxYears: ['taxYears'] as const,
-  taxSummary: (taxYearId: number) => ['taxSummary', taxYearId] as const,
-  taxIncome: (taxYearId: number) => ['taxIncome', taxYearId] as const,
-  taxDeductions: (taxYearId: number) => ['taxDeductions', taxYearId] as const,
-  taxDocuments: (taxYearId: number) => ['taxDocuments', taxYearId] as const,
-  taxPayments: (taxYearId: number) => ['taxPayments', taxYearId] as const,
 } as const
