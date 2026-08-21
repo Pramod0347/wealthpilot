@@ -31,6 +31,11 @@ class FinancialGoalBase(BaseModel):
     achievement_type: GoalAchievementType | None = None
     payment_source: GoalPaymentSource | None = None
     is_big_purchase: bool = False
+    is_emi: bool = False
+    emi_monthly_amount: Decimal | None = None
+    emi_total_months: int | None = None
+    emi_processing_fee: Decimal | None = None
+    emi_processing_fee_gst: Decimal | None = None
     purchase_notes: str | None = None
     is_active: bool = True
 
@@ -57,6 +62,11 @@ class FinancialGoalUpdate(BaseModel):
     achievement_type: GoalAchievementType | None = None
     payment_source: GoalPaymentSource | None = None
     is_big_purchase: bool | None = None
+    is_emi: bool | None = None
+    emi_monthly_amount: Decimal | None = None
+    emi_total_months: int | None = None
+    emi_processing_fee: Decimal | None = None
+    emi_processing_fee_gst: Decimal | None = None
     purchase_notes: str | None = None
     is_active: bool | None = None
 

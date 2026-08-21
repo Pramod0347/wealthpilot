@@ -1,8 +1,13 @@
+from decimal import Decimal
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.models.emi_payment import EMIPayment
 from app.models.financial_goal import FinancialGoal
+from app.schemas.emi_payment import EMIPaymentCreate, EMIPaymentRead
 from app.schemas.financial_goal import (
     FinancialGoalCreate,
     FinancialGoalRead,
@@ -137,6 +142,74 @@ def create_quick_achievement(payload: QuickAchievementCreate, db: Session = Depe
     db.commit()
     db.refresh(goal)
     return serialize_financial_goal(db, goal)
+
+
+@router.get("/{goal_id}/emi-payments", response_model=list[EMIPaymentRead])
+def get_goal_emi_payments(goal_id: int, db: Session = Depends(get_db)) -> list[EMIPaymentRead]:
+    goal = db.get(FinancialGoal, goal_id)
+    if goal is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Financial goal not found")
+
+    rows = db.scalars(
+        select(EMIPayment)
+        .where(EMIPayment.goal_id == goal_id)
+        .order_by(EMIPayment.payment_date.desc(), EMIPayment.created_at.desc())
+    ).all()
+    return rows
+
+
+@router.post("/{goal_id}/emi-payments", response_model=EMIPaymentRead, status_code=status.HTTP_201_CREATED)
+def create_goal_emi_payment(goal_id: int, payload: EMIPaymentCreate, db: Session = Depends(get_db)) -> EMIPaymentRead:
+    goal = db.get(FinancialGoal, goal_id)
+    if goal is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Financial goal not found")
+
+    principal_amount = payload.principal_amount or Decimal("0")
+    interest_amount = payload.interest_amount or Decimal("0")
+    gst_amount = payload.gst_amount or Decimal("0")
+    processing_fee = payload.processing_fee or Decimal("0")
+    processing_fee_gst = payload.processing_fee_gst or Decimal("0")
+    total_amount = payload.amount if payload.amount is not None else Decimal("0")
+    if total_amount <= 0:
+        total_amount = principal_amount + interest_amount + gst_amount + processing_fee + processing_fee_gst
+
+    if total_amount <= 0:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="EMI payment amount must be greater than zero.")
+    if len(payload.payment_month) != 7 or payload.payment_month[4] != '-':
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="payment_month must be in YYYY-MM format.")
+
+    payment = EMIPayment(
+        goal_id=goal_id,
+        payment_month=payload.payment_month,
+        payment_date=payload.payment_date,
+        principal_amount=principal_amount,
+        interest_amount=interest_amount,
+        gst_amount=gst_amount,
+        processing_fee=processing_fee,
+        processing_fee_gst=processing_fee_gst,
+        amount=total_amount,
+        notes=payload.notes,
+    )
+    goal.current_amount = (goal.current_amount or Decimal("0")) + total_amount
+    db.add(payment)
+    db.commit()
+    db.refresh(payment)
+    return payment
+
+
+@router.delete("/{goal_id}/emi-payments/{payment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_goal_emi_payment(goal_id: int, payment_id: int, db: Session = Depends(get_db)) -> None:
+    goal = db.get(FinancialGoal, goal_id)
+    if goal is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Financial goal not found")
+
+    payment = db.get(EMIPayment, payment_id)
+    if payment is None or payment.goal_id != goal_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="EMI payment not found")
+
+    goal.current_amount = max((goal.current_amount or Decimal("0")) - payment.amount, Decimal("0"))
+    db.delete(payment)
+    db.commit()
 
 
 @router.delete("/{goal_id}", status_code=status.HTTP_204_NO_CONTENT)

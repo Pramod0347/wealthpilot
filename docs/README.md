@@ -8,3 +8,4 @@ Suggested topics:
 - API design
 - UI patterns
 - Calculation rules
+- EMI flow

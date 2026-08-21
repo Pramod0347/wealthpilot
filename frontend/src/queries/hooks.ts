@@ -7,6 +7,7 @@ import {
   getCashflowEntries,
   getCashflowMonths,
   getCashflowSummary,
+  getGoalEMIPayments,
   getCreditCardBillHistory,
   getCreditCardBills,
   getCreditCards,
@@ -197,6 +198,14 @@ export function useFinancialGoalsSummaryQuery() {
   return useQuery({
     queryKey: queryKeys.financialGoalsSummary,
     queryFn: ({ signal }) => getFinancialGoalsSummary(signal),
+  })
+}
+
+export function useGoalEMIPaymentsQuery(goalId: number | null) {
+  return useQuery({
+    queryKey: goalId ? ['goalEMIPayments', goalId] : ['goalEMIPayments', 'none'],
+    queryFn: ({ signal }) => (goalId === null ? Promise.resolve([]) : getGoalEMIPayments(goalId, signal)),
+    enabled: goalId !== null,
   })
 }
 

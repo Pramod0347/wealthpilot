@@ -353,6 +353,11 @@ export type FinancialGoal = {
   achievement_type: 'planned_goal' | 'big_purchase' | 'gift' | 'travel' | 'asset_purchase' | 'other' | null
   payment_source: 'bank' | 'credit_card' | 'cash' | 'mixed' | 'other' | null
   is_big_purchase: boolean
+  is_emi: boolean
+  emi_monthly_amount: string | number | null
+  emi_total_months: number | null
+  emi_processing_fee: string | number | null
+  emi_processing_fee_gst: string | number | null
   purchase_notes: string | null
   is_active: boolean
   resolved_current_amount: string | number
@@ -387,6 +392,11 @@ export type FinancialGoalPayload = {
   achievement_type: FinancialGoal['achievement_type']
   payment_source: FinancialGoal['payment_source']
   is_big_purchase: boolean
+  is_emi: boolean
+  emi_monthly_amount?: string
+  emi_total_months?: number
+  emi_processing_fee?: string
+  emi_processing_fee_gst?: string
   purchase_notes: string | null
   is_active: boolean
 }
@@ -426,6 +436,35 @@ export type FinancialGoalSummary = {
   recent_achieved_goal: FinancialGoal | null
   status_counts: Record<string, number>
   top_goals: FinancialGoal[]
+}
+
+export type EMIPayment = {
+  id: number
+  goal_id: number
+  payment_month: string
+  payment_date: string
+  principal_amount: string | number
+  interest_amount: string | number
+  gst_amount: string | number
+  processing_fee: string | number
+  processing_fee_gst: string | number
+  amount: string | number
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type EMIPaymentPayload = {
+  goal_id: number
+  payment_month: string
+  payment_date: string
+  principal_amount: string
+  interest_amount: string
+  gst_amount: string
+  processing_fee: string
+  processing_fee_gst: string
+  amount: string
+  notes: string | null
 }
 
 export type CashflowEntry = {
@@ -1174,6 +1213,23 @@ export function createQuickAchievement(payload: QuickAchievementPayload) {
 
 export function deleteFinancialGoal(goalId: number) {
   return apiFetch<void>(`/api/goals/${goalId}`, {
+    method: 'DELETE',
+  })
+}
+
+export function getGoalEMIPayments(goalId: number, signal?: AbortSignal) {
+  return apiFetch<EMIPayment[]>(`/api/goals/${goalId}/emi-payments`, { signal })
+}
+
+export function createGoalEMIPayment(goalId: number, payload: Omit<EMIPaymentPayload, 'goal_id'>) {
+  return apiFetch<EMIPayment>(`/api/goals/${goalId}/emi-payments`, {
+    method: 'POST',
+    body: JSON.stringify({ ...payload, goal_id: goalId }),
+  })
+}
+
+export function deleteGoalEMIPayment(goalId: number, paymentId: number) {
+  return apiFetch<void>(`/api/goals/${goalId}/emi-payments/${paymentId}`, {
     method: 'DELETE',
   })
 }

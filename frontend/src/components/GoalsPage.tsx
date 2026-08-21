@@ -36,6 +36,7 @@ type GoalFormState = {
   }
   priority: NonNullable<FinancialGoal['priority']>
   notes: string
+  is_emi: boolean
   is_active: boolean
 }
 
@@ -75,6 +76,7 @@ const defaultForm: GoalFormState = {
   },
   priority: 'medium',
   notes: '',
+  is_emi: false,
   is_active: true,
 }
 
@@ -383,6 +385,7 @@ export default function GoalsPage() {
         },
         priority: goal.priority ?? 'medium',
         notes: goal.notes ?? '',
+        is_emi: goal.is_emi ?? false,
         is_active: goal.status === 'active' || goal.status === 'paused',
       })
       setFormErrors({})
@@ -487,6 +490,7 @@ export default function GoalsPage() {
       achievement_type: null,
       payment_source: null,
       is_big_purchase: false,
+      is_emi: form.is_emi,
       purchase_notes: null,
       is_active: form.is_active,
     }
@@ -752,6 +756,7 @@ export default function GoalsPage() {
                       <div className="mt-1 flex flex-wrap items-center gap-2">
                         <span className="rounded-full bg-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">{goalTypeLabel(goal.goal_type)}</span>
                         <span className={['rounded-full px-2.5 py-1 text-[11px] font-semibold', priorityMeta(goal.priority)].join(' ')}>{goal.priority ?? 'medium'}</span>
+                        {goal.is_emi ? <span className="rounded-full bg-sky-500/15 px-2.5 py-1 text-[11px] font-semibold text-sky-300">EMI</span> : null}
                         {goal.status === 'paused' ? <span className={['rounded-full px-2.5 py-1 text-[11px] font-semibold', lifecycle.chip].join(' ')}>{lifecycle.label}</span> : null}
                       </div>
                     </div>
@@ -814,7 +819,6 @@ export default function GoalsPage() {
                       onClick={() => openMarkAchievedModal(goal)}
                       className={['h-10 flex-1 justify-center', primaryButtonClass].join(' ')}
                     >
-                      <Icon name="paid" className="h-4 w-4" />
                       Mark Achieved
                     </button>
                     <button
@@ -980,6 +984,19 @@ export default function GoalsPage() {
                           {priorityOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                         </select>
                       </FormField>
+
+                      <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-3 dark:border-slate-700 dark:bg-slate-800/40">
+                        <span>
+                          <span className="block text-sm font-semibold text-slate-900 dark:text-white">Track as EMI</span>
+                          <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">Show this goal in the global EMI tracker.</span>
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={form.is_emi}
+                          onChange={(event) => setForm((current) => ({ ...current, is_emi: event.target.checked }))}
+                          className="h-4 w-4 rounded border-slate-300 text-accent-600 focus:ring-accent-500"
+                        />
+                      </label>
 
                       <div className="sm:col-span-2">
                         <div className="mb-1.5 text-sm font-semibold text-slate-700 dark:text-slate-300">Linked Source Types</div>

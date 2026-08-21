@@ -641,3 +641,12 @@ Before shipping a page, verify:
 6. **Accessibility**: Min contrast ratio 4.5:1 for text; focus states on all interactive elements
 7. **Performance**: Lazy-load heavy components; use `next/image` or optimization
 8. **Icons**: Use Lucide React or custom SVG with `currentColor` for theme support
+
+
+cd /Users/pramodgoudar/Desktop/Projects/wealthpilot/backend
+python3 -m venv .venv
+source .venv/bin/activate
+python --version
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --reload
