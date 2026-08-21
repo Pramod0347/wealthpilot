@@ -26,6 +26,10 @@ type DepositFormState = {
   paid_date: string
   refundable: boolean
   status: Deposit['status']
+  returned_date: string
+  returned_amount: string
+  return_deduction: string
+  return_notes: string
   description: string
 }
 
@@ -39,6 +43,10 @@ const defaultDepositForm: DepositFormState = {
   paid_date: '',
   refundable: true,
   status: 'active',
+  returned_date: '',
+  returned_amount: '',
+  return_deduction: '',
+  return_notes: '',
   description: '',
 }
 
@@ -134,9 +142,9 @@ export default function DepositsPage() {
     const refundableAmount = toNumber(summary?.refundable_amount)
     return [
       {
-        label: 'Total Deposits',
+        label: 'Held Now',
         value: summaryLoading ? 'Loading...' : summaryError ? '—' : formatINRShort(totalDeposits),
-        meta: summaryLoading ? 'Fetching deposits' : summaryError ? summaryError : 'Across all deposits',
+        meta: summaryLoading ? 'Fetching deposits' : summaryError ? summaryError : 'Active deposits only',
         icon: 'portfolio' as const,
       },
       {
@@ -146,10 +154,10 @@ export default function DepositsPage() {
         icon: 'analytics' as const,
       },
       {
-        label: 'Refundable Amount',
+        label: 'Returned To You',
         value: summaryLoading ? 'Loading...' : summaryError ? '—' : formatINRShort(refundableAmount),
-        meta: summaryLoading ? 'Fetching deposits' : summaryError ? summaryError : 'Refundable deposits only',
-        icon: 'shield' as const,
+        meta: summaryLoading ? 'Fetching deposits' : summaryError ? summaryError : `${summary?.returned_count ?? 0} returned deposit${(summary?.returned_count ?? 0) === 1 ? '' : 's'}`,
+        icon: 'paid' as const,
       },
       {
         label: 'Last Updated',
@@ -178,6 +186,10 @@ export default function DepositsPage() {
       paid_date: deposit.paid_date ?? '',
       refundable: deposit.refundable,
       status: deposit.status,
+      returned_date: deposit.returned_date ?? '',
+      returned_amount: deposit.returned_amount == null ? '' : String(deposit.returned_amount),
+      return_deduction: deposit.return_deduction == null ? '' : String(deposit.return_deduction),
+      return_notes: deposit.return_notes ?? '',
       description: deposit.description ?? '',
     })
     setFormErrors({})
@@ -207,6 +219,9 @@ export default function DepositsPage() {
     if (!amount) nextErrors.amount = 'Amount is required.'
     if (amount && Number.isNaN(Number(amount))) nextErrors.amount = 'Enter a valid amount.'
     if (amount && Number(amount) <= 0) nextErrors.amount = 'Amount must be greater than 0.'
+    if (form.status === 'returned' && !form.returned_date) nextErrors.returned_date = 'Return date is required.'
+    if (form.status === 'returned' && !form.returned_amount) nextErrors.returned_amount = 'Returned amount is required.'
+    if (form.status === 'returned' && form.returned_amount && Number(form.returned_amount) > Number(amount)) nextErrors.returned_amount = 'Returned amount cannot exceed the original amount.'
 
     if (Object.keys(nextErrors).length > 0) {
       setFormErrors(nextErrors)
@@ -222,7 +237,10 @@ export default function DepositsPage() {
       paid_date: form.paid_date || null,
       refundable: form.refundable,
       status: form.status,
-      returned_date: form.status === 'returned' ? form.paid_date || null : null,
+      returned_date: form.status === 'returned' ? form.returned_date || null : null,
+      returned_amount: form.status === 'returned' ? form.returned_amount || null : null,
+      return_deduction: form.status === 'returned' ? (form.return_deduction || String(Math.max(Number(amount) - Number(form.returned_amount || 0), 0))) : null,
+      return_notes: form.status === 'returned' ? form.return_notes.trim() || null : null,
     }
 
     setIsSaving(true)
@@ -352,6 +370,13 @@ export default function DepositsPage() {
                       {deposit.paid_date ? <span>• Paid {formatDate(deposit.paid_date)}</span> : null}
                       {deposit.refundable ? <span>• Refundable</span> : null}
                     </div>
+                    {deposit.status === 'returned' ? (
+                      <div className="mt-4 grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+                        <div><div className="text-[10px] uppercase tracking-widest text-slate-500">Returned</div><div className="mt-1 font-mono font-semibold text-emerald-400"><PrivateValue value={formatINR(toNumber(deposit.returned_amount))} mask="••••" hideColor /></div></div>
+                        <div><div className="text-[10px] uppercase tracking-widest text-slate-500">Deduction</div><div className="mt-1 font-mono font-semibold text-amber-400"><PrivateValue value={formatINR(toNumber(deposit.return_deduction))} mask="••••" hideColor /></div></div>
+                        <div><div className="text-[10px] uppercase tracking-widest text-slate-500">Returned on</div><div className="mt-1 text-sm text-slate-300">{formatDate(deposit.returned_date)}</div></div>
+                      </div>
+                    ) : null}
                     {deposit.description ? <div className="mt-3 text-sm text-slate-600 dark:text-slate-300">{deposit.description}</div> : null}
                   </div>
 
@@ -409,6 +434,26 @@ export default function DepositsPage() {
                 <input value={form.amount} onChange={(event) => setForm((current) => ({ ...current, amount: event.target.value }))} placeholder="50000" inputMode="decimal" className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150" />
               </FormField>
             </div>
+
+            {form.status === 'returned' ? (
+              <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+                <div className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">Return details</div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <FormField label="Returned Date" error={formErrors.returned_date}>
+                    <input type="date" value={form.returned_date} onChange={(event) => setForm((current) => ({ ...current, returned_date: event.target.value }))} className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-sm text-slate-900 dark:text-slate-100" />
+                  </FormField>
+                  <FormField label="Amount Returned" error={formErrors.returned_amount}>
+                    <input value={form.returned_amount} onChange={(event) => setForm((current) => ({ ...current, returned_amount: event.target.value }))} placeholder="50000" inputMode="decimal" className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-sm text-slate-900 dark:text-slate-100" />
+                  </FormField>
+                  <FormField label="Deduction / Charges">
+                    <input value={form.return_deduction} onChange={(event) => setForm((current) => ({ ...current, return_deduction: event.target.value }))} placeholder="0" inputMode="decimal" className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-sm text-slate-900 dark:text-slate-100" />
+                  </FormField>
+                  <FormField label="Return Notes">
+                    <input value={form.return_notes} onChange={(event) => setForm((current) => ({ ...current, return_notes: event.target.value }))} placeholder="Cleaning charges deducted" className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-sm text-slate-900 dark:text-slate-100" />
+                  </FormField>
+                </div>
+              </div>
+            ) : null}
 
             <FormField label="Property Name" error={formErrors.property_name}>
               <input value={form.property_name} onChange={(event) => setForm((current) => ({ ...current, property_name: event.target.value }))} placeholder="Sunset House" className="h-11 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-accent-600 focus:outline-none focus:ring-2 focus:ring-accent-500/20 transition-colors duration-150" />

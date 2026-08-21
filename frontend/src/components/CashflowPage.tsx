@@ -364,7 +364,7 @@ export default function CashflowPage() {
   const emiTotalTarget = emiGoals.reduce((acc, goal) => acc + toNumber(goal.target_amount), 0)
   const emiTotalPaid = emiGoals.reduce((acc, goal) => acc + toNumber(goal.resolved_current_amount ?? goal.current_amount), 0)
   const emiTotalRemaining = Math.max(emiTotalTarget - emiTotalPaid, 0)
-  const emiMonthlyRequired = emiGoals.reduce((acc, goal) => acc + toNumber(goal.required_monthly_saving), 0)
+  const emiMonthlyRequired = emiGoals.reduce((acc, goal) => acc + toNumber(goal.emi_monthly_amount ?? goal.required_monthly_saving), 0)
 
   const summaryCards = [
     {
@@ -625,7 +625,7 @@ export default function CashflowPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 px-5 py-3 shadow-sm">
           <Icon name="transactions" className="h-4 w-4 shrink-0 text-slate-400" />
@@ -733,12 +733,6 @@ export default function CashflowPage() {
                         </div>
                         <div className="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
                           {selectedEMIPlannedMonths} months remaining
-                        </div>
-                        <div className="mt-2 rounded-lg bg-slate-900/40 px-2.5 py-1.5 text-[10px] text-slate-300">
-                          <div className="text-slate-400">Remaining amount</div>
-                          <div className="mt-0.5 font-mono font-semibold text-rose-400">
-                            <PrivateValue value={formatINRShort(remainingAmountAfterPlan)} mask="••••" hideColor />
-                          </div>
                         </div>
                       </>
                     ) : (
@@ -958,14 +952,14 @@ export default function CashflowPage() {
 
       {activeView === 'monthly' ? (
         <>
-          <SectionCard className="p-5">
-        <div className="flex flex-wrap items-end gap-4">
+          <SectionCard className="p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className={sectionTitle}>Month</div>
+            <div className={sectionTitle}>Viewing month</div>
             <select
               value={selectedMonth}
               onChange={(event) => setSelectedMonth(event.target.value)}
-              className="mt-2 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-teal-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              className="mt-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition-colors focus:border-teal-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
             >
               {availableMonths.map((month) => (
                 <option key={month} value={month}>
@@ -974,22 +968,13 @@ export default function CashflowPage() {
               ))}
             </select>
           </div>
-          <div>
-            <div className={sectionTitle}>Manual Month</div>
-            <input
-              type="month"
-              value={selectedMonth}
-              onChange={(event) => setSelectedMonth(event.target.value)}
-              className="mt-2 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-teal-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-            />
-          </div>
           <div className="text-sm text-slate-500 dark:text-slate-400">
             {monthsLoading ? 'Loading saved months…' : `${availableMonths.length} month${availableMonths.length === 1 ? '' : 's'} available`}
           </div>
         </div>
           </SectionCard>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {summaryCards.map((card) => (
           <SectionCard key={card.label} className="p-5">
             <div className="flex items-start justify-between gap-3">
@@ -1047,20 +1032,23 @@ export default function CashflowPage() {
       ) : null}
 
       {activeView === 'emi' ? (
-        <SectionCard title="EMI Tracker" className="p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        <SectionCard className="p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700/50 dark:bg-slate-900/50">
             <div>
-              <div className="text-sm font-semibold text-slate-900 dark:text-white">Goal-linked EMI tracker</div>
-              <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                This is a global EMI view and shows only goals marked as EMI.
+              <div className="flex items-center gap-3">
+                <div className="grid h-8 w-8 place-items-center rounded-lg bg-teal-500/15 text-teal-400"><Icon name="transactions" className="h-4 w-4" /></div>
+                <div>
+                  <div className="text-sm font-semibold text-slate-900 dark:text-white">EMI Plans</div>
+                  <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Goal-linked payment schedules</div>
+                </div>
               </div>
             </div>
             <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              {goalsLoading ? 'Loading goals…' : `${emiActiveCount} active, ${emiGoals.length} tracked`}
+              {goalsLoading ? 'Loading…' : `${emiActiveCount} active`}
             </div>
           </div>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
             <div className={sectionTitle}>Tracked Goals</div>
             <div className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{emiGoals.length}</div>
@@ -1081,43 +1069,15 @@ export default function CashflowPage() {
             <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Using the goal current amount</div>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
-            <div className={sectionTitle}>EMI Needed</div>
+            <div className={sectionTitle}>Monthly EMI</div>
             <div className="mt-2 font-mono text-2xl font-bold text-sky-400">
               <PrivateValue value={formatINRShort(emiMonthlyRequired)} mask="••••" hideColor />
             </div>
-            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Based on goal progress planning</div>
+            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Saved across EMI goals</div>
           </div>
           </div>
 
-          <div className="mt-5 rounded-2xl border border-slate-200 bg-white/80 p-4 dark:border-slate-700/50 dark:bg-slate-950/60">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Progress Snapshot</div>
-              <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Remaining amount across all tracked goals: <PrivateValue value={formatINRShort(emiTotalRemaining)} mask="••••" hideColor />
-              </div>
-            </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              Updated from Goals data
-            </div>
-          </div>
-          <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-            <div
-              className="h-full rounded-full bg-linear-to-r from-teal-400 via-sky-400 to-emerald-400"
-              style={{ width: `${emiTotalTarget > 0 ? Math.min((emiTotalPaid / emiTotalTarget) * 100, 100) : 0}%` }}
-            />
-          </div>
-          <div className="mt-3 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-            <span>
-              Paid: <PrivateValue value={formatPct(emiTotalTarget > 0 ? (emiTotalPaid / emiTotalTarget) * 100 : 0)} mask="••••" hideColor />
-            </span>
-            <span>
-              Remaining: <PrivateValue value={formatPct(emiTotalTarget > 0 ? (emiTotalRemaining / emiTotalTarget) * 100 : 0)} mask="••••" hideColor />
-            </span>
-          </div>
-          </div>
-
-          <div className="mt-5 space-y-3">
+          <div className="mt-4 space-y-3">
           {goalsLoading ? (
             <div className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">Loading EMI goals…</div>
           ) : emiGoals.length === 0 ? (
@@ -1134,7 +1094,7 @@ export default function CashflowPage() {
                 <div
                   key={goal.id}
                   onClick={() => openEMIGoalDetails(goal)}
-                  className="cursor-pointer rounded-2xl border border-slate-200 bg-slate-50/80 p-4 transition-colors hover:border-sky-300 hover:bg-slate-100/80 dark:border-slate-700/50 dark:bg-slate-900/40 dark:hover:border-sky-500/50 dark:hover:bg-slate-800/60"
+                  className="cursor-pointer rounded-xl border border-slate-200 bg-slate-50/80 p-4 transition-colors hover:border-sky-300 hover:bg-slate-100/80 dark:border-slate-700/50 dark:bg-slate-900/40 dark:hover:border-sky-500/50 dark:hover:bg-slate-800/60"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -1176,7 +1136,7 @@ export default function CashflowPage() {
                     <div>
                       <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">Monthly EMI</div>
                       <div className="mt-1 font-mono text-sm font-semibold text-sky-400">
-                        <PrivateValue value={formatINRShort(toNumber(goal.required_monthly_saving))} mask="••••" hideColor />
+                        <PrivateValue value={formatINRShort(toNumber(goal.emi_monthly_amount ?? goal.required_monthly_saving))} mask="••••" hideColor />
                       </div>
                     </div>
                     <div>
@@ -1195,7 +1155,7 @@ export default function CashflowPage() {
       ) : null}
 
       {activeView === 'monthly' ? (
-        <SectionCard title="Entries">
+          <SectionCard title={`Entries · ${formatMonthLabel(selectedMonth)}`}>
           {entriesLoading ? (
           <div className="px-6 py-10 text-center text-sm text-slate-500 dark:text-slate-400">Loading cashflow entries…</div>
         ) : entriesError ? (

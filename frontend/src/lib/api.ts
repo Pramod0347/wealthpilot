@@ -173,6 +173,9 @@ export type Deposit = {
   refundable: boolean
   status: 'active' | 'returned'
   returned_date: string | null
+  returned_amount: string | number | null
+  return_deduction: string | number | null
+  return_notes: string | null
   created_at: string
   updated_at: string
 }
@@ -187,6 +190,9 @@ export type DepositPayload = {
   refundable: boolean
   status: Deposit['status']
   returned_date: string | null
+  returned_amount: string | null
+  return_deduction: string | null
+  return_notes: string | null
 }
 
 export type DepositSummary = {
@@ -195,6 +201,9 @@ export type DepositSummary = {
   refundable_amount: string | number
   deposits_count: number
   active_count: number
+  returned_amount: string | number
+  return_deductions: string | number
+  returned_count: number
 }
 
 export type FixedSavingsAccountPayload = {

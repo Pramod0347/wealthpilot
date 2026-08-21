@@ -18,6 +18,9 @@ class DepositBase(BaseModel):
     refundable: bool = False
     status: DepositStatus = "active"
     returned_date: date | None = None
+    returned_amount: Decimal | None = Field(default=None, ge=0)
+    return_deduction: Decimal | None = Field(default=None, ge=0)
+    return_notes: str | None = None
 
 
 class DepositCreate(DepositBase):
@@ -34,6 +37,9 @@ class DepositUpdate(BaseModel):
     refundable: bool | None = None
     status: DepositStatus | None = None
     returned_date: date | None = None
+    returned_amount: Decimal | None = Field(default=None, ge=0)
+    return_deduction: Decimal | None = Field(default=None, ge=0)
+    return_notes: str | None = None
 
 
 class DepositRead(DepositBase):
