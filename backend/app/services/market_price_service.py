@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import urllib.request
 from decimal import Decimal
 from functools import lru_cache
 
@@ -33,6 +35,25 @@ def _to_decimal(value: object) -> Decimal | None:
 
 
 @lru_cache(maxsize=128)
+def _fetch_mf_nav_from_mfapi(scheme_code: str) -> Decimal:
+    clean_code = scheme_code.strip()
+    url = f"https://api.mfapi.in/mf/{clean_code}"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "WealthPilot/1.0"})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+            if payload.get("status") == "SUCCESS" and payload.get("data"):
+                latest_entry = payload["data"][0]
+                nav_val = _to_decimal(latest_entry.get("nav"))
+                if nav_val is not None and nav_val > 0:
+                    return nav_val
+    except Exception as exc:
+        raise MarketPriceUnavailableError(f"Failed to fetch NAV from MFAPI for scheme {scheme_code}: {exc}") from exc
+
+    raise MarketPriceUnavailableError(f"NAV unavailable for mutual fund scheme {scheme_code}")
+
+
+@lru_cache(maxsize=128)
 def _latest_price_for_symbol(exchange_symbol: str) -> Decimal:
     yf = _load_yfinance()
     ticker = yf.Ticker(exchange_symbol)
@@ -57,12 +78,25 @@ def _latest_price_for_symbol(exchange_symbol: str) -> Decimal:
 
 
 def fetch_latest_market_price(exchange_symbol: str) -> Decimal:
-    if not exchange_symbol.strip():
+    symbol = exchange_symbol.strip()
+    if not symbol:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Exchange symbol is required")
 
+    # Map legacy/typo scheme code 120292 to official 120754
+    if symbol == "120292":
+        symbol = "120754"
+
+    # If the exchange symbol is numeric, it is an Indian AMFI mutual fund scheme code
+    if symbol.isdigit():
+        try:
+            return _fetch_mf_nav_from_mfapi(symbol)
+        except MarketPriceUnavailableError as exc:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+
     try:
-        return _latest_price_for_symbol(exchange_symbol.strip().upper())
+        return _latest_price_for_symbol(symbol.upper())
     except HTTPException:
         raise
     except MarketPriceUnavailableError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+

@@ -14,6 +14,7 @@ from app.schemas.holding import (
 )
 from app.services.holdings_analytics_service import build_holdings_analytics
 from app.services.holdings_service import (
+    KNOWN_AUTO_TICKERS,
     mark_holding_priced_manually,
     mark_holding_refreshed,
     normalize_holding_location_fields,
@@ -31,6 +32,16 @@ router = APIRouter(prefix="/holdings", tags=["holdings"])
 @router.get("", response_model=list[HoldingRead])
 def list_holdings(db: Session = Depends(get_db)) -> list[HoldingRead]:
     holdings = db.scalars(select(Holding).order_by(Holding.created_at.desc())).all()
+    changed = False
+    for holding in holdings:
+        clean_sym = (holding.symbol or "").strip().upper()
+        if clean_sym in KNOWN_AUTO_TICKERS and (holding.price_source == "manual" or not holding.exchange_symbol):
+            holding.exchange_symbol = KNOWN_AUTO_TICKERS[clean_sym]
+            holding.price_source = "mfapi" if holding.asset_type == "mutual_fund" else "yfinance"
+            normalize_holding_location_fields(holding)
+            changed = True
+    if changed:
+        db.commit()
     return [serialize_holding(holding) for holding in holdings]
 
 
@@ -52,8 +63,24 @@ def create_holding(payload: HoldingCreate, db: Session = Depends(get_db)) -> Hol
     values = payload.model_dump(exclude_none=True)
     opening_quantity = values.pop("quantity")
     opening_price = values.pop("avg_buy_price")
+    explicit_price_source = values.pop("price_source", None)
     holding = Holding(**values, quantity=0, avg_buy_price=0)
-    mark_holding_priced_manually(holding)
+    normalize_holding_location_fields(holding)
+
+    if explicit_price_source == "manual":
+        mark_holding_priced_manually(holding)
+    else:
+        try:
+            exchange_symbol = resolve_refresh_symbol(holding)
+            latest_price = fetch_latest_market_price(exchange_symbol)
+            if latest_price is not None and latest_price > 0:
+                holding.current_price = latest_price
+                mark_holding_refreshed(holding, source=explicit_price_source)
+            else:
+                mark_holding_priced_manually(holding)
+        except Exception:
+            mark_holding_priced_manually(holding)
+
     db.add(holding)
     db.flush()
     if opening_quantity > 0:
@@ -82,19 +109,22 @@ def update_holding(holding_id: int, payload: HoldingUpdate, db: Session = Depend
 
     updates = payload.model_dump(exclude_unset=True)
     requested_price_source = updates.pop("price_source", None)
-    if "current_price" in updates and holding.price_source != "manual" and requested_price_source != "manual":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Current price is automatically updated from the market feed.",
-        )
+
     for field, value in updates.items():
         setattr(holding, field, value)
 
     normalize_holding_location_fields(holding)
-    if requested_price_source == "manual" or "current_price" in updates:
+    if requested_price_source == "manual" or ("current_price" in updates and requested_price_source is None):
         mark_holding_priced_manually(holding)
-    elif requested_price_source == "yfinance":
-        mark_holding_refreshed(holding)
+    elif requested_price_source in ("yfinance", "mfapi", "auto"):
+        mark_holding_refreshed(holding, source=requested_price_source if requested_price_source != "auto" else None)
+        try:
+            exchange_symbol = resolve_refresh_symbol(holding)
+            latest_price = fetch_latest_market_price(exchange_symbol)
+            if latest_price is not None and latest_price > 0:
+                holding.current_price = latest_price
+        except Exception:
+            pass
 
     db.commit()
     db.refresh(holding)
@@ -124,8 +154,12 @@ def refresh_price(holding_id: int, db: Session = Depends(get_db)) -> HoldingRead
     holding = db.get(Holding, holding_id)
     if holding is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Holding not found")
-    if holding.asset_type == "mutual_fund" or holding.price_source != "yfinance":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This holding is manual-only")
+
+    clean_sym = (holding.symbol or "").strip().upper()
+    if clean_sym in KNOWN_AUTO_TICKERS and (holding.price_source == "manual" or not holding.exchange_symbol):
+        holding.exchange_symbol = KNOWN_AUTO_TICKERS[clean_sym]
+        holding.price_source = "mfapi" if holding.asset_type == "mutual_fund" else "yfinance"
+        normalize_holding_location_fields(holding)
 
     exchange_symbol = resolve_refresh_symbol(holding)
     try:
@@ -158,26 +192,21 @@ def refresh_prices(db: Session = Depends(get_db)) -> BulkPriceRefreshResponse:
     failures: list[BulkPriceRefreshFailure] = []
 
     for holding in holdings:
-        if holding.asset_type == "mutual_fund" or holding.price_source != "yfinance":
-            continue
+        clean_sym = (holding.symbol or "").strip().upper()
+        if clean_sym in KNOWN_AUTO_TICKERS and (holding.price_source == "manual" or not holding.exchange_symbol):
+            holding.exchange_symbol = KNOWN_AUTO_TICKERS[clean_sym]
+            holding.price_source = "mfapi" if holding.asset_type == "mutual_fund" else "yfinance"
+            normalize_holding_location_fields(holding)
+
         exchange_symbol = resolve_refresh_symbol(holding)
         try:
             latest_price = fetch_latest_market_price(exchange_symbol)
-        except HTTPException as exc:
+        except Exception as exc:
             failures.append(
                 BulkPriceRefreshFailure(
                     holding_id=holding.id,
                     symbol=holding.symbol,
-                    reason=str(exc.detail),
-                )
-            )
-            continue
-        except MarketPriceUnavailableError as exc:
-            failures.append(
-                BulkPriceRefreshFailure(
-                    holding_id=holding.id,
-                    symbol=holding.symbol,
-                    reason=str(exc),
+                    reason=str(getattr(exc, "detail", exc)),
                 )
             )
             continue
@@ -197,3 +226,4 @@ def refresh_prices(db: Session = Depends(get_db)) -> BulkPriceRefreshResponse:
         failed_count=len(failures),
         failures=failures,
     )
+

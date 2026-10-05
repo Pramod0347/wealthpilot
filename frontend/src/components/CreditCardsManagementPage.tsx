@@ -1301,8 +1301,8 @@ export default function CreditCardsPage() {
             </p>
           </div>
         ) : viewMode === 'cards' ? (
-          /* ── Fintech Sleek Compact Smart Cards Grid ────────────────── */
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+          /* ── Fintech Luxury Smart Cards Grid ──────────────────────── */
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             {filteredAndSortedCards.map((card) => {
               const theme = getCreditCardBrandTheme(card.bank_name, card.card_name)
               const tone = buildStatusTone(card.status)
@@ -1314,126 +1314,148 @@ export default function CreditCardsPage() {
               return (
                 <div
                   key={card.id}
-                  className={`relative overflow-hidden rounded-2xl border ${theme.border} bg-gradient-to-br ${theme.gradient} text-white shadow-md ${theme.glow} transition-all duration-200 hover:-translate-y-1 hover:shadow-xl flex flex-col justify-between`}
+                  className={`relative overflow-hidden rounded-3xl border ${theme.border} bg-gradient-to-br ${theme.gradient} text-white shadow-xl ${theme.glow} transition-all duration-200 hover:-translate-y-1 hover:shadow-2xl flex flex-col justify-between`}
                 >
-                  {/* Subtle decorative glow */}
-                  <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-white/[0.04] blur-lg" />
+                  {/* Subtle Card Background Elements */}
+                  <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/[0.03] blur-xl" />
+                  <div className="pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-white/[0.02] blur-xl" />
 
-                  {/* Card Main Body */}
-                  <div className="relative p-4 pb-3 space-y-3">
-                    {/* Top Row: Bank & Card Title + Countdown Badge */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[9px] font-mono tracking-wider text-white/60 uppercase font-semibold">
-                            {theme.logoText}
-                          </span>
-                          <span className="text-[10px] text-white/40">•</span>
-                          <span className="text-[10px] font-mono text-white/70">
-                            ••{card.last4}
-                          </span>
+                  {/* Top Tier: Card Header */}
+                  <div className="relative p-5 pb-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-[10px] font-mono tracking-widest text-white/50 uppercase">
+                          {theme.logoText}
                         </div>
-                        <h3 className="text-sm font-bold tracking-tight text-white truncate drop-shadow-sm mt-0.5">
+                        <h3 className="text-lg font-bold tracking-tight text-white drop-shadow-sm truncate max-w-[200px] sm:max-w-[240px]">
                           {card.card_name}
                         </h3>
+                        <div className="text-xs text-white/70 font-medium">
+                          {card.bank_name}
+                        </div>
                       </div>
 
-                      <span className={`shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${countdown.badgeClass}`}>
-                        {countdown.label}
-                      </span>
+                      <div className="flex flex-col items-end gap-1.5">
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${countdown.badgeClass}`}>
+                          {countdown.label}
+                        </span>
+                        <span className="text-[10px] font-mono text-white/60">
+                          Due {formatDisplayDate(card.due_date)}
+                        </span>
+                      </div>
                     </div>
 
-                    {/* Middle Row: EMV chip + Bill Amount */}
-                    <div className="flex items-center justify-between gap-3 pt-0.5">
-                      <div className="flex items-center gap-2">
-                        {/* Compact EMV Chip */}
-                        <div className="relative h-6 w-8 rounded bg-gradient-to-br from-amber-200 via-yellow-400 to-amber-500 shadow-inner p-0.5 border border-yellow-200/50 flex flex-col justify-between shrink-0">
-                          <div className="h-full w-full rounded-sm border border-amber-700/30 flex items-center justify-center">
-                            <div className="w-full h-[0.5px] bg-amber-800/40" />
-                          </div>
+                    {/* Chip & Contactless Icons */}
+                    <div className="mt-4 flex items-center justify-between">
+                      {/* EMV Metallic Chip */}
+                      <div className="relative h-8 w-11 rounded-md bg-gradient-to-br from-amber-200 via-yellow-400 to-amber-500 shadow-inner p-1 border border-yellow-200/50 flex flex-col justify-between">
+                        <div className="h-full w-full rounded border border-amber-600/30 flex items-center justify-center">
+                          <div className="w-full h-[1px] bg-amber-700/40" />
                         </div>
-                        {/* Contactless Icon */}
-                        <svg className="h-3.5 w-3.5 text-white/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      </div>
+
+                      {/* Contactless Waves */}
+                      <div className="flex items-center gap-2">
+                        <svg className="h-5 w-5 text-white/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M8.5 16.5a5 5 0 0 1 0-7" strokeLinecap="round" />
                           <path d="M12 19a8.5 8.5 0 0 0 0-14" strokeLinecap="round" />
+                          <path d="M15.5 21.5a12 12 0 0 0 0-19" strokeLinecap="round" />
                         </svg>
+                        <span className="font-mono text-[10px] tracking-wider text-white/60 uppercase">
+                          {theme.network}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Masked Card Number */}
+                    <div className="mt-4 flex items-center justify-between font-mono text-sm tracking-[0.25em] text-white/90 drop-shadow">
+                      <span>••••</span>
+                      <span>••••</span>
+                      <span>••••</span>
+                      <span className="text-white font-bold">{card.last4}</span>
+                    </div>
+                  </div>
+
+                  {/* Middle Tier: Bill Amount & Utilization */}
+                  <div className="relative border-t border-white/10 bg-black/20 p-5 space-y-3.5 backdrop-blur-sm">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wider text-white/60 font-semibold">
+                          Current Bill Due
+                        </div>
+                        <div className="font-mono text-xl font-bold tracking-tight text-white mt-0.5">
+                          <PrivateValue value={formatINR(billAmount)} mask="••••••••" hideColor />
+                        </div>
                       </div>
 
                       <div className="text-right">
-                        <div className="text-[9px] uppercase tracking-wider text-white/60 font-medium">
-                          Bill Due
+                        <div className="text-[10px] uppercase tracking-wider text-white/60 font-semibold">
+                          Card Utilization
                         </div>
-                        <div className="font-mono text-base font-bold tracking-tight text-white">
-                          <PrivateValue value={formatINR(billAmount)} mask="••••••" hideColor />
+                        <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                          <span className={`font-mono text-sm font-bold ${utilScale.textTone}`}>
+                            {privacyMode ? '••%' : `${utilization.toFixed(1)}%`}
+                          </span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Utilization Bar & Metrics */}
-                    <div className="space-y-1 pt-1">
-                      <div className="h-1 w-full overflow-hidden rounded-full bg-white/15">
+                    {/* Utilization Progress Bar */}
+                    <div className="space-y-1.5">
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/15">
                         <div
                           className={`h-full rounded-full ${utilScale.barColor} transition-all duration-500`}
                           style={{ width: `${Math.min(Math.max(utilization, 0), 100)}%` }}
                         />
                       </div>
-                      <div className="flex items-center justify-between text-[10px] font-mono text-white/65">
+                      <div className="flex items-center justify-between text-[10px] font-mono text-white/60">
                         <span>Used <PrivateValue value={formatINRShort(toNumber(card.used_amount))} mask="•••" hideColor /></span>
-                        <span className={`font-semibold ${utilScale.textTone}`}>
-                          {privacyMode ? '••%' : `${utilization.toFixed(1)}%`}
-                        </span>
+                        <span>Limit <PrivateValue value={formatINRShort(toNumber(card.total_limit))} mask="•••" hideColor /></span>
                         <span>Avail <PrivateValue value={formatINRShort(toNumber(card.available_limit))} mask="•••" hideColor /></span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Card Footer Toolbar */}
-                  <div className="relative border-t border-white/10 bg-black/30 px-3.5 py-2 flex items-center justify-between gap-1.5 backdrop-blur-sm">
-                    <div className="flex items-center gap-1.5">
+                  {/* Bottom Tier: Card Command Toolbar */}
+                  <div className="relative border-t border-white/10 bg-black/40 px-5 py-3 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openCardDetail(card)}
+                        className="inline-flex items-center gap-1 rounded-xl bg-white/10 hover:bg-white/20 px-2.5 py-1.5 text-xs font-semibold text-white transition active:scale-95"
+                      >
+                        <History className="h-3.5 w-3.5" />
+                        <span>History</span>
+                      </button>
+
                       {billAmount > 0 ? (
                         <button
                           type="button"
                           onClick={() => openMarkPaidModal(card)}
-                          className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 px-2 py-1 text-[11px] font-bold text-slate-950 transition active:scale-95 shadow-sm"
+                          className="inline-flex items-center gap-1 rounded-xl bg-emerald-500 hover:bg-emerald-400 px-3 py-1.5 text-xs font-bold text-slate-950 transition active:scale-95 shadow-md shadow-emerald-950/40"
                         >
-                          <Check className="h-3 w-3" />
-                          <span>Pay</span>
+                          <Check className="h-3.5 w-3.5" />
+                          <span>Mark Paid</span>
                         </button>
-                      ) : (
-                        <span className="text-[10px] font-semibold text-emerald-400/90 flex items-center gap-1">
-                          <Check className="h-3 w-3" /> Paid
-                        </span>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => openCardDetail(card)}
-                        className="inline-flex items-center gap-1 rounded-lg bg-white/10 hover:bg-white/20 px-2 py-1 text-[11px] font-medium text-white/90 transition active:scale-95"
-                      >
-                        <History className="h-3 w-3" />
-                        <span>History</span>
-                      </button>
+                      ) : null}
                     </div>
 
                     <div className="flex items-center gap-1">
-                      <span className="text-[10px] text-white/50 font-mono mr-1">
-                        Due {formatDisplayDate(card.due_date)}
-                      </span>
                       <button
                         type="button"
                         onClick={() => openEditModal(card)}
-                        className="grid h-6 w-6 place-items-center rounded-md bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition active:scale-95"
+                        className="grid h-8 w-8 place-items-center rounded-xl bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition active:scale-95"
                         title="Edit Card"
                       >
-                        <Pencil className="h-3 w-3" />
+                        <Pencil className="h-3.5 w-3.5" />
                       </button>
                       <button
                         type="button"
                         onClick={() => void handleDelete(card)}
-                        className="grid h-6 w-6 place-items-center rounded-md bg-white/10 hover:bg-rose-500/30 text-white/80 hover:text-rose-300 transition active:scale-95"
+                        className="grid h-8 w-8 place-items-center rounded-xl bg-white/10 hover:bg-rose-500/30 text-white/80 hover:text-rose-300 transition active:scale-95"
                         title="Delete Card"
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>

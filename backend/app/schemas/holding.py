@@ -24,6 +24,7 @@ class HoldingBase(BaseModel):
     sector: str | None = None
     notes: str | None = None
     tags: str | None = None
+    price_source: Literal["manual", "yfinance", "mfapi", "auto"] | None = None
     as_of_date: date | None = None
 
 
@@ -45,7 +46,7 @@ class HoldingUpdate(BaseModel):
     sector: str | None = None
     notes: str | None = None
     tags: str | None = None
-    price_source: Literal["manual", "yfinance"] | None = None
+    price_source: Literal["manual", "yfinance", "mfapi", "auto"] | None = None
     status: Literal["Active", "Closed"] | None = None
     as_of_date: date | None = None
 
@@ -114,3 +115,4 @@ class HoldingsAnalyticsResponse(BaseModel):
     sector_allocation: list[AllocationItem] = Field(default_factory=list)
     top_gainers: list[HoldingAnalyticsItem] = Field(default_factory=list)
     top_losers: list[HoldingAnalyticsItem] = Field(default_factory=list)
+

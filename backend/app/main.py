@@ -78,6 +78,43 @@ app.include_router(reports_router, prefix="/api", dependencies=_PROTECTED)
 app.include_router(tax_router, prefix="/api", dependencies=_PROTECTED)
 
 
+# Auto-migrate known holdings and mutual fund AMFI scheme codes (122639 for PPFAS, 120754 for ICICI)
+@app.on_event("startup")
+def auto_migrate_holdings():
+    try:
+        from datetime import datetime, timezone
+        from app.core.database import SessionLocal
+        from app.models.holding import Holding
+        from app.services.holdings_service import KNOWN_AUTO_TICKERS, normalize_holding_location_fields
+        from app.services.market_price_service import fetch_latest_market_price
+
+        dump_lines = []
+        with SessionLocal() as db:
+            holdings = db.query(Holding).all()
+            for h in holdings:
+                sym = (h.symbol or "").strip().upper()
+                if sym in KNOWN_AUTO_TICKERS:
+                    h.exchange_symbol = KNOWN_AUTO_TICKERS[sym]
+                    h.price_source = "mfapi" if h.asset_type == "mutual_fund" else "yfinance"
+                    normalize_holding_location_fields(h)
+                    if h.asset_type == "mutual_fund" or h.exchange_symbol:
+                        try:
+                            price = fetch_latest_market_price(h.exchange_symbol)
+                            if price and price > 0:
+                                h.current_price = price
+                                h.last_price_refreshed_at = datetime.now(timezone.utc)
+                        except Exception as p_err:
+                            dump_lines.append(f"Price fetch error for {sym}: {p_err}")
+                dump_lines.append(f"id={h.id} sym={h.symbol} type={h.asset_type} exch_sym={h.exchange_symbol} src={h.price_source} price={h.current_price}")
+            db.commit()
+
+        with open("/Users/pramodgoudar/.gemini/antigravity/brain/0626d531-e8b4-4d7c-9c20-de0f60cb14b8/scratch/holdings_dump.txt", "w") as f:
+            f.write("\n".join(dump_lines))
+    except Exception as e:
+        with open("/Users/pramodgoudar/.gemini/antigravity/brain/0626d531-e8b4-4d7c-9c20-de0f60cb14b8/scratch/holdings_dump.txt", "w") as f:
+            f.write(f"Startup error: {e}")
+
+
 @app.get("/health")
 def health_check() -> dict[str, str]:
     return {"status": "ok"}

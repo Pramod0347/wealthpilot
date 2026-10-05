@@ -30,11 +30,47 @@ def _effective_fx_rate(holding: Holding) -> Decimal:
         return stored_rate
 
 
+KNOWN_AUTO_TICKERS: dict[str, str] = {
+    # Indian Mutual Funds (AMFI Scheme Codes for api.mfapi.in)
+    "PPFAS_FLEXI_CAP": "122639",
+    "PPFAS": "122639",
+    "PARAG_PARIKH_FLEXI_CAP": "122639",
+    "122639": "122639",
+    "ICICI_SHORT_TERM_FUND": "120292",
+    "ICICI_SHORT_TERM": "120292",
+    "120292": "120292",
+    # Gold & Indian ETFs
+    "GOLDBEES": "GOLDBEES.NS",
+    "MID150BEES": "MID150BEES.NS",
+    "NIFTYBEES": "NIFTYBEES.NS",
+    "BANKBEES": "BANKBEES.NS",
+    "ITBEES": "ITBEES.NS",
+    "JUNIORBEES": "JUNIORBEES.NS",
+    # US Stocks & ETFs
+    "QQQ": "QQQ",
+    "AMZN": "AMZN",
+    "AAPL": "AAPL",
+    "MSFT": "MSFT",
+    "GOOGL": "GOOGL",
+    "GOOG": "GOOG",
+    "NVDA": "NVDA",
+    "TSLA": "TSLA",
+    "META": "META",
+    "SPY": "SPY",
+    "VOO": "VOO",
+    "VTI": "VTI",
+}
+
+
 def normalize_holding_location_fields(holding: Holding) -> None:
     country = (holding.country or "IN").upper()
     holding.country = country
-    holding.exchange_symbol = holding.exchange_symbol.strip().upper() if holding.exchange_symbol else None
+    holding.exchange_symbol = holding.exchange_symbol.strip() if holding.exchange_symbol else None
     holding.exchange = holding.exchange.strip().upper() if holding.exchange else None
+
+    clean_sym = (holding.symbol or "").strip().upper()
+    if not holding.exchange_symbol and clean_sym in KNOWN_AUTO_TICKERS:
+        holding.exchange_symbol = KNOWN_AUTO_TICKERS[clean_sym]
 
     if country == "US":
         holding.currency = "USD"
@@ -43,7 +79,7 @@ def normalize_holding_location_fields(holding: Holding) -> None:
     else:
         holding.currency = "INR"
         if not holding.exchange:
-            holding.exchange = "NSE"
+            holding.exchange = "AMFI" if holding.asset_type == "mutual_fund" else "NSE"
         holding.fx_rate_to_inr = Decimal("1")
 
     if holding.fx_rate_to_inr is None:
@@ -51,10 +87,32 @@ def normalize_holding_location_fields(holding: Holding) -> None:
 
 
 def resolve_refresh_symbol(holding: Holding) -> str:
-    if holding.country == "US":
-        return (holding.exchange_symbol or holding.symbol).strip().upper()
+    clean_sym = (holding.symbol or "").strip().upper()
 
-    return (holding.exchange_symbol or f"{holding.symbol}.NS").strip().upper()
+    # 1. If exchange_symbol is explicitly configured
+    if holding.exchange_symbol:
+        ex_sym = holding.exchange_symbol.strip()
+        if ex_sym.upper() in KNOWN_AUTO_TICKERS:
+            return KNOWN_AUTO_TICKERS[ex_sym.upper()]
+        return ex_sym if ex_sym.isdigit() else ex_sym.upper()
+
+    # 2. If symbol is in KNOWN_AUTO_TICKERS
+    if clean_sym in KNOWN_AUTO_TICKERS:
+        return KNOWN_AUTO_TICKERS[clean_sym]
+
+    # 3. If mutual fund with numeric symbol
+    if holding.asset_type == "mutual_fund" and clean_sym.isdigit():
+        return clean_sym
+
+    # 4. US assets
+    if holding.country == "US":
+        return clean_sym
+
+    # 5. Indian assets - default to NSE (.NS) if not specified
+    if clean_sym.endswith(".NS") or clean_sym.endswith(".BO"):
+        return clean_sym
+
+    return f"{clean_sym}.NS"
 
 
 def serialize_holding(holding: Holding) -> HoldingRead:
@@ -108,7 +166,13 @@ def mark_holding_priced_manually(holding: Holding) -> None:
     holding.last_price_refreshed_at = None
 
 
-def mark_holding_refreshed(holding: Holding) -> None:
+def mark_holding_refreshed(holding: Holding, source: str | None = None) -> None:
     normalize_holding_location_fields(holding)
-    holding.price_source = "yfinance"
+    if source and source in ("yfinance", "mfapi", "manual"):
+        holding.price_source = source
+    elif holding.asset_type == "mutual_fund" or (holding.exchange_symbol and holding.exchange_symbol.isdigit()):
+        holding.price_source = "mfapi"
+    else:
+        holding.price_source = "yfinance"
     holding.last_price_refreshed_at = datetime.now(timezone.utc)
+
