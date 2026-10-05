@@ -57,15 +57,10 @@ import {
   Plane,
   ArrowUpDown,
   Filter,
-  Heart,
-  Calculator,
-  Percent,
-  Check,
 } from 'lucide-react'
 import {
   ApiError,
   createCashflowEntry,
-  createFinancialGoal,
   createGoalEMIPayment,
   createHomeContribution,
   deleteCashflowEntry,
@@ -369,44 +364,6 @@ export default function TransactionsHubPage() {
   const [customPlannedEmiMonths, setCustomPlannedEmiMonths] = useState('')
   const [isEMIPlanSaved, setIsEMIPlanSaved] = useState(false)
   const [isEMISettingsSaving, setIsEMISettingsSaving] = useState(false)
-  const [isEMIPaymentSaving, setIsEMIPaymentSaving] = useState(false)
-  const [emiPaymentError, setEmiPaymentError] = useState<string | null>(null)
-
-  // Fast single payment logging form
-  const [singlePaymentForm, setSinglePaymentForm] = useState({
-    payment_month: currentMonthString(),
-    payment_date: new Date().toISOString().slice(0, 10),
-    principal_amount: '',
-    interest_amount: '',
-    gst_amount: '',
-    notes: '',
-  })
-
-  // Modal for creating/converting an EMI Goal
-  const [isCreateEMIOpen, setIsCreateEMIOpen] = useState(false)
-  const [newEMIForm, setNewEMIForm] = useState({
-    mode: 'create' as 'create' | 'convert',
-    existingGoalId: '',
-    name: '',
-    target_amount: '',
-    emi_monthly_amount: '',
-    emi_total_months: '',
-    target_date: '',
-    emi_processing_fee: '',
-    emi_processing_fee_gst: '',
-    notes: '',
-  })
-
-  // Interactive Loan / EMI Calculator state
-  const [calcPrincipal, setCalcPrincipal] = useState('250000')
-  const [calcRate, setCalcRate] = useState('11.5')
-  const [calcTenureMonths, setCalcTenureMonths] = useState('24')
-  const [isCalcExpanded, setIsCalcExpanded] = useState(false)
-
-  const [emiPaymentForm, setEmiPaymentForm] = useState({
-    processing_fee: '',
-    processing_fee_gst: '',
-  })
 
   const createEmptyEMIRow = () => ({
     id: `emi-row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -417,6 +374,11 @@ export default function TransactionsHubPage() {
     gst_amount: '',
     amount: '',
     notes: '',
+  })
+
+  const [emiPaymentForm, setEmiPaymentForm] = useState({
+    processing_fee: '',
+    processing_fee_gst: '',
   })
 
   const [emiPaymentRows, setEmiPaymentRows] = useState<
@@ -469,6 +431,9 @@ export default function TransactionsHubPage() {
     )
   }
 
+  const [emiPaymentError, setEmiPaymentError] = useState<string | null>(null)
+  const [isEMIPaymentSaving, setIsEMIPaymentSaving] = useState(false)
+
   // ── Home Contributions States ───────────────────────────────────────────────
   const [homeContributionForm, setHomeContributionForm] = useState({
     amount: '',
@@ -508,20 +473,6 @@ export default function TransactionsHubPage() {
   const goals = (goalsQuery.data as FinancialGoal[] | undefined) ?? []
   const homeContributions = (homeContributionsQuery.data as HomeContribution[] | undefined) ?? []
 
-  // EMI goals and portfolio metrics
-  const emiGoals = useMemo(() => goals.filter((g) => g.is_emi), [goals])
-  const totalEMITargetDebt = useMemo(() => emiGoals.reduce((sum, g) => sum + toNumber(g.target_amount), 0), [emiGoals])
-  const totalEMIPaid = useMemo(
-    () => emiGoals.reduce((sum, g) => sum + toNumber(g.resolved_current_amount ?? g.current_amount), 0),
-    [emiGoals]
-  )
-  const totalEMIRemaining = Math.max(totalEMITargetDebt - totalEMIPaid, 0)
-  const totalMonthlyEMI = useMemo(
-    () => emiGoals.reduce((sum, g) => sum + toNumber(g.emi_monthly_amount ?? g.required_monthly_saving), 0),
-    [emiGoals]
-  )
-  const overallProgressPct = totalEMITargetDebt > 0 ? (totalEMIPaid / totalEMITargetDebt) * 100 : 0
-
   // EMI goal selection
   const selectedEMIGoal = useMemo(
     () => goals.find((goal) => goal.id === selectedEMIGoalId) ?? null,
@@ -529,82 +480,6 @@ export default function TransactionsHubPage() {
   )
   const emiPaymentsQuery = useGoalEMIPaymentsQuery(selectedEMIGoalId)
   const emiPayments = (emiPaymentsQuery.data as EMIPayment[] | undefined) ?? []
-
-  // Payments totals for selected goal
-  const emiPaymentsTotalPrincipal = useMemo(
-    () => emiPayments.reduce((sum, p) => sum + toNumber(p.principal_amount), 0),
-    [emiPayments]
-  )
-  const emiPaymentsTotalInterest = useMemo(
-    () => emiPayments.reduce((sum, p) => sum + toNumber(p.interest_amount), 0),
-    [emiPayments]
-  )
-  const emiPaymentsTotalGST = useMemo(
-    () => emiPayments.reduce((sum, p) => sum + toNumber(p.gst_amount), 0),
-    [emiPayments]
-  )
-  const emiPaymentsTotalPaid = useMemo(
-    () => emiPayments.reduce((sum, p) => sum + toNumber(p.amount), 0),
-    [emiPayments]
-  )
-
-  // Auto-select first EMI goal if none selected
-  useEffect(() => {
-    if (selectedEMIGoalId === null && emiGoals.length > 0) {
-      setSelectedEMIGoalId(emiGoals[0].id)
-    }
-  }, [emiGoals, selectedEMIGoalId])
-
-  // Sync plan form when selected goal changes
-  useEffect(() => {
-    if (!selectedEMIGoal) return
-    setCustomPlannedEmiAmount(
-      selectedEMIGoal.emi_monthly_amount == null
-        ? String(selectedEMIGoal.required_monthly_saving ?? '')
-        : String(selectedEMIGoal.emi_monthly_amount)
-    )
-    setCustomPlannedEmiMonths(
-      selectedEMIGoal.emi_total_months == null
-        ? String(selectedEMIGoal.months_remaining ?? '')
-        : String(selectedEMIGoal.emi_total_months)
-    )
-    setEmiPaymentForm({
-      processing_fee: selectedEMIGoal.emi_processing_fee == null ? '' : String(selectedEMIGoal.emi_processing_fee),
-      processing_fee_gst:
-        selectedEMIGoal.emi_processing_fee_gst == null ? '' : String(selectedEMIGoal.emi_processing_fee_gst),
-    })
-    setIsEMIPlanSaved(selectedEMIGoal.emi_monthly_amount != null && selectedEMIGoal.emi_total_months != null)
-  }, [selectedEMIGoal])
-
-  // Loan & EMI Calculator results
-  const calcResults = useMemo(() => {
-    const p = Number(calcPrincipal) || 0
-    const annualRate = Number(calcRate) || 0
-    const r = annualRate / (12 * 100)
-    const n = Number(calcTenureMonths) || 0
-
-    let monthlyEMI = 0
-    if (p > 0 && n > 0) {
-      if (r > 0) {
-        monthlyEMI = Math.round((p * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1))
-      } else {
-        monthlyEMI = Math.round(p / n)
-      }
-    }
-
-    const totalPayable = monthlyEMI * n
-    const totalInterest = Math.max(totalPayable - p, 0)
-    const interestPct = totalPayable > 0 ? (totalInterest / totalPayable) * 100 : 0
-    const principalPct = totalPayable > 0 ? (p / totalPayable) * 100 : 100
-
-    return {
-      monthlyEMI,
-      totalPayable,
-      totalInterest,
-      interestPct,
-      principalPct,
-    }
-  }, [calcPrincipal, calcRate, calcTenureMonths])
 
   // Drawer animation
   useEffect(() => {
@@ -1073,202 +948,6 @@ export default function TransactionsHubPage() {
     }
   }
 
-  async function handleCreateOrConvertEMI(event: React.FormEvent) {
-    event.preventDefault()
-    setIsEMISettingsSaving(true)
-    setEmiPaymentError(null)
-
-    try {
-      if (newEMIForm.mode === 'convert') {
-        const goalId = Number(newEMIForm.existingGoalId)
-        if (!goalId) {
-          setEmiPaymentError('Select an existing goal to convert.')
-          setIsEMISettingsSaving(false)
-          return
-        }
-
-        await updateFinancialGoal(goalId, {
-          is_emi: true,
-          emi_monthly_amount: newEMIForm.emi_monthly_amount || undefined,
-          emi_total_months: newEMIForm.emi_total_months ? Number(newEMIForm.emi_total_months) : undefined,
-          emi_processing_fee: newEMIForm.emi_processing_fee || undefined,
-          emi_processing_fee_gst: newEMIForm.emi_processing_fee_gst || undefined,
-          notes: newEMIForm.notes || undefined,
-        })
-
-        setSelectedEMIGoalId(goalId)
-        setStatusTone('emerald')
-        setStatusMessage('Goal converted to EMI loan tracker.')
-      } else {
-        if (!newEMIForm.name.trim() || !newEMIForm.target_amount) {
-          setEmiPaymentError('Loan name and total debt amount are required.')
-          setIsEMISettingsSaving(false)
-          return
-        }
-
-        const created = await createFinancialGoal({
-          name: newEMIForm.name.trim(),
-          goal_type: 'vehicle',
-          target_amount: newEMIForm.target_amount,
-          current_amount: '0',
-          target_date: newEMIForm.target_date || null,
-          linked_source_type: null,
-          linked_source_ids: null,
-          linked_source_types: null,
-          linked_source_map: null,
-          priority: 'high',
-          notes: newEMIForm.notes.trim() || null,
-          status: 'active',
-          achieved_date: null,
-          achieved_amount: null,
-          achievement_type: null,
-          payment_source: 'bank',
-          is_big_purchase: true,
-          is_emi: true,
-          emi_monthly_amount: newEMIForm.emi_monthly_amount || undefined,
-          emi_total_months: newEMIForm.emi_total_months ? Number(newEMIForm.emi_total_months) : undefined,
-          emi_processing_fee: newEMIForm.emi_processing_fee || undefined,
-          emi_processing_fee_gst: newEMIForm.emi_processing_fee_gst || undefined,
-          purchase_notes: null,
-          is_active: true,
-        })
-
-        setSelectedEMIGoalId(created.id)
-        setStatusTone('emerald')
-        setStatusMessage(`Created EMI loan "${created.name}".`)
-      }
-
-      setIsCreateEMIOpen(false)
-      setNewEMIForm({
-        mode: 'create',
-        existingGoalId: '',
-        name: '',
-        target_amount: '',
-        emi_monthly_amount: '',
-        emi_total_months: '',
-        target_date: '',
-        emi_processing_fee: '',
-        emi_processing_fee_gst: '',
-        notes: '',
-      })
-      await queryClient.invalidateQueries({ queryKey: ['goals'] })
-    } catch (error) {
-      setEmiPaymentError(formatApiError(error))
-    } finally {
-      setIsEMISettingsSaving(false)
-    }
-  }
-
-  async function saveEMISetup() {
-    if (!selectedEMIGoalId) return
-    if (!customPlannedEmiAmount || !customPlannedEmiMonths) {
-      setEmiPaymentError('Enter both the monthly EMI amount and total number of months.')
-      return
-    }
-
-    setIsEMISettingsSaving(true)
-    setEmiPaymentError(null)
-
-    try {
-      await updateFinancialGoal(selectedEMIGoalId, {
-        emi_monthly_amount: customPlannedEmiAmount,
-        emi_total_months: Number(customPlannedEmiMonths),
-        emi_processing_fee: emiPaymentForm.processing_fee || undefined,
-        emi_processing_fee_gst: emiPaymentForm.processing_fee_gst || undefined,
-      })
-      setIsEMIPlanSaved(true)
-      await queryClient.invalidateQueries({ queryKey: ['goals'] })
-      setStatusTone('emerald')
-      setStatusMessage('EMI plan settings saved.')
-    } catch (error) {
-      setEmiPaymentError(formatApiError(error))
-    } finally {
-      setIsEMISettingsSaving(false)
-    }
-  }
-
-  async function handleRecordSinglePayment(event: React.FormEvent) {
-    event.preventDefault()
-    if (!selectedEMIGoalId) return
-
-    const principal = Number(singlePaymentForm.principal_amount || 0)
-    const interest = Number(singlePaymentForm.interest_amount || 0)
-    const gst = Number(singlePaymentForm.gst_amount || 0)
-    const total = principal + interest + gst
-
-    if (total <= 0) {
-      setEmiPaymentError('Enter a valid principal or total payment amount.')
-      return
-    }
-
-    setIsEMIPaymentSaving(true)
-    setEmiPaymentError(null)
-
-    try {
-      await createGoalEMIPayment(selectedEMIGoalId, {
-        payment_month: singlePaymentForm.payment_month,
-        payment_date: singlePaymentForm.payment_date,
-        principal_amount: String(principal),
-        interest_amount: String(interest),
-        gst_amount: String(gst),
-        processing_fee: '0',
-        processing_fee_gst: '0',
-        amount: String(total),
-        notes: singlePaymentForm.notes.trim() || null,
-      })
-
-      setSinglePaymentForm({
-        payment_month: currentMonthString(),
-        payment_date: new Date().toISOString().slice(0, 10),
-        principal_amount: '',
-        interest_amount: '',
-        gst_amount: '',
-        notes: '',
-      })
-
-      await queryClient.invalidateQueries({ queryKey: ['goals'] })
-      await queryClient.invalidateQueries({ queryKey: ['goalEMIPayments', selectedEMIGoalId] })
-      setStatusTone('emerald')
-      setStatusMessage(`Recorded EMI payment of ₹${formatINR(total)}.`)
-    } catch (error) {
-      setEmiPaymentError(formatApiError(error))
-    } finally {
-      setIsEMIPaymentSaving(false)
-    }
-  }
-
-  async function handleDeleteEMIPayment(payment: EMIPayment) {
-    if (!selectedEMIGoalId) return
-    if (!window.confirm(`Delete EMI payment of ₹${formatINR(Number(payment.amount))}?`)) return
-
-    try {
-      await deleteGoalEMIPayment(selectedEMIGoalId, payment.id)
-      await queryClient.invalidateQueries({ queryKey: ['goals'] })
-      await queryClient.invalidateQueries({ queryKey: ['goalEMIPayments', selectedEMIGoalId] })
-      setStatusTone('amber')
-      setStatusMessage('EMI payment removed.')
-    } catch (error) {
-      setStatusTone('rose')
-      setStatusMessage(formatApiError(error))
-    }
-  }
-
-  function applyCalcToNewEMI() {
-    setNewEMIForm({
-      mode: 'create',
-      existingGoalId: '',
-      name: 'New Loan EMI',
-      target_amount: String(calcPrincipal),
-      emi_monthly_amount: String(calcResults.monthlyEMI),
-      emi_total_months: String(calcTenureMonths),
-      target_date: '',
-      emi_processing_fee: '',
-      emi_processing_fee_gst: '',
-      notes: `Calculated at ${calcRate}% p.a. for ${calcTenureMonths} months.`,
-    })
-    setIsCreateEMIOpen(true)
-  }
-
   return (
     <div className="min-w-0 w-full overflow-x-hidden space-y-6 pb-12">
       {/* ── Status Feedback Banner ────────────────────────────────────── */}
@@ -1299,14 +978,14 @@ export default function TransactionsHubPage() {
         </div>
       ) : null}
 
-      {/* ── ROW 1: HEADER & EXECUTIVE COMMAND BAR ── */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-teal-500/10 to-emerald-500/20 text-teal-600 dark:text-teal-400 border border-teal-500/20 shadow-xs">
-            <ArrowLeftRight className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
+      {/* ── Executive Header Command Bar ───────────────────────────────── */}
+      <div className={`${CARD_SHELL} p-5 sm:p-6`}>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-teal-500/10 to-emerald-500/20 text-teal-600 dark:text-teal-400 border border-teal-500/20">
+                <ArrowLeftRight className="h-5 w-5" />
+              </div>
               <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-2xl">
                 Transactions & Cashflow Hub
               </h1>
@@ -1314,118 +993,81 @@ export default function TransactionsHubPage() {
                 <span className="h-1.5 w-1.5 rounded-full bg-teal-500 animate-pulse" />
                 Live Month: {formatMonthLabel(currentMonth)}
               </span>
+              <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-400">
+                <BarChart3 className="h-3 w-3 text-slate-400" />
+                {historicalStats.monthsCount} Prior Months Analyzed
+              </span>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 sm:text-sm mt-0.5">
-              Live October 2026 entry logging · Multi-month spending analytics · EMI & debt amortization
+            <p className="text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
+              Live entry tracking for {formatMonthLabel(currentMonth)} combined with multi-month cashflow intelligence up through last month.
             </p>
           </div>
-        </div>
 
-        {/* Action Buttons on Right */}
-        <div className="flex items-center gap-2.5 self-start lg:self-center">
-          <button
-            type="button"
-            onClick={() => void refreshData()}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white shadow-xs transition"
-            title="Refresh transaction data"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-          </button>
+          <div className="flex flex-wrap items-center gap-2.5 pt-2 sm:pt-0">
+            {/* View switcher tabs */}
+            <div className="flex items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80 p-0.5">
+              <button
+                type="button"
+                onClick={() => setActiveView('transactions')}
+                className={[
+                  'rounded-lg px-3 py-1.5 text-xs font-semibold transition flex items-center gap-1.5',
+                  activeView === 'transactions'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white',
+                ].join(' ')}
+              >
+                <Layers className="h-3.5 w-3.5" />
+                <span>Transactions & Analytics</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveView('emi')}
+                className={[
+                  'rounded-lg px-3 py-1.5 text-xs font-semibold transition flex items-center gap-1.5',
+                  activeView === 'emi'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white',
+                ].join(' ')}
+              >
+                <span>EMI Tracker</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveView('home')}
+                className={[
+                  'rounded-lg px-3 py-1.5 text-xs font-semibold transition flex items-center gap-1.5',
+                  activeView === 'home'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white',
+                ].join(' ')}
+              >
+                <span>Home Contributions</span>
+              </button>
+            </div>
 
-          {activeView === 'transactions' && (
             <button
               type="button"
-              onClick={() => {
-                resetForm(currentMonth)
-                setIsModalOpen(true)
-              }}
-              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 px-4 text-xs font-bold text-white shadow-sm transition active:scale-95"
+              onClick={() => void refreshData()}
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 px-3 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition shadow-sm"
+              title="Refresh transaction data"
             >
-              <Plus className="h-4 w-4" />
-              <span>Add Entry</span>
+              <RefreshCw className="h-3.5 w-3.5" />
             </button>
-          )}
 
-          {activeView === 'emi' && (
-            <button
-              type="button"
-              onClick={() => setIsCreateEMIOpen(true)}
-              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 px-4 text-xs font-bold text-white shadow-sm transition active:scale-95"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Track New EMI</span>
-            </button>
-          )}
-
-          {activeView === 'home' && (
-            <button
-              type="button"
-              onClick={() => {
-                const el = document.getElementById('home-contribution-form')
-                el?.scrollIntoView({ behavior: 'smooth' })
-              }}
-              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 px-4 text-xs font-bold text-white shadow-sm transition active:scale-95"
-            >
-              <Plus className="h-4 w-4" />
-              <span>New Contribution</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* ── ROW 2: SEGMENTED VIEW SWITCHER & CONTEXT STRIP ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
-        {/* View Tabs */}
-        <div className="flex items-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-800/80 p-1">
-          <button
-            type="button"
-            onClick={() => setActiveView('transactions')}
-            className={`rounded-xl px-4 py-2 text-xs font-bold transition flex items-center gap-2 ${
-              activeView === 'transactions'
-                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Layers className="h-3.5 w-3.5 text-teal-500" />
-            <span>Transactions & Analytics</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveView('emi')}
-            className={`rounded-xl px-4 py-2 text-xs font-bold transition flex items-center gap-2 ${
-              activeView === 'emi'
-                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Receipt className="h-3.5 w-3.5 text-indigo-500" />
-            <span>EMI Tracker</span>
-            {emiGoals.length > 0 && (
-              <span className="rounded-full bg-indigo-500/10 px-2 py-0.5 text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
-                {emiGoals.length}
-              </span>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveView('home')}
-            className={`rounded-xl px-4 py-2 text-xs font-bold transition flex items-center gap-2 ${
-              activeView === 'home'
-                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Heart className="h-3.5 w-3.5 text-rose-500" />
-            <span>Home Contributions</span>
-          </button>
-        </div>
-
-        {/* Historical Context Badge */}
-        <div className="flex items-center gap-2 text-xs text-slate-500">
-          <span className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-1.5 font-medium shadow-2xs">
-            <BarChart3 className="h-3.5 w-3.5 text-teal-500" />
-            <span>{historicalStats.monthsCount} Completed Months Analyzed</span>
-          </span>
+            {activeView === 'transactions' ? (
+              <button
+                type="button"
+                onClick={() => {
+                  resetForm(currentMonth)
+                  setIsModalOpen(true)
+                }}
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 px-3.5 text-xs font-bold text-white shadow-sm transition active:scale-95"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add Entry</span>
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -2578,772 +2220,65 @@ export default function TransactionsHubPage() {
       {/* ── VIEW 2: EMI TRACKER (PRESERVED FULL FUNCTIONALITY) ────────────── */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
       {activeView === 'emi' && (
-        <div className="space-y-6">
-          {/* 1. Bento KPI Strip (4 Cards) */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Card 1: Active Loans */}
-            <div className={`${CARD_SHELL} p-4 sm:p-5 flex flex-col justify-between`}>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Active EMI Loans</span>
-                <div className="grid h-8 w-8 place-items-center rounded-xl bg-indigo-500/10 text-indigo-500">
-                  <Receipt className="h-4 w-4" />
-                </div>
-              </div>
-              <div className="mt-3">
-                <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-                  {emiGoals.length}
-                </div>
-                <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                  <span>Tracked facilities</span>
-                </div>
-              </div>
+        <div className={`${CARD_SHELL} p-5 space-y-5`}>
+          <div className="flex items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-4">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Receipt className="h-5 w-5 text-indigo-500" />
+                EMI Plans & Goal-Linked Payment Schedules
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Track long-term EMIs, processing fees, GST breakdown, and amortization milestones.
+              </p>
             </div>
-
-            {/* Card 2: Total Debt / Target */}
-            <div className={`${CARD_SHELL} p-4 sm:p-5 flex flex-col justify-between`}>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Borrowed / Liability</span>
-                <div className="grid h-8 w-8 place-items-center rounded-xl bg-rose-500/10 text-rose-500">
-                  <TrendingDown className="h-4 w-4" />
-                </div>
-              </div>
-              <div className="mt-3">
-                <div className="text-2xl font-bold font-mono tracking-tight text-rose-600 dark:text-rose-400">
-                  <PrivateValue value={formatINR(totalEMITargetDebt)} mask="••••••" />
-                </div>
-                <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                  <span>Across {emiGoals.length} loan accounts</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 3: Repaid to Date */}
-            <div className={`${CARD_SHELL} p-4 sm:p-5 flex flex-col justify-between`}>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Repaid to Date</span>
-                <div className="grid h-8 w-8 place-items-center rounded-xl bg-emerald-500/10 text-emerald-500">
-                  <CheckCircle2 className="h-4 w-4" />
-                </div>
-              </div>
-              <div className="mt-3">
-                <div className="text-2xl font-bold font-mono tracking-tight text-emerald-600 dark:text-emerald-400">
-                  <PrivateValue value={formatINR(totalEMIPaid)} mask="••••••" />
-                </div>
-                <div className="mt-1 flex items-center justify-between text-xs">
-                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{overallProgressPct.toFixed(1)}% repaid</span>
-                  <span className="text-slate-400">Rem: <PrivateValue value={formatINRShort(totalEMIRemaining)} mask="•••" hideColor /></span>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 4: Monthly Outflow */}
-            <div className={`${CARD_SHELL} p-4 sm:p-5 flex flex-col justify-between`}>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Monthly EMI Outflow</span>
-                <div className="grid h-8 w-8 place-items-center rounded-xl bg-amber-500/10 text-amber-500">
-                  <Calendar className="h-4 w-4" />
-                </div>
-              </div>
-              <div className="mt-3">
-                <div className="text-2xl font-bold font-mono tracking-tight text-slate-900 dark:text-white">
-                  <PrivateValue value={formatINR(totalMonthlyEMI)} mask="••••••" />
-                  <span className="text-xs font-normal text-slate-400 ml-1">/mo</span>
-                </div>
-                <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                  <span>Fixed committed drain</span>
-                </div>
-              </div>
-            </div>
+            <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full">
+              {goals.filter((g) => g.is_emi).length} Active EMI Goals
+            </span>
           </div>
 
-          {/* 2. Interactive EMI Amortization Calculator Accordion / Card */}
-          <div className={`${CARD_SHELL} p-5 space-y-4`}>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
-                  <Calculator className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                    Loan & EMI Amortization Calculator
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Estimate monthly EMI instalments, interest liability, and schedule conversions.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsCalcExpanded(!isCalcExpanded)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition self-start sm:self-center"
-              >
-                {isCalcExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                <span>{isCalcExpanded ? 'Collapse Calculator' : 'Open Calculator'}</span>
-              </button>
-            </div>
+          {/* Goal EMI list */}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {goals
+              .filter((g) => g.is_emi)
+              .map((goal) => {
+                const target = toNumber(goal.target_amount)
+                const paid = toNumber(goal.resolved_current_amount ?? goal.current_amount)
+                const remaining = Math.max(target - paid, 0)
+                const progressPct = target > 0 ? Math.min((paid / target) * 100, 100) : 0
 
-            {isCalcExpanded && (
-              <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800 grid gap-6 lg:grid-cols-12">
-                {/* Inputs Left (7 cols) */}
-                <div className="lg:col-span-7 space-y-4">
-                  {/* Principal */}
-                  <div>
-                    <div className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                      <span>Loan Amount (₹)</span>
-                      <span className="font-mono text-indigo-600 dark:text-indigo-400">{formatINR(Number(calcPrincipal) || 0)}</span>
-                    </div>
-                    <input
-                      type="number"
-                      value={calcPrincipal}
-                      onChange={(e) => setCalcPrincipal(e.target.value)}
-                      placeholder="e.g. 500000"
-                      className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 font-mono font-bold text-sm text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
-                    />
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {[100000, 250000, 500000, 1000000, 2500000, 5000000].map((amt) => (
-                        <button
-                          key={amt}
-                          type="button"
-                          onClick={() => setCalcPrincipal(String(amt))}
-                          className="rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-700 px-2 py-1 text-[11px] font-medium text-slate-600 dark:text-slate-400 transition"
-                        >
-                          {formatINRShort(amt)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* Rate */}
-                    <div>
-                      <div className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                        <span>Interest Rate (% p.a.)</span>
-                        <span className="font-mono text-indigo-600 dark:text-indigo-400">{calcRate}%</span>
-                      </div>
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={calcRate}
-                        onChange={(e) => setCalcRate(e.target.value)}
-                        placeholder="e.g. 10.5"
-                        className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 font-mono font-bold text-sm text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
-                      />
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {['0', '8.5', '9.5', '11.5', '14.0'].map((rate) => (
-                          <button
-                            key={rate}
-                            type="button"
-                            onClick={() => setCalcRate(rate)}
-                            className="rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-700 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:text-slate-400 transition"
-                          >
-                            {rate}%
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Tenure */}
-                    <div>
-                      <div className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                        <span>Tenure (Months)</span>
-                        <span className="font-mono text-indigo-600 dark:text-indigo-400">{calcTenureMonths} mo</span>
-                      </div>
-                      <input
-                        type="number"
-                        value={calcTenureMonths}
-                        onChange={(e) => setCalcTenureMonths(e.target.value)}
-                        placeholder="e.g. 24"
-                        className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 font-mono font-bold text-sm text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
-                      />
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {['6', '12', '24', '36', '60', '84'].map((tenure) => (
-                          <button
-                            key={tenure}
-                            type="button"
-                            onClick={() => setCalcTenureMonths(tenure)}
-                            className="rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-slate-700 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:text-slate-400 transition"
-                          >
-                            {tenure}m
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Results Right (5 cols) */}
-                <div className="lg:col-span-5 rounded-2xl border border-indigo-200 dark:border-indigo-900/60 bg-gradient-to-br from-indigo-50/70 to-purple-50/40 dark:from-indigo-950/30 dark:to-purple-950/20 p-5 flex flex-col justify-between">
-                  <div className="space-y-4">
-                    <div>
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                        Calculated Monthly Instalment
-                      </span>
-                      <div className="text-3xl font-extrabold font-mono text-slate-900 dark:text-white mt-1">
-                        ₹{formatINR(calcResults.monthlyEMI)}
-                        <span className="text-sm font-normal text-slate-500 ml-1.5">/month</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 text-xs">
-                      <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
-                        <span>Total Principal:</span>
-                        <span className="font-mono font-semibold text-slate-900 dark:text-white">₹{formatINR(Number(calcPrincipal) || 0)}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
-                        <span>Total Interest Payable:</span>
-                        <span className="font-mono font-semibold text-rose-600 dark:text-rose-400">₹{formatINR(calcResults.totalInterest)}</span>
-                      </div>
-                      <div className="border-t border-indigo-200/60 dark:border-indigo-900/60 pt-2 flex items-center justify-between text-slate-700 dark:text-slate-300 font-bold">
-                        <span>Total Amount Payable:</span>
-                        <span className="font-mono text-indigo-700 dark:text-indigo-300">₹{formatINR(calcResults.totalPayable)}</span>
-                      </div>
-                    </div>
-
-                    {/* Ratio breakdown bar */}
-                    <div>
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700 flex">
-                        <div style={{ width: `${calcResults.principalPct}%` }} className="h-full bg-indigo-500" title={`Principal: ${calcResults.principalPct.toFixed(0)}%`} />
-                        <div style={{ width: `${calcResults.interestPct}%` }} className="h-full bg-rose-500" title={`Interest: ${calcResults.interestPct.toFixed(0)}%`} />
-                      </div>
-                      <div className="mt-1.5 flex items-center justify-between text-[10px] text-slate-500">
-                        <span className="flex items-center gap-1">
-                          <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" /> Principal ({calcResults.principalPct.toFixed(0)}%)
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <span className="h-1.5 w-1.5 rounded-full bg-rose-500" /> Interest ({calcResults.interestPct.toFixed(0)}%)
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={applyCalcToNewEMI}
-                    className="mt-4 w-full rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs py-2.5 transition active:scale-95 shadow-sm flex items-center justify-center gap-1.5"
+                return (
+                  <div
+                    key={goal.id}
+                    onClick={() => {
+                      setSelectedEMIGoalId(goal.id)
+                      setCustomPlannedEmiAmount(goal.emi_monthly_amount == null ? '' : String(goal.emi_monthly_amount))
+                      setCustomPlannedEmiMonths(goal.emi_total_months == null ? '' : String(goal.emi_total_months))
+                      setIsEMIPlanSaved(goal.emi_monthly_amount != null && goal.emi_total_months != null)
+                      setEmiPaymentRows(createEMIRows(goal.emi_total_months ?? goal.months_remaining ?? 1))
+                    }}
+                    className="cursor-pointer rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50 p-4 transition hover:border-indigo-500/50 hover:shadow-md"
                   >
-                    <Plus className="h-3.5 w-3.5" />
-                    <span>Create EMI Tracker with These Terms</span>
-                  </button>
-                </div>
-              </div>
-            )}
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-bold text-sm text-slate-900 dark:text-white truncate">
+                        {goal.name}
+                      </h4>
+                      <span className="text-[10px] font-bold text-indigo-500 bg-indigo-500/10 px-2 py-0.5 rounded">
+                        {progressPct.toFixed(0)}%
+                      </span>
+                    </div>
+
+                    <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                      <div className="h-full rounded-full bg-indigo-500" style={{ width: `${progressPct}%` }} />
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
+                      <span>Paid: <PrivateValue value={formatINRShort(paid)} mask="•••" hideColor /></span>
+                      <span>Rem: <PrivateValue value={formatINRShort(remaining)} mask="•••" hideColor /></span>
+                    </div>
+                  </div>
+                )
+              })}
           </div>
-
-          {/* 3. Active Loans Grid & Header */}
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Receipt className="h-4 w-4 text-indigo-500" />
-                  Tracked EMI Loan Facilities
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Select a loan card to manage its payment schedule, log monthly principal & interest splits, or adjust tenure.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setIsCreateEMIOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition active:scale-95 self-start sm:self-center"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>Track New EMI</span>
-              </button>
-            </div>
-
-            {emiGoals.length === 0 ? (
-              <div className={`${CARD_SHELL} p-8 text-center space-y-4`}>
-                <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-indigo-500/10 text-indigo-500">
-                  <Receipt className="h-6 w-6" />
-                </div>
-                <div className="max-w-md mx-auto">
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                    No active EMI loans tracked yet
-                  </h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    Track auto loans, mortgages, gadgets, or personal credit instalments with full principal, interest, and GST transparency.
-                  </p>
-                </div>
-                <div className="flex items-center justify-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsCreateEMIOpen(true)}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-xs font-bold text-white shadow-sm transition active:scale-95"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    <span>Track New EMI Loan</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsCalcExpanded(true)}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition"
-                  >
-                    <Calculator className="h-3.5 w-3.5" />
-                    <span>Calculate Amortization</span>
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {emiGoals.map((goal) => {
-                  const target = toNumber(goal.target_amount)
-                  const paid = toNumber(goal.resolved_current_amount ?? goal.current_amount)
-                  const remaining = Math.max(target - paid, 0)
-                  const progressPct = target > 0 ? Math.min((paid / target) * 100, 100) : 0
-                  const isSelected = goal.id === selectedEMIGoalId
-
-                  return (
-                    <div
-                      key={goal.id}
-                      onClick={() => {
-                        setSelectedEMIGoalId(goal.id)
-                        setCustomPlannedEmiAmount(goal.emi_monthly_amount == null ? '' : String(goal.emi_monthly_amount))
-                        setCustomPlannedEmiMonths(goal.emi_total_months == null ? '' : String(goal.emi_total_months))
-                        setIsEMIPlanSaved(goal.emi_monthly_amount != null && goal.emi_total_months != null)
-                      }}
-                      className={`cursor-pointer rounded-2xl border p-4 transition duration-150 ${
-                        isSelected
-                          ? 'border-indigo-500 dark:border-indigo-400 bg-indigo-50/60 dark:bg-indigo-950/30 ring-2 ring-indigo-500/20 shadow-md'
-                          : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-xs'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <h4 className="font-bold text-sm text-slate-900 dark:text-white truncate">
-                            {goal.name}
-                          </h4>
-                          <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                            EMI: <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">₹{formatINR(Number(goal.emi_monthly_amount ?? goal.required_monthly_saving ?? 0))}</span>/mo
-                          </span>
-                        </div>
-                        <span
-                          className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                            isSelected
-                              ? 'bg-indigo-600 text-white'
-                              : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
-                          }`}
-                        >
-                          {isSelected ? 'Active' : `${progressPct.toFixed(0)}% Paid`}
-                        </span>
-                      </div>
-
-                      {/* Progress Bar */}
-                      <div className="mt-3">
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-emerald-500 transition-all duration-300"
-                            style={{ width: `${progressPct}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="mt-3 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                        <span>Paid: <PrivateValue value={formatINRShort(paid)} mask="•••" hideColor /></span>
-                        <span className="font-semibold text-rose-600 dark:text-rose-400">
-                          Rem: <PrivateValue value={formatINRShort(remaining)} mask="•••" hideColor />
-                        </span>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* 4. Selected Loan Detailed Ledger & Payment Logging */}
-          {selectedEMIGoal && (
-            <div className={`${CARD_SHELL} p-5 space-y-6 border-indigo-200 dark:border-indigo-900/60`}>
-              {/* Selected Goal Header Strip */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
-                    <Receipt className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                        {selectedEMIGoal.name}
-                      </h3>
-                      <span className="rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
-                        EMI Loan Account
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                      Target Debt: <PrivateValue value={formatINR(toNumber(selectedEMIGoal.target_amount))} mask="••••••" /> · Planned Monthly: ₹{formatINR(toNumber(selectedEMIGoal.emi_monthly_amount ?? 0))}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 self-start sm:self-center">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedEMIGoalId(null)}
-                    className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-                  >
-                    Deselect
-                  </button>
-                </div>
-              </div>
-
-              {/* Progress & Debt Statistics */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 p-4 border border-slate-100 dark:border-slate-800">
-                <div>
-                  <span className="text-[11px] font-medium text-slate-500">Loan Target</span>
-                  <div className="text-base font-bold font-mono text-slate-900 dark:text-white mt-0.5">
-                    <PrivateValue value={formatINR(toNumber(selectedEMIGoal.target_amount))} mask="••••••" />
-                  </div>
-                </div>
-                <div>
-                  <span className="text-[11px] font-medium text-slate-500">Repaid (Recorded)</span>
-                  <div className="text-base font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
-                    <PrivateValue value={formatINR(toNumber(selectedEMIGoal.resolved_current_amount ?? selectedEMIGoal.current_amount))} mask="••••••" />
-                  </div>
-                </div>
-                <div>
-                  <span className="text-[11px] font-medium text-slate-500">Outstanding Debt</span>
-                  <div className="text-base font-bold font-mono text-rose-600 dark:text-rose-400 mt-0.5">
-                    <PrivateValue value={formatINR(Math.max(toNumber(selectedEMIGoal.target_amount) - toNumber(selectedEMIGoal.resolved_current_amount ?? selectedEMIGoal.current_amount), 0))} mask="••••••" />
-                  </div>
-                </div>
-                <div>
-                  <span className="text-[11px] font-medium text-slate-500">Tenure</span>
-                  <div className="text-base font-bold font-mono text-slate-900 dark:text-white mt-0.5">
-                    {selectedEMIGoal.emi_total_months ? `${selectedEMIGoal.emi_total_months} months` : 'Flexible'}
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION: Record Single Payment */}
-              <div className="rounded-2xl border border-indigo-100 dark:border-indigo-900/40 bg-indigo-50/30 dark:bg-indigo-950/10 p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
-                    <Plus className="h-4 w-4" />
-                    Record EMI Instalment Payment
-                  </h4>
-                  <span className="text-[11px] text-slate-500">
-                    Instalments automatically update loan repaid progress
-                  </span>
-                </div>
-
-                {emiPaymentError && (
-                  <div className="rounded-xl border border-rose-200 bg-rose-50 dark:border-rose-500/30 dark:bg-rose-500/10 p-2.5 text-xs text-rose-700 dark:text-rose-300">
-                    {emiPaymentError}
-                  </div>
-                )}
-
-                <form onSubmit={handleRecordSinglePayment} className="space-y-3">
-                  <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
-                    {/* Month */}
-                    <div>
-                      <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                        Instalment Month
-                      </label>
-                      <input
-                        type="month"
-                        value={singlePaymentForm.payment_month}
-                        onChange={(e) => setSinglePaymentForm((c) => ({ ...c, payment_month: e.target.value }))}
-                        className="h-9 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 text-xs text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
-                      />
-                    </div>
-
-                    {/* Date */}
-                    <div>
-                      <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                        Payment Date
-                      </label>
-                      <input
-                        type="date"
-                        value={singlePaymentForm.payment_date}
-                        onChange={(e) => setSinglePaymentForm((c) => ({ ...c, payment_date: e.target.value }))}
-                        className="h-9 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 text-xs text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
-                      />
-                    </div>
-
-                    {/* Principal */}
-                    <div>
-                      <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                        Principal (₹)
-                      </label>
-                      <input
-                        inputMode="decimal"
-                        value={singlePaymentForm.principal_amount}
-                        onChange={(e) => setSinglePaymentForm((c) => ({ ...c, principal_amount: e.target.value }))}
-                        placeholder="e.g. 15000"
-                        className="h-9 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 font-mono text-xs text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
-                      />
-                    </div>
-
-                    {/* Interest */}
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block">
-                          Interest (₹)
-                        </label>
-                      </div>
-                      <input
-                        inputMode="decimal"
-                        value={singlePaymentForm.interest_amount}
-                        onChange={(e) => {
-                          const interest = e.target.value
-                          setSinglePaymentForm((c) => ({
-                            ...c,
-                            interest_amount: interest,
-                            gst_amount: interest && !c.gst_amount ? (Number(interest) * 0.18).toFixed(2) : c.gst_amount,
-                          }))
-                        }}
-                        placeholder="e.g. 2500"
-                        className="h-9 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 font-mono text-xs text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
-                      />
-                    </div>
-
-                    {/* GST */}
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block">
-                          GST 18% (₹)
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const interest = Number(singlePaymentForm.interest_amount || 0)
-                            setSinglePaymentForm((c) => ({ ...c, gst_amount: (interest * 0.18).toFixed(2) }))
-                          }}
-                          className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline"
-                        >
-                          18%
-                        </button>
-                      </div>
-                      <input
-                        inputMode="decimal"
-                        value={singlePaymentForm.gst_amount}
-                        onChange={(e) => setSinglePaymentForm((c) => ({ ...c, gst_amount: e.target.value }))}
-                        placeholder="e.g. 450"
-                        className="h-9 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 font-mono text-xs text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
-                      />
-                    </div>
-
-                    {/* Notes */}
-                    <div>
-                      <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                        Notes / Ref
-                      </label>
-                      <input
-                        value={singlePaymentForm.notes}
-                        onChange={(e) => setSinglePaymentForm((c) => ({ ...c, notes: e.target.value }))}
-                        placeholder="Auto-debit / HDFC"
-                        className="h-9 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 text-xs text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Form Footer Action */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                    <div className="text-xs text-slate-600 dark:text-slate-400">
-                      Total Instalment Debit:{' '}
-                      <span className="font-mono font-bold text-slate-900 dark:text-white">
-                        ₹{formatINR(
-                          Number(singlePaymentForm.principal_amount || 0) +
-                          Number(singlePaymentForm.interest_amount || 0) +
-                          Number(singlePaymentForm.gst_amount || 0)
-                        )}
-                      </span>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={isEMIPaymentSaving}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-xs font-bold text-white shadow-sm transition active:scale-95 disabled:opacity-60"
-                    >
-                      {isEMIPaymentSaving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                      <span>{isEMIPaymentSaving ? 'Recording…' : 'Record Instalment'}</span>
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              {/* SECTION: Payment History & Breakdown Ledger Table */}
-              <div className="space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                      Payment History & Breakdown Ledger
-                    </h4>
-                    <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-semibold text-slate-600 dark:text-slate-400">
-                      {emiPayments.length} recorded
-                    </span>
-                  </div>
-
-                  {emiPayments.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-2 text-[11px]">
-                      <span className="rounded-lg bg-indigo-500/10 px-2 py-1 font-semibold text-indigo-600 dark:text-indigo-400">
-                        Principal: ₹{formatINR(emiPaymentsTotalPrincipal)}
-                      </span>
-                      <span className="rounded-lg bg-rose-500/10 px-2 py-1 font-semibold text-rose-600 dark:text-rose-400">
-                        Interest: ₹{formatINR(emiPaymentsTotalInterest)}
-                      </span>
-                      <span className="rounded-lg bg-amber-500/10 px-2 py-1 font-semibold text-amber-600 dark:text-amber-400">
-                        GST: ₹{formatINR(emiPaymentsTotalGST)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {emiPayments.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-6 text-center text-xs text-slate-500">
-                    No payment instalments logged for this loan yet. Record your first payment above.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
-                    <table className="w-full text-left text-xs">
-                      <thead>
-                        <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                          <th className="px-3.5 py-3">Month</th>
-                          <th className="px-3.5 py-3">Date</th>
-                          <th className="px-3.5 py-3 text-right">Principal</th>
-                          <th className="px-3.5 py-3 text-right">Interest</th>
-                          <th className="px-3.5 py-3 text-right">GST</th>
-                          <th className="px-3.5 py-3 text-right">Total Debit</th>
-                          <th className="px-3.5 py-3">Notes</th>
-                          <th className="px-3.5 py-3 text-right">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {emiPayments.map((payment) => (
-                          <tr key={payment.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition">
-                            <td className="px-3.5 py-3 font-semibold text-slate-900 dark:text-white">
-                              {formatMonthLabel(payment.payment_month)}
-                            </td>
-                            <td className="px-3.5 py-3 text-slate-500">
-                              {payment.payment_date || '-'}
-                            </td>
-                            <td className="px-3.5 py-3 text-right font-mono font-semibold text-slate-900 dark:text-white">
-                              <PrivateValue value={formatINR(toNumber(payment.principal_amount))} mask="••••" />
-                            </td>
-                            <td className="px-3.5 py-3 text-right font-mono text-rose-600 dark:text-rose-400">
-                              <PrivateValue value={formatINR(toNumber(payment.interest_amount))} mask="••••" />
-                            </td>
-                            <td className="px-3.5 py-3 text-right font-mono text-amber-600 dark:text-amber-400">
-                              <PrivateValue value={formatINR(toNumber(payment.gst_amount))} mask="••••" />
-                            </td>
-                            <td className="px-3.5 py-3 text-right font-mono font-bold text-slate-900 dark:text-white">
-                              <PrivateValue value={formatINR(toNumber(payment.amount))} mask="••••" />
-                            </td>
-                            <td className="px-3.5 py-3 text-slate-500 max-w-xs truncate">
-                              {payment.notes || '-'}
-                            </td>
-                            <td className="px-3.5 py-3 text-right">
-                              <button
-                                type="button"
-                                onClick={() => void handleDeleteEMIPayment(payment)}
-                                className="rounded-lg p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
-                                title="Delete payment"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      <tfoot>
-                        <tr className="border-t-2 border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/70 font-bold text-slate-900 dark:text-white">
-                          <td colSpan={2} className="px-3.5 py-3 text-xs">Total Cumulative Repaid</td>
-                          <td className="px-3.5 py-3 text-right font-mono text-indigo-600 dark:text-indigo-400">
-                            <PrivateValue value={formatINR(emiPaymentsTotalPrincipal)} mask="••••••" />
-                          </td>
-                          <td className="px-3.5 py-3 text-right font-mono text-rose-600 dark:text-rose-400">
-                            <PrivateValue value={formatINR(emiPaymentsTotalInterest)} mask="••••••" />
-                          </td>
-                          <td className="px-3.5 py-3 text-right font-mono text-amber-600 dark:text-amber-400">
-                            <PrivateValue value={formatINR(emiPaymentsTotalGST)} mask="••••••" />
-                          </td>
-                          <td className="px-3.5 py-3 text-right font-mono text-emerald-600 dark:text-emerald-400">
-                            <PrivateValue value={formatINR(emiPaymentsTotalPaid)} mask="••••••" />
-                          </td>
-                          <td colSpan={2}></td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                )}
-              </div>
-
-              {/* SECTION: Plan Settings & Terms Editor Accordion */}
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                    Loan Terms & Processing Fee Settings
-                  </h4>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
-                  <div>
-                    <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                      Monthly Planned EMI (₹)
-                    </label>
-                    <input
-                      inputMode="decimal"
-                      value={customPlannedEmiAmount}
-                      onChange={(e) => setCustomPlannedEmiAmount(e.target.value)}
-                      placeholder="e.g. 15000"
-                      className="h-9 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 font-mono text-xs text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                      Total Tenure (Months)
-                    </label>
-                    <input
-                      type="number"
-                      value={customPlannedEmiMonths}
-                      onChange={(e) => setCustomPlannedEmiMonths(e.target.value)}
-                      placeholder="e.g. 24"
-                      className="h-9 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 font-mono text-xs text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                      Processing Fee (₹)
-                    </label>
-                    <input
-                      inputMode="decimal"
-                      value={emiPaymentForm.processing_fee}
-                      onChange={(e) => setEmiPaymentForm((c) => ({ ...c, processing_fee: e.target.value }))}
-                      placeholder="e.g. 1999"
-                      className="h-9 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 font-mono text-xs text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                      Fee GST (₹)
-                    </label>
-                    <input
-                      inputMode="decimal"
-                      value={emiPaymentForm.processing_fee_gst}
-                      onChange={(e) => setEmiPaymentForm((c) => ({ ...c, processing_fee_gst: e.target.value }))}
-                      placeholder="e.g. 359"
-                      className="h-9 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 font-mono text-xs text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end pt-1">
-                  <button
-                    type="button"
-                    onClick={() => void saveEMISetup()}
-                    disabled={isEMISettingsSaving}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-100 px-4 py-2 text-xs font-bold text-white dark:text-slate-900 transition active:scale-95 disabled:opacity-60"
-                  >
-                    {isEMISettingsSaving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                    <span>{isEMISettingsSaving ? 'Saving…' : 'Save Loan Terms'}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -3706,243 +2641,6 @@ export default function TransactionsHubPage() {
           </section>
         </div>
       ) : null}
-
-      {/* ── CREATE / CONVERT EMI MODAL (BOTTOM SHEET) ── */}
-      <BottomSheet
-        open={isCreateEMIOpen}
-        onClose={() => setIsCreateEMIOpen(false)}
-        title="Track EMI Loan / Facility"
-        subtitle="Record a new loan facility or convert an existing financial goal into an EMI plan."
-      >
-        <form onSubmit={handleCreateOrConvertEMI} className="p-6 space-y-4">
-          {emiPaymentError && (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 dark:border-rose-500/30 dark:bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-300">
-              {emiPaymentError}
-            </div>
-          )}
-
-          {/* Mode Switcher */}
-          <div className="flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
-            <button
-              type="button"
-              onClick={() => setNewEMIForm((c) => ({ ...c, mode: 'create' }))}
-              className={`flex-1 rounded-lg py-1.5 text-xs font-bold transition ${
-                newEMIForm.mode === 'create'
-                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-              }`}
-            >
-              Create New Loan
-            </button>
-            <button
-              type="button"
-              onClick={() => setNewEMIForm((c) => ({ ...c, mode: 'convert' }))}
-              className={`flex-1 rounded-lg py-1.5 text-xs font-bold transition ${
-                newEMIForm.mode === 'convert'
-                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-              }`}
-            >
-              Convert Existing Goal
-            </button>
-          </div>
-
-          {newEMIForm.mode === 'convert' ? (
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Select Existing Goal to Convert
-                </label>
-                <select
-                  value={newEMIForm.existingGoalId}
-                  onChange={(e) => {
-                    const id = e.target.value
-                    const g = goals.find((item) => String(item.id) === id)
-                    setNewEMIForm((c) => ({
-                      ...c,
-                      existingGoalId: id,
-                      name: g?.name ?? '',
-                      target_amount: g?.target_amount ? String(g.target_amount) : '',
-                    }))
-                  }}
-                  className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
-                >
-                  <option value="">-- Choose an Existing Goal --</option>
-                  {goals
-                    .filter((g) => !g.is_emi)
-                    .map((g) => (
-                      <option key={g.id} value={g.id}>
-                        {g.name} (Target: ₹{formatINR(toNumber(g.target_amount))})
-                      </option>
-                    ))}
-                </select>
-                {goals.filter((g) => !g.is_emi).length === 0 && (
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    No unconverted goals found. Switch to "Create New Loan" above.
-                  </p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Monthly EMI (₹)
-                  </label>
-                  <input
-                    inputMode="decimal"
-                    value={newEMIForm.emi_monthly_amount}
-                    onChange={(e) => setNewEMIForm((c) => ({ ...c, emi_monthly_amount: e.target.value }))}
-                    placeholder="e.g. 15000"
-                    className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 font-mono text-xs text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Tenure (Months)
-                  </label>
-                  <input
-                    type="number"
-                    value={newEMIForm.emi_total_months}
-                    onChange={(e) => setNewEMIForm((c) => ({ ...c, emi_total_months: e.target.value }))}
-                    placeholder="e.g. 24"
-                    className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 font-mono text-xs text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Loan / Facility Name
-                </label>
-                <input
-                  value={newEMIForm.name}
-                  onChange={(e) => setNewEMIForm((c) => ({ ...c, name: e.target.value }))}
-                  placeholder="e.g. HDFC Car Loan, Apple MacBook EMI"
-                  className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Total Borrowed Principal (₹)
-                  </label>
-                  <input
-                    inputMode="decimal"
-                    value={newEMIForm.target_amount}
-                    onChange={(e) => setNewEMIForm((c) => ({ ...c, target_amount: e.target.value }))}
-                    placeholder="e.g. 500000"
-                    className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 font-mono font-bold text-xs text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Monthly EMI Amount (₹)
-                  </label>
-                  <input
-                    inputMode="decimal"
-                    value={newEMIForm.emi_monthly_amount}
-                    onChange={(e) => setNewEMIForm((c) => ({ ...c, emi_monthly_amount: e.target.value }))}
-                    placeholder="e.g. 23500"
-                    className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 font-mono text-xs text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Tenure (Months)
-                  </label>
-                  <input
-                    type="number"
-                    value={newEMIForm.emi_total_months}
-                    onChange={(e) => setNewEMIForm((c) => ({ ...c, emi_total_months: e.target.value }))}
-                    placeholder="e.g. 24"
-                    className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 font-mono text-xs text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Target Payoff Date (Optional)
-                  </label>
-                  <input
-                    type="date"
-                    value={newEMIForm.target_date}
-                    onChange={(e) => setNewEMIForm((c) => ({ ...c, target_date: e.target.value }))}
-                    className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Processing Fee (₹, Optional)
-                  </label>
-                  <input
-                    inputMode="decimal"
-                    value={newEMIForm.emi_processing_fee}
-                    onChange={(e) => setNewEMIForm((c) => ({ ...c, emi_processing_fee: e.target.value }))}
-                    placeholder="e.g. 1999"
-                    className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 font-mono text-xs text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Fee GST 18% (₹, Optional)
-                  </label>
-                  <input
-                    inputMode="decimal"
-                    value={newEMIForm.emi_processing_fee_gst}
-                    onChange={(e) => setNewEMIForm((c) => ({ ...c, emi_processing_fee_gst: e.target.value }))}
-                    placeholder="e.g. 359"
-                    className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 font-mono text-xs text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Notes / Loan Account Number
-                </label>
-                <textarea
-                  value={newEMIForm.notes}
-                  onChange={(e) => setNewEMIForm((c) => ({ ...c, notes: e.target.value }))}
-                  placeholder="Loan account #, lender branch, contact, etc."
-                  rows={2}
-                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-xs text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none resize-none"
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <button
-              type="button"
-              onClick={() => setIsCreateEMIOpen(false)}
-              className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isEMISettingsSaving}
-              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-5 py-2 text-xs font-bold text-white shadow-sm transition active:scale-95 disabled:opacity-60"
-            >
-              {isEMISettingsSaving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-              <span>{isEMISettingsSaving ? 'Saving…' : newEMIForm.mode === 'convert' ? 'Convert to EMI' : 'Track EMI Loan'}</span>
-            </button>
-          </div>
-        </form>
-      </BottomSheet>
     </div>
   )
 }
