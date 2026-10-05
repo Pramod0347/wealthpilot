@@ -47,7 +47,6 @@ def _build_cashflow_analytics(
     due_soon_count: int,
 ) -> CashflowAnalyticsSummary:
     reporting_month = get_reporting_month(db)
-    current_month = reporting_month
     monthly_rows = db.execute(
         select(
             CashflowEntry.month,
@@ -60,12 +59,11 @@ def _build_cashflow_analytics(
     ).all()
 
     if not monthly_rows:
-        return CashflowAnalyticsSummary(current_month=current_month)
+        return CashflowAnalyticsSummary(current_month=reporting_month)
 
     months = [row[0] for row in monthly_rows]
-    latest_month = months[-1] if months else current_month
-    if len(months) > 1:
-        monthly_rows = [row for row in monthly_rows if row[0] != latest_month]
+    actual_current_month = current_month_string()
+    current_month = actual_current_month if actual_current_month in months else reporting_month
 
     months_count = len(monthly_rows)
     tracked_months = [row[0] for row in monthly_rows]
@@ -106,12 +104,21 @@ def _build_cashflow_analytics(
         .order_by(func.sum(CashflowEntry.amount).desc(), CashflowEntry.category.asc())
     )
 
-    if len(months) > 1:
-        expense_query = expense_query.where(CashflowEntry.month != latest_month)
-        income_query = income_query.where(CashflowEntry.month != latest_month)
-
     expense_rows = db.execute(expense_query).all()
     income_rows = db.execute(income_query).all()
+
+    current_expense_rows = db.execute(
+        select(CashflowEntry.category, func.coalesce(func.sum(CashflowEntry.amount), 0))
+        .where(CashflowEntry.month == current_month, CashflowEntry.entry_type == "expense")
+        .group_by(CashflowEntry.category)
+        .order_by(func.sum(CashflowEntry.amount).desc(), CashflowEntry.category.asc())
+    ).all()
+    current_income_rows = db.execute(
+        select(CashflowEntry.category, func.coalesce(func.sum(CashflowEntry.amount), 0))
+        .where(CashflowEntry.month == current_month, CashflowEntry.entry_type == "income")
+        .group_by(CashflowEntry.category)
+        .order_by(func.sum(CashflowEntry.amount).desc(), CashflowEntry.category.asc())
+    ).all()
 
     average_expense_by_category = [
         AnalyticsCategoryAverageItem(
@@ -136,6 +143,27 @@ def _build_cashflow_analytics(
             months_present=int(months_present),
         )
         for category, amount, months_present in income_rows
+    ]
+
+    current_expense_by_category = [
+        AnalyticsCategoryAverageItem(
+            category=category,
+            average_amount=_to_decimal(amount),
+            total_amount=_to_decimal(amount),
+            percentage_of_avg_spend=_safe_pct(_to_decimal(amount), current_expense) if current_expense > 0 else Decimal("0"),
+            months_present=1,
+        )
+        for category, amount in current_expense_rows
+    ]
+    current_income_by_category = [
+        AnalyticsCategoryAverageItem(
+            category=category,
+            average_amount=_to_decimal(amount),
+            total_amount=_to_decimal(amount),
+            percentage_of_avg_income=_safe_pct(_to_decimal(amount), current_income) if current_income > 0 else Decimal("0"),
+            months_present=1,
+        )
+        for category, amount in current_income_rows
     ]
 
     monthly_trend = [
@@ -298,6 +326,8 @@ def _build_cashflow_analytics(
         cash_buffer_months=cash_buffer_months,
         average_expense_by_category=average_expense_by_category,
         average_income_by_category=average_income_by_category,
+        current_expense_by_category=current_expense_by_category,
+        current_income_by_category=current_income_by_category,
         monthly_trend=monthly_trend,
         top_spending_categories=top_spending_categories,
         focus_items=focus_items[:5],

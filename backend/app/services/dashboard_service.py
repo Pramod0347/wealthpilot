@@ -21,7 +21,7 @@ def build_dashboard_summary(db: Session) -> DashboardSummary:
 
     total_invested = sum((holding.invested_amount for holding in serialized_holdings), Decimal("0"))
     current_value = sum((holding.current_value for holding in serialized_holdings), Decimal("0"))
-    holdings_count = len(serialized_holdings)
+    holdings_count = sum(1 for holding in holdings if holding.quantity > 0)
     total_pnl = current_value - total_invested
     total_return_pct = Decimal("0")
     if total_invested != 0:

@@ -8,6 +8,7 @@ import {
   getCashflowMonths,
   getCashflowSummary,
   getGoalEMIPayments,
+  getHomeContributions,
   getCreditCardBillHistory,
   getCreditCardBills,
   getCreditCards,
@@ -209,6 +210,13 @@ export function useGoalEMIPaymentsQuery(goalId: number | null) {
   })
 }
 
+export function useHomeContributionsQuery() {
+  return useQuery({
+    queryKey: ['homeContributions'],
+    queryFn: ({ signal }) => getHomeContributions(signal),
+  })
+}
+
 export function useMonthlyCashflowReportQuery(filters?: { fromMonth?: string; toMonth?: string }) {
   return useQuery({
     queryKey: queryKeys.reports('monthly-cashflow', filters),
@@ -243,4 +251,3 @@ export function useTaxYearsQuery() {
     queryFn: ({ signal }) => getTaxYears(signal),
   })
 }
-

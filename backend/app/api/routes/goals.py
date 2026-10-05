@@ -178,20 +178,26 @@ def create_goal_emi_payment(goal_id: int, payload: EMIPaymentCreate, db: Session
     if len(payload.payment_month) != 7 or payload.payment_month[4] != '-':
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="payment_month must be in YYYY-MM format.")
 
-    payment = EMIPayment(
-        goal_id=goal_id,
-        payment_month=payload.payment_month,
-        payment_date=payload.payment_date,
-        principal_amount=principal_amount,
-        interest_amount=interest_amount,
-        gst_amount=gst_amount,
-        processing_fee=processing_fee,
-        processing_fee_gst=processing_fee_gst,
-        amount=total_amount,
-        notes=payload.notes,
+    payment = db.scalar(
+        select(EMIPayment).where(
+            EMIPayment.goal_id == goal_id,
+            EMIPayment.payment_month == payload.payment_month,
+        )
     )
-    goal.current_amount = (goal.current_amount or Decimal("0")) + total_amount
-    db.add(payment)
+    previous_amount = payment.amount if payment is not None else Decimal("0")
+    if payment is None:
+        payment = EMIPayment(goal_id=goal_id, payment_month=payload.payment_month)
+        db.add(payment)
+
+    payment.payment_date = payload.payment_date
+    payment.principal_amount = principal_amount
+    payment.interest_amount = interest_amount
+    payment.gst_amount = gst_amount
+    payment.processing_fee = processing_fee
+    payment.processing_fee_gst = processing_fee_gst
+    payment.amount = total_amount
+    payment.notes = payload.notes
+    goal.current_amount = (goal.current_amount or Decimal("0")) - previous_amount + total_amount
     db.commit()
     db.refresh(payment)
     return payment

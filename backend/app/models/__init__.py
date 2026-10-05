@@ -7,6 +7,7 @@ from app.models.emi_payment import EMIPayment
 from app.models.fixed_savings_account import FixedSavingsAccount
 from app.models.financial_goal import FinancialGoal
 from app.models.holding import Holding
+from app.models.home_contribution import HomeContribution
 from app.models.investment_transaction import InvestmentTransaction
 from app.models.portfolio_snapshot import PortfolioSnapshot
 from app.models.scheduled_payment import ScheduledPayment

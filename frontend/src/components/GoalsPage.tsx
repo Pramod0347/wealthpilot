@@ -213,8 +213,8 @@ function priorityMeta(priority: FinancialGoal['priority']) {
 
 function SectionCard({ title, children, className = '' }: { title?: string; children: ReactNode; className?: string }) {
   return (
-    <section className={['rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700/50 dark:bg-slate-900/80', className].join(' ')}>
-      {title ? <div className="border-b border-slate-200 px-5 py-4 text-sm font-semibold text-slate-900 dark:border-slate-700/50 dark:text-white">{title}</div> : null}
+    <section className={['overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700/50 dark:bg-slate-900/80', className].join(' ')}>
+      {title ? <div className="border-b border-slate-200 px-5 py-3.5 text-sm font-semibold text-slate-900 dark:border-slate-700/50 dark:text-white">{title}</div> : null}
       {children}
     </section>
   )
@@ -232,10 +232,10 @@ function FormField({ label, error, children }: { label: string; error?: string; 
 
 function SummaryMetric({ label, value, meta }: { label: string; value: ReactNode; meta: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
-      <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">{label}</div>
-      <div className="mt-2 text-lg font-bold text-slate-900 dark:text-white">{value}</div>
-      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{meta}</div>
+    <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3.5 dark:border-slate-700/60 dark:bg-slate-950/45">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</div>
+      <div className="mt-2 truncate text-lg font-bold tabular-nums text-slate-900 dark:text-slate-100">{value}</div>
+      <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{meta}</div>
     </div>
   )
 }
@@ -620,7 +620,7 @@ export default function GoalsPage() {
   }
 
   return (
-    <div className="min-w-0 w-full space-y-6">
+    <div className="min-w-0 w-full space-y-5">
       {statusMessage ? (
         <div
           className={[
@@ -639,10 +639,10 @@ export default function GoalsPage() {
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
         <div>
-          <div className="text-sm font-semibold text-slate-900 dark:text-white">Financial Goals</div>
-          <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">Track active goals and one-time achievements without mixing them into monthly cashflow.</div>
+          <div className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">Goals</div>
+          <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">Track your targets, progress, and milestones.</div>
         </div>
         <div className="flex flex-wrap gap-3">
           <button
@@ -664,30 +664,32 @@ export default function GoalsPage() {
         </div>
       </div>
 
-      <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800/50">
+      <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700/70 dark:bg-slate-900/70">
         <button
           type="button"
           onClick={() => setActiveTab('active')}
           className={[
-            'rounded-xl px-4 py-2 text-sm font-semibold transition-colors',
-            activeTab === 'active' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400',
+            'rounded-lg px-4 py-2 text-sm font-semibold transition-colors',
+            activeTab === 'active' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-white' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200',
           ].join(' ')}
         >
           Active Goals
+          <span className="ml-2 text-xs tabular-nums opacity-60">{activeGoals.length}</span>
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('achieved')}
           className={[
-            'rounded-xl px-4 py-2 text-sm font-semibold transition-colors',
-            activeTab === 'achieved' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400',
+            'rounded-lg px-4 py-2 text-sm font-semibold transition-colors',
+            activeTab === 'achieved' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-white' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200',
           ].join(' ')}
         >
           Achieved
+          <span className="ml-2 text-xs tabular-nums opacity-60">{achievedGoals.length}</span>
         </button>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
         {activeTab === 'active' ? (
           <>
             <SummaryMetric label="Active Goals" value={summaryLoading ? '—' : summary?.active_goals_count ?? 0} meta="Currently tracked" />
@@ -743,88 +745,70 @@ export default function GoalsPage() {
             </div>
           </div>
         ) : activeTab === 'active' ? (
-          <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3">
             {activeGoals.map((goal) => {
               const progress = Math.max(0, Math.min(100, toNumber(goal.progress_pct)))
               const lifecycle = lifecycleStatusMeta(goal.status)
               const progressState = progressStatusMeta(goal.progress_status)
               return (
-                <article key={goal.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="truncate text-base font-semibold text-slate-900 dark:text-white">{goal.name}</div>
-                      <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">{goalTypeLabel(goal.goal_type)}</span>
-                        <span className={['rounded-full px-2.5 py-1 text-[11px] font-semibold', priorityMeta(goal.priority)].join(' ')}>{goal.priority ?? 'medium'}</span>
-                        {goal.is_emi ? <span className="rounded-full bg-sky-500/15 px-2.5 py-1 text-[11px] font-semibold text-sky-300">EMI</span> : null}
-                        {goal.status === 'paused' ? <span className={['rounded-full px-2.5 py-1 text-[11px] font-semibold', lifecycle.chip].join(' ')}>{lifecycle.label}</span> : null}
+                <article key={goal.id} className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition-colors hover:border-slate-300 dark:border-slate-700/60 dark:bg-slate-950/45 dark:hover:border-slate-600">
+                  <div className="h-1 bg-teal-400/80" />
+                  <div className="flex flex-1 flex-col p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-[15px] font-semibold text-slate-900 dark:text-white">{goal.name}</div>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                          <span className="rounded-md bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">{goalTypeLabel(goal.goal_type)}</span>
+                          <span className={['rounded-md px-2 py-1 text-[11px] font-semibold capitalize', priorityMeta(goal.priority)].join(' ')}>{goal.priority ?? 'medium'}</span>
+                          {goal.is_emi ? <span className="rounded-md bg-sky-500/10 px-2 py-1 text-[11px] font-medium text-sky-600 dark:text-sky-300">EMI</span> : null}
+                          {goal.status === 'paused' ? <span className={['rounded-md px-2 py-1 text-[11px] font-semibold', lifecycle.chip].join(' ')}>{lifecycle.label}</span> : null}
+                        </div>
+                      </div>
+                      <span className={['inline-flex shrink-0 rounded-md px-2 py-1 text-[10px] font-semibold', progressState.chip].join(' ')}>{progressState.label}</span>
+                    </div>
+
+                    <div className="mt-5 flex items-end justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Current saved</div>
+                        <div className="mt-1 truncate text-xl font-bold tabular-nums text-slate-900 dark:text-white"><PrivateValue value={formatMoney(toNumber(goal.resolved_current_amount))} mask="••••" hideColor /></div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Target</div>
+                        <div className="mt-1 font-semibold tabular-nums text-slate-700 dark:text-slate-300"><PrivateValue value={formatMoney(toNumber(goal.target_amount))} mask="••••" hideColor /></div>
                       </div>
                     </div>
-                    <span className={['inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold', progressState.chip].join(' ')}>{progressState.label}</span>
-                  </div>
 
-                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <div className="text-[11px] uppercase tracking-widest text-slate-500 dark:text-slate-500">Target</div>
-                      <div className="mt-1 font-semibold text-slate-900 dark:text-white">
-                        <PrivateValue value={formatMoney(toNumber(goal.target_amount))} mask="••••" hideColor />
+                    <div className="mt-4">
+                      <div className="flex items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+                        <span>Progress</span>
+                        <span className="font-semibold tabular-nums text-slate-700 dark:text-slate-300"><PrivateValue value={formatPct(progress)} mask="••••" hideColor /></span>
+                      </div>
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                        <div className="h-full rounded-full bg-teal-400 transition-[width] duration-500" style={{ width: `${progress}%` }} />
                       </div>
                     </div>
-                    <div>
-                      <div className="text-[11px] uppercase tracking-widest text-slate-500 dark:text-slate-500">Current</div>
-                      <div className="mt-1 font-semibold text-slate-900 dark:text-white">
-                        <PrivateValue value={formatMoney(toNumber(goal.resolved_current_amount))} mask="••••" hideColor />
-                      </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-3 border-t border-slate-200 pt-3 text-sm dark:border-slate-800">
+                      <div className="min-w-0"><div className="text-[11px] text-slate-500 dark:text-slate-400">Shortfall</div><div className="mt-1 truncate font-medium text-slate-900 dark:text-slate-200"><PrivateValue value={formatMoney(toNumber(goal.shortfall_amount))} mask="••••" hideColor /></div></div>
+                      <div className="min-w-0"><div className="text-[11px] text-slate-500 dark:text-slate-400">Monthly saving</div><div className="mt-1 truncate font-medium text-slate-900 dark:text-slate-200"><PrivateValue value={goal.required_monthly_saving == null ? '—' : formatMoney(toNumber(goal.required_monthly_saving))} mask="••••" hideColor /></div></div>
+                      <div className="min-w-0"><div className="text-[11px] text-slate-500 dark:text-slate-400">Target date</div><div className="mt-1 truncate font-medium text-slate-900 dark:text-slate-200">{formatDate(goal.target_date)}</div></div>
+                      <div className="min-w-0"><div className="text-[11px] text-slate-500 dark:text-slate-400">Source</div><div className="mt-1 truncate font-medium text-slate-900 dark:text-slate-200">{linkedSourcesSummary(goal)}</div></div>
                     </div>
+                    {goal.notes ? <div className="mt-3 line-clamp-2 text-xs leading-5 text-slate-500 dark:text-slate-400">{goal.notes}</div> : null}
                   </div>
 
-                  <div className="mt-4">
-                    <div className="flex items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
-                      <span>Progress</span>
-                      <span><PrivateValue value={formatPct(progress)} mask="••••" hideColor /></span>
-                    </div>
-                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
-                      <div className="h-full rounded-full bg-teal-500" style={{ width: `${progress}%` }} />
-                    </div>
-                  </div>
-
-                  <div className="mt-4 space-y-2 text-sm">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-slate-500 dark:text-slate-400">Shortfall</span>
-                      <span className="font-medium text-slate-900 dark:text-white">
-                        <PrivateValue value={formatMoney(toNumber(goal.shortfall_amount))} mask="••••" hideColor />
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-slate-500 dark:text-slate-400">Required / month</span>
-                      <span className="font-medium text-slate-900 dark:text-white">
-                        <PrivateValue value={goal.required_monthly_saving == null ? '—' : formatMoney(toNumber(goal.required_monthly_saving))} mask="••••" hideColor />
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-slate-500 dark:text-slate-400">Target date</span>
-                      <span className="font-medium text-slate-900 dark:text-white">{formatDate(goal.target_date)}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-slate-500 dark:text-slate-400">Source</span>
-                      <span className="font-medium text-slate-900 dark:text-white">{linkedSourcesSummary(goal)}</span>
-                    </div>
-                  </div>
-
-                  {goal.notes ? <div className="mt-4 text-sm text-slate-500 dark:text-slate-400">{goal.notes}</div> : null}
-
-                  <div className="mt-5 flex items-center gap-2">
+                  <div className="mt-auto grid grid-cols-2 gap-2 border-t border-slate-200 bg-slate-50/70 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/45">
                     <button
                       type="button"
                       onClick={() => openMarkAchievedModal(goal)}
-                      className={['h-10 flex-1 justify-center', primaryButtonClass].join(' ')}
+                      className={['col-span-2 h-10 w-full justify-center whitespace-nowrap px-3', primaryButtonClass].join(' ')}
                     >
                       Mark Achieved
                     </button>
                     <button
                       type="button"
                       onClick={() => openEditModal(goal)}
-                      className={['h-10 flex-1 justify-center', secondaryButtonClass].join(' ')}
+                      className={['h-10 w-full min-w-0 justify-center whitespace-nowrap px-2', secondaryButtonClass].join(' ')}
                     >
                       <Icon name="edit" className="h-4 w-4" />
                       Edit
@@ -832,7 +816,7 @@ export default function GoalsPage() {
                     <button
                       type="button"
                       onClick={() => void handleDelete(goal)}
-                      className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 text-sm font-semibold text-rose-300 transition-colors hover:bg-rose-500/15"
+                      className="inline-flex h-10 w-full min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-rose-500/20 bg-rose-500/10 px-2 text-sm font-semibold text-rose-300 transition-colors hover:bg-rose-500/15"
                     >
                       <Icon name="remove" className="h-4 w-4" />
                       Delete
@@ -843,55 +827,44 @@ export default function GoalsPage() {
             })}
           </div>
         ) : (
-          <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3">
             {achievedGoals.map((goal) => {
               const variance = toNumber(goal.variance_amount)
               const isSaved = variance <= 0
               return (
-                <article key={goal.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40">
-                  <div className="flex items-start justify-between gap-3">
+                <article key={goal.id} className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition-colors hover:border-slate-300 dark:border-slate-700/60 dark:bg-slate-950/45 dark:hover:border-slate-600">
+                  <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-4 dark:border-slate-800">
                     <div className="min-w-0">
-                      <div className="truncate text-base font-semibold text-slate-900 dark:text-white">{goal.name}</div>
-                      <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">{achievementTypeLabel(goal.achievement_type)}</span>
-                        {goal.is_big_purchase ? <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-300">Big Purchase</span> : null}
+                      <div className="truncate text-[15px] font-semibold text-slate-900 dark:text-white">{goal.name}</div>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <span className="rounded-md bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">{achievementTypeLabel(goal.achievement_type)}</span>
+                        {goal.is_big_purchase ? <span className="rounded-md bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-600 dark:text-amber-300">Big purchase</span> : null}
                       </div>
                     </div>
-                    <span className={['inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold', lifecycleStatusMeta(goal.status).chip].join(' ')}>Achieved</span>
+                    <span className={['inline-flex shrink-0 rounded-md px-2 py-1 text-[10px] font-semibold', lifecycleStatusMeta(goal.status).chip].join(' ')}>Achieved</span>
                   </div>
 
-                  <div className="mt-4 space-y-2 text-sm">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-slate-500 dark:text-slate-400">Paid</span>
-                      <span className="font-medium text-slate-900 dark:text-white"><PrivateValue value={formatMoney(toNumber(goal.final_amount))} mask="••••" hideColor /></span>
+                  <div className="flex-1 px-4 py-4">
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Paid</div>
+                    <div className="mt-1 text-2xl font-bold tabular-nums text-slate-900 dark:text-white"><PrivateValue value={formatMoney(toNumber(goal.final_amount))} mask="••••" hideColor /></div>
+                    <div className={['mt-1 text-xs font-medium', isSaved ? 'text-emerald-600 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-300'].join(' ')}>
+                      {isSaved ? 'Saved ' : 'Overspent '}<PrivateValue value={formatMoney(Math.abs(variance))} mask="••••" hideColor />
                     </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-slate-500 dark:text-slate-400">Date</span>
-                      <span className="font-medium text-slate-900 dark:text-white">{formatDate(goal.achieved_date)}</span>
+
+                    <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-3 border-t border-slate-200 pt-3 text-sm dark:border-slate-800">
+                      <div className="min-w-0"><div className="text-[11px] text-slate-500 dark:text-slate-400">Date</div><div className="mt-1 truncate font-medium text-slate-900 dark:text-slate-200">{formatDate(goal.achieved_date)}</div></div>
+                      <div className="min-w-0"><div className="text-[11px] text-slate-500 dark:text-slate-400">Payment source</div><div className="mt-1 truncate font-medium text-slate-900 dark:text-slate-200">{paymentSourceLabel(goal.payment_source)}</div></div>
+                      <div className="min-w-0"><div className="text-[11px] text-slate-500 dark:text-slate-400">Planned</div><div className="mt-1 truncate font-medium text-slate-900 dark:text-slate-200"><PrivateValue value={formatMoney(toNumber(goal.target_amount))} mask="••••" hideColor /></div></div>
+                      <div className="min-w-0"><div className="text-[11px] text-slate-500 dark:text-slate-400">Type</div><div className="mt-1 truncate font-medium text-slate-900 dark:text-slate-200">{achievementTypeLabel(goal.achievement_type)}</div></div>
                     </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-slate-500 dark:text-slate-400">Source</span>
-                      <span className="font-medium text-slate-900 dark:text-white">{paymentSourceLabel(goal.payment_source)}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-slate-500 dark:text-slate-400">Planned</span>
-                      <span className="font-medium text-slate-900 dark:text-white"><PrivateValue value={formatMoney(toNumber(goal.target_amount))} mask="••••" hideColor /></span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-slate-500 dark:text-slate-400">{isSaved ? 'Saved' : 'Overspent'}</span>
-                      <span className={['font-medium', isSaved ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'].join(' ')}>
-                        <PrivateValue value={formatMoney(Math.abs(variance))} mask="••••" hideColor />
-                      </span>
-                    </div>
+                    {goal.purchase_notes || goal.notes ? <div className="mt-3 line-clamp-2 text-xs leading-5 text-slate-500 dark:text-slate-400">{goal.purchase_notes ?? goal.notes}</div> : null}
                   </div>
 
-                  {goal.purchase_notes || goal.notes ? <div className="mt-4 text-sm text-slate-500 dark:text-slate-400">{goal.purchase_notes ?? goal.notes}</div> : null}
-
-                  <div className="mt-5 flex items-center gap-2">
+                  <div className="mt-auto grid grid-cols-2 gap-2 border-t border-slate-200 bg-slate-50/70 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/45">
                     <button
                       type="button"
                       onClick={() => openEditModal(goal)}
-                      className={['h-10 flex-1 justify-center', secondaryButtonClass].join(' ')}
+                      className={['h-10 w-full min-w-0 justify-center whitespace-nowrap px-2', secondaryButtonClass].join(' ')}
                     >
                       <Icon name="edit" className="h-4 w-4" />
                       Edit
@@ -899,7 +872,7 @@ export default function GoalsPage() {
                     <button
                       type="button"
                       onClick={() => void handleDelete(goal)}
-                      className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 text-sm font-semibold text-rose-300 transition-colors hover:bg-rose-500/15"
+                      className="inline-flex h-10 w-full min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-rose-500/20 bg-rose-500/10 px-2 text-sm font-semibold text-rose-300 transition-colors hover:bg-rose-500/15"
                     >
                       <Icon name="remove" className="h-4 w-4" />
                       Delete

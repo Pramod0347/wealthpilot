@@ -53,6 +53,8 @@ class CashflowAnalyticsSummary(BaseModel):
     cash_buffer_months: Decimal | None = None
     average_expense_by_category: list[AnalyticsCategoryAverageItem] = Field(default_factory=list)
     average_income_by_category: list[AnalyticsCategoryAverageItem] = Field(default_factory=list)
+    current_expense_by_category: list[AnalyticsCategoryAverageItem] = Field(default_factory=list)
+    current_income_by_category: list[AnalyticsCategoryAverageItem] = Field(default_factory=list)
     monthly_trend: list[AnalyticsMonthlyTrendItem] = Field(default_factory=list)
     top_spending_categories: list[AnalyticsTopCategoryItem] = Field(default_factory=list)
     focus_items: list[AnalyticsFocusItem] = Field(default_factory=list)

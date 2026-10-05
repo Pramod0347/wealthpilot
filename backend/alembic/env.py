@@ -21,6 +21,7 @@ from app.models.deposit import Deposit  # noqa: F401
 from app.models.financial_goal import FinancialGoal  # noqa: F401
 from app.models.fixed_savings_account import FixedSavingsAccount  # noqa: F401
 from app.models.holding import Holding  # noqa: F401
+from app.models.home_contribution import HomeContribution  # noqa: F401
 from app.models.investment_transaction import InvestmentTransaction  # noqa: F401
 from app.models.portfolio_snapshot import PortfolioSnapshot  # noqa: F401
 from app.models.tax_year import TaxYear  # noqa: F401

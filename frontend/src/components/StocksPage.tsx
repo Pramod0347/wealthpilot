@@ -590,6 +590,7 @@ export default function StocksPage() {
   const portfolioPerformanceQuery = usePortfolioPerformanceQuery(activeRange)
   const transactionsQuery = useInvestmentTransactionsQuery(undefined)
   const holdings = (holdingsQuery.data ?? []) as ApiHolding[]
+  const transactions = transactionsQuery.data ?? []
   const analytics = (analyticsQuery.data ?? null) as ApiHoldingsAnalytics | null
   const holdingsLoading = holdingsQuery.isLoading
   const analyticsLoading = analyticsQuery.isLoading
@@ -625,17 +626,20 @@ export default function StocksPage() {
   }, [isHoldingDrawerMounted])
 
   const holdingGroups = useMemo(() => buildHoldingGroups(holdings), [holdings])
+  const openHoldings = useMemo(() => holdings.filter((holding) => toNumber(holding.quantity) > 0), [holdings])
   const liveUsdInrRate = useMemo(() => {
     const firstUsHolding = holdings.find((holding) => holding.country === 'US')
     return firstUsHolding ? toNumber(firstUsHolding.effective_fx_rate_to_inr) : 0
   }, [holdings])
 
   const summaryCards = useMemo(() => {
+    const pocketProfit = transactions.reduce((total, row) => total + toNumber(row.realized_pnl), 0)
     if (analyticsLoading) {
       return [
         { label: 'Total Invested', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-200 text-slate-500' },
         { label: 'Current Value', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-200 text-slate-500' },
         { label: 'Total P&L', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-200 text-slate-500' },
+        { label: 'Pocket Profit', value: 'Loading...', meta: 'Fetching realized profit', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-200 text-slate-500' },
         { label: 'Return %', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-200 text-slate-500' },
         { label: 'Indian Equity', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-200 text-slate-500' },
         { label: 'US Market', value: 'Loading...', meta: 'Fetching analytics', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-200 text-slate-500' },
@@ -649,6 +653,7 @@ export default function StocksPage() {
         { label: 'Total Invested', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500' },
         { label: 'Current Value', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500' },
         { label: 'Total P&L', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500' },
+        { label: 'Pocket Profit', value: formatINRShort(pocketProfit), meta: 'Booked from sells', color: privacyMode ? 'text-slate-400 dark:text-slate-400' : getTrendClass(pocketProfit), chipClass: 'bg-teal-500/15 text-teal-300' },
         { label: 'Return %', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500' },
         { label: 'Indian Equity', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500' },
         { label: 'US Market', value: '—', meta: analyticsError ?? 'No data available', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500' },
@@ -663,19 +668,20 @@ export default function StocksPage() {
     const returnPct = toNumber(analytics.total_return_pct)
 
     return [
-      { label: 'Total Invested', value: formatINRShort(totalInvested), meta: `${holdings.length} positions`, color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500' },
+      { label: 'Total Invested', value: formatINRShort(totalInvested), meta: `${openHoldings.length} positions`, color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500' },
       { label: 'Current Value', value: formatINRShort(currentValue), meta: 'From holdings', color: 'text-slate-900 dark:text-white', chipClass: 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500' },
       { label: 'Total P&L', value: `${pnl > 0 ? '+' : pnl < 0 ? '-' : ''}${formatINRShort(Math.abs(pnl)).replace('₹', '')}`, meta: 'Overall profit / loss', color: privacyMode ? 'text-slate-400 dark:text-slate-400' : getTrendClass(pnl), chipClass: 'bg-emerald-500/15 text-emerald-300' },
+      { label: 'Pocket Profit', value: `${pocketProfit > 0 ? '+' : pocketProfit < 0 ? '-' : ''}${formatINRShort(Math.abs(pocketProfit)).replace('₹', '')}`, meta: 'Booked from sells', color: privacyMode ? 'text-slate-400 dark:text-slate-400' : getTrendClass(pocketProfit), chipClass: 'bg-teal-500/15 text-teal-300' },
       { label: 'Return %', value: formatSignedPct(returnPct), meta: 'Based on invested amount', color: privacyMode ? 'text-slate-400 dark:text-slate-400' : getTrendClass(returnPct), chipClass: 'bg-emerald-500/15 text-emerald-300' },
       { label: 'Indian Equity', value: formatINRShort(holdingGroups.indianEquity), meta: 'Indian stocks and gold exposure', color: 'text-teal-300 dark:text-teal-300', chipClass: 'bg-teal-500/15 text-teal-300' },
       { label: 'US Market', value: formatINRShort(holdingGroups.usEquity), meta: liveUsdInrRate > 0 ? (privacyMode ? 'Live USD/INR ••••' : `Live USD/INR ${liveUsdInrRate.toFixed(2)}`) : 'US stocks and ETFs', color: 'text-sky-300 dark:text-sky-300', chipClass: 'bg-sky-500/15 text-sky-300' },
       { label: 'ETFs', value: formatINRShort(holdingGroups.etfsGold), meta: 'India ETF exposure', color: 'text-amber-300 dark:text-amber-300', chipClass: 'bg-amber-500/15 text-amber-300' },
       { label: 'Mutual Funds', value: formatINRShort(holdingGroups.mutualFunds), meta: 'Units valued in INR', color: 'text-violet-300 dark:text-violet-300', chipClass: 'bg-violet-500/15 text-violet-300' },
     ]
-  }, [analytics, analyticsError, analyticsLoading, holdingGroups.indianEquity, holdingGroups.mutualFunds, holdingGroups.etfsGold, holdingGroups.usEquity, holdings.length, liveUsdInrRate, privacyMode])
+  }, [analytics, analyticsError, analyticsLoading, holdingGroups.indianEquity, holdingGroups.mutualFunds, holdingGroups.etfsGold, holdingGroups.usEquity, openHoldings.length, liveUsdInrRate, privacyMode, transactions])
 
   const filterChips = useMemo(() => {
-    const counts = holdings.reduce<Record<string, number>>(
+    const counts = openHoldings.reduce<Record<string, number>>(
       (acc, holding) => {
         const key = getInvestmentClass(holding)
         acc.all += 1
@@ -693,16 +699,16 @@ export default function StocksPage() {
       { value: 'gold', label: 'Gold', count: counts.gold ?? 0 },
       { value: 'mutual_fund', label: 'Mutual Funds', count: counts.mutual_fund ?? 0 },
     ]
-  }, [holdings])
+  }, [openHoldings])
 
   const sectorOptions = useMemo(() => {
-    const sectors = Array.from(new Set(holdings.map((holding) => holding.sector).filter(Boolean) as string[]))
+    const sectors = Array.from(new Set(openHoldings.map((holding) => holding.sector).filter(Boolean) as string[]))
     return ['all', ...sectors]
-  }, [holdings])
+  }, [openHoldings])
 
   const filteredHoldings = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
-    return holdings.filter((holding) => {
+    return openHoldings.filter((holding) => {
       const matchesSearch =
         !query ||
         holding.symbol.toLowerCase().includes(query) ||
@@ -714,7 +720,7 @@ export default function StocksPage() {
       const matchesSector = sectorFilter === 'all' || (holding.sector ?? 'Uncategorized') === sectorFilter
       return matchesSearch && matchesAssetType && matchesCountry && matchesCurrency && matchesSector
     })
-  }, [assetTypeFilter, countryFilter, currencyFilter, holdings, searchTerm, sectorFilter])
+  }, [assetTypeFilter, countryFilter, currencyFilter, openHoldings, searchTerm, sectorFilter])
 
   const allocationData = useMemo(() => {
     const investmentBuckets = [
@@ -752,11 +758,50 @@ export default function StocksPage() {
   }, [holdings])
 
   const sortedHoldings = useMemo(() => sortHoldings(filteredHoldings, sortOption), [filteredHoldings, sortOption])
+
+  const exitedPositions = useMemo(() => {
+    const ledgers = new Map<number, InvestmentTransaction[]>()
+    for (const row of transactions) {
+      const bucket = ledgers.get(row.investment_id)
+      if (bucket) bucket.push(row)
+      else ledgers.set(row.investment_id, [row])
+    }
+    return holdings
+      .filter((holding) => toNumber(holding.quantity) === 0)
+      .map((holding) => {
+        const rows = ledgers.get(holding.id) ?? []
+        const sells = rows.filter((row) => row.transaction_type === 'SELL')
+        if (sells.length === 0) return null
+        const buys = rows.filter((row) => row.transaction_type === 'BUY')
+        const invested = buys.reduce((total, row) => total + toNumber(row.total), 0)
+        const proceeds = sells.reduce((total, row) => total + toNumber(row.total), 0)
+        const profit = sells.reduce((total, row) => total + toNumber(row.realized_pnl), 0)
+        const quantitySold = sells.reduce((total, row) => total + toNumber(row.quantity), 0)
+        const dates = rows.map((row) => row.transaction_date).sort()
+        return {
+          holding,
+          isIpo: rows.some((row) => row.transaction_mode === 'IPO'),
+          invested,
+          proceeds,
+          profit,
+          quantitySold,
+          returnPct: invested > 0 ? (profit / invested) * 100 : 0,
+          boughtOn: dates[0] ?? '',
+          soldOn: dates[dates.length - 1] ?? '',
+        }
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+      .sort((a, b) => b.soldOn.localeCompare(a.soldOn))
+  }, [holdings, transactions])
+
+  const exitedBookedTotal = useMemo(
+    () => exitedPositions.reduce((total, entry) => total + entry.profit, 0),
+    [exitedPositions],
+  )
   const selectedHolding = useMemo(
     () => holdings.find((holding) => holding.id === selectedHoldingId) ?? null,
     [holdings, selectedHoldingId],
   )
-  const transactions = transactionsQuery.data ?? []
   const selectedTransactions = selectedHolding ? transactions.filter((row) => row.investment_id === selectedHolding.id) : []
 
   async function refreshData() {
@@ -1341,8 +1386,8 @@ export default function StocksPage() {
 
         {pageTab === 'transactions' ? (
           <SectionCard className="mb-4 overflow-hidden">
-            <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 p-4 dark:border-slate-800"><input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search investment or notes" className="h-10 min-w-56 flex-1 rounded-lg border border-slate-200 bg-transparent px-3 text-sm dark:border-slate-700" /><select value={assetTypeFilter} onChange={(event) => setAssetTypeFilter(event.target.value)} className="h-10 rounded-lg border border-slate-200 bg-transparent px-3 text-sm dark:border-slate-700"><option value="all">All</option><option value="indian_stock">Stocks</option><option value="mutual_fund">Mutual Funds</option><option value="etf">ETF</option><option value="gold">Gold ETF</option><option value="us_stock">US Stocks</option></select><input aria-label="From date" type="date" value={transactionFrom} onChange={(event) => setTransactionFrom(event.target.value)} className="h-10 rounded-lg border border-slate-200 bg-transparent px-3 text-sm dark:border-slate-700" /><input aria-label="To date" type="date" value={transactionTo} onChange={(event) => setTransactionTo(event.target.value)} className="h-10 rounded-lg border border-slate-200 bg-transparent px-3 text-sm dark:border-slate-700" /><button type="button" onClick={() => { const header = 'Date,Investment,Type,Mode,Quantity,Price,Fees,Taxes,Amount,Notes'; const rows = transactions.map((row) => [row.transaction_date, row.investment_name, row.transaction_type, row.transaction_mode, row.quantity, row.price_per_unit, row.fees, row.taxes, row.total, JSON.stringify(row.notes ?? '')].join(',')); const blob = new Blob([[header, ...rows].join('\n')], { type: 'text/csv' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'investment-transactions.csv'; link.click(); URL.revokeObjectURL(link.href) }} className={secondaryButtonClass}>Export CSV</button></div>
-            <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-slate-50 text-left text-xs uppercase text-slate-500 dark:bg-slate-800/50"><tr>{['Date','Investment','Type','Mode','Quantity','Price','Fees','Taxes','Amount','Notes'].map((label) => <th key={label} className="px-3 py-3">{label}</th>)}</tr></thead><tbody>{transactions.filter((row) => { const holding = holdings.find((item) => item.id === row.investment_id); const matchesType = assetTypeFilter === 'all' || (holding && getInvestmentClass(holding) === assetTypeFilter); const matchesSearch = !searchTerm || `${row.investment_name} ${row.investment_symbol} ${row.notes ?? ''}`.toLowerCase().includes(searchTerm.toLowerCase()); return matchesType && matchesSearch && (!transactionFrom || row.transaction_date >= transactionFrom) && (!transactionTo || row.transaction_date <= transactionTo) }).map((row) => <tr key={row.id} className="border-t border-slate-100 dark:border-slate-800"><td className="px-3 py-3">{row.transaction_date}</td><td className="px-3 py-3 font-semibold">{row.investment_symbol}</td><td className={row.transaction_type === 'BUY' ? 'px-3 py-3 text-emerald-500' : 'px-3 py-3 text-rose-500'}>{row.transaction_type}</td><td className="px-3 py-3">{row.transaction_mode}</td><td className="px-3 py-3">{row.quantity}</td><td className="px-3 py-3">{row.price_per_unit}</td><td className="px-3 py-3">{row.fees}</td><td className="px-3 py-3">{row.taxes}</td><td className="px-3 py-3 font-semibold">{formatINR(toNumber(row.total))}</td><td className="max-w-48 truncate px-3 py-3">{row.notes}</td></tr>)}</tbody></table></div>
+            <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 p-4 dark:border-slate-800"><input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search investment or notes" className="h-10 min-w-56 flex-1 rounded-lg border border-slate-200 bg-transparent px-3 text-sm dark:border-slate-700" /><select value={assetTypeFilter} onChange={(event) => setAssetTypeFilter(event.target.value)} className="h-10 rounded-lg border border-slate-200 bg-transparent px-3 text-sm dark:border-slate-700"><option value="all">All</option><option value="indian_stock">Stocks</option><option value="mutual_fund">Mutual Funds</option><option value="etf">ETF</option><option value="gold">Gold ETF</option><option value="us_stock">US Stocks</option></select><input aria-label="From date" type="date" value={transactionFrom} onChange={(event) => setTransactionFrom(event.target.value)} className="h-10 rounded-lg border border-slate-200 bg-transparent px-3 text-sm dark:border-slate-700" /><input aria-label="To date" type="date" value={transactionTo} onChange={(event) => setTransactionTo(event.target.value)} className="h-10 rounded-lg border border-slate-200 bg-transparent px-3 text-sm dark:border-slate-700" /><button type="button" onClick={() => { const header = 'Date,Investment,Type,Mode,Quantity,Price,Fees,Taxes,Amount,Realized P&L,Notes'; const rows = transactions.map((row) => [row.transaction_date, row.investment_name, row.transaction_type, row.transaction_mode, row.quantity, row.price_per_unit, row.fees, row.taxes, row.total, row.realized_pnl, JSON.stringify(row.notes ?? '')].join(',')); const blob = new Blob([[header, ...rows].join('\n')], { type: 'text/csv' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'investment-transactions.csv'; link.click(); URL.revokeObjectURL(link.href) }} className={secondaryButtonClass}>Export CSV</button></div>
+            <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-slate-50 text-left text-xs uppercase text-slate-500 dark:bg-slate-800/50"><tr>{['Date','Investment','Type','Mode','Quantity','Price','Fees','Taxes','Amount','Realized P&L','Notes'].map((label) => <th key={label} className="px-3 py-3">{label}</th>)}</tr></thead><tbody>{transactions.filter((row) => { const holding = holdings.find((item) => item.id === row.investment_id); const matchesType = assetTypeFilter === 'all' || (holding && getInvestmentClass(holding) === assetTypeFilter); const matchesSearch = !searchTerm || `${row.investment_name} ${row.investment_symbol} ${row.notes ?? ''}`.toLowerCase().includes(searchTerm.toLowerCase()); return matchesType && matchesSearch && (!transactionFrom || row.transaction_date >= transactionFrom) && (!transactionTo || row.transaction_date <= transactionTo) }).map((row) => <tr key={row.id} className="border-t border-slate-100 dark:border-slate-800"><td className="px-3 py-3">{row.transaction_date}</td><td className="px-3 py-3 font-semibold">{row.investment_symbol}</td><td className={row.transaction_type === 'BUY' ? 'px-3 py-3 text-emerald-500' : 'px-3 py-3 text-rose-500'}>{row.transaction_type}</td><td className="px-3 py-3">{row.transaction_mode}</td><td className="px-3 py-3">{row.quantity}</td><td className="px-3 py-3">{row.price_per_unit}</td><td className="px-3 py-3">{row.fees}</td><td className="px-3 py-3">{row.taxes}</td><td className="px-3 py-3 font-semibold">{formatINR(toNumber(row.total))}</td><td className={['px-3 py-3 font-semibold', privacyMode ? 'text-slate-400' : getTrendClass(toNumber(row.realized_pnl))].join(' ')}>{row.transaction_type === 'SELL' ? <PrivateValue value={formatINR(toNumber(row.realized_pnl))} mask="••••" hideColor /> : '—'}</td><td className="max-w-48 truncate px-3 py-3">{row.notes}</td></tr>)}</tbody></table></div>
           </SectionCard>
         ) : null}
 
@@ -1636,6 +1681,67 @@ export default function StocksPage() {
             </div>
           )}
         </SectionCard>
+
+        <SectionCard className="mt-4 px-4 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <div>
+              <div className="t-micro text-slate-500 dark:text-slate-500">Bought &amp; Sold</div>
+              <div className="mt-1 t-meta text-slate-500 dark:text-slate-400">Closed positions and the profit you booked</div>
+            </div>
+            {exitedPositions.length > 0 ? (
+              <div className="text-right">
+                <div className="t-micro text-slate-500 dark:text-slate-500">Total Booked</div>
+                <div className={['text-lg font-bold leading-tight', privacyMode ? 'text-slate-400' : getTrendClass(exitedBookedTotal)].join(' ')}>
+                  <PrivateValue value={`${exitedBookedTotal >= 0 ? '+' : '-'}${formatINR(Math.abs(exitedBookedTotal))}`} mask="••••" hideColor />
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          {exitedPositions.length === 0 ? (
+            <div className="mt-5 rounded-xl border border-dashed border-slate-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-800/50">
+              <div className="mx-auto grid h-12 w-12 place-items-center rounded-lg bg-slate-100 text-accent-400 dark:bg-slate-700">
+                <Icon name="empty" className="h-5 w-5" />
+              </div>
+              <div className="mt-4 text-sm font-semibold text-slate-900 dark:text-slate-100">No closed positions yet</div>
+              <div className="mt-2 t-body text-slate-600 dark:text-slate-300">Sell an entire holding and it moves here with the profit you booked.</div>
+            </div>
+          ) : (
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {exitedPositions.map((entry) => (
+                <button
+                  key={entry.holding.id}
+                  type="button"
+                  onClick={() => setSelectedHoldingId(entry.holding.id)}
+                  className="rounded-2xl border border-slate-200 bg-white p-4 text-left transition-colors hover:border-slate-300 dark:border-slate-700/60 dark:bg-slate-950/35 dark:hover:border-slate-600"
+                >
+                  <div className={['text-2xl font-bold leading-none', privacyMode ? 'text-slate-400' : getTrendClass(entry.profit)].join(' ')}>
+                    <PrivateValue value={`${entry.profit >= 0 ? '+' : '-'}${formatINR(Math.abs(entry.profit))}`} mask="••••" hideColor />
+                  </div>
+                  <div className="mt-1.5 flex items-center gap-1.5 t-meta">
+                    <span className={privacyMode ? 'text-slate-400' : getTrendClass(entry.returnPct)}>
+                      <PrivateValue value={formatSignedPct(entry.returnPct)} mask="••••" hideColor />
+                    </span>
+                    <span className="text-slate-400 dark:text-slate-500">booked</span>
+                  </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{entry.holding.symbol}</span>
+                    {entry.isIpo ? (
+                      <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-violet-400">IPO</span>
+                    ) : null}
+                  </div>
+                  <div className="truncate t-meta text-slate-500 dark:text-slate-400">{entry.holding.company_name}</div>
+                  <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-slate-100 pt-3 t-meta text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                    <span>Invested <PrivateValue value={formatINR(entry.invested)} mask="••••" hideColor /></span>
+                    <span>Returned <PrivateValue value={formatINR(entry.proceeds)} mask="••••" hideColor /></span>
+                    <span>Qty {entry.quantitySold}</span>
+                    <span className="truncate">{entry.boughtOn} → {entry.soldOn}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </SectionCard>
         </> : null}
         </div>
       </div>
@@ -1812,7 +1918,7 @@ export default function StocksPage() {
                   <div className="space-y-3">{selectedTransactions.map((row) => (
                     <div key={row.id} className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
                       <div className="flex items-center justify-between"><span className={row.transaction_type === 'BUY' ? 'font-semibold text-emerald-500' : 'font-semibold text-rose-500'}>{row.transaction_type} · {row.transaction_mode}</span><span className="text-xs text-slate-500">{row.transaction_date}</span></div>
-                      <div className="mt-2 grid grid-cols-2 gap-2 text-sm text-slate-600 dark:text-slate-300"><span>Quantity: {row.quantity}</span><span>Price: {formatNativeMoney(toNumber(row.price_per_unit), selectedHolding.currency)}</span><span>Fees: {row.fees}</span><span>Taxes: {row.taxes}</span><span className="font-semibold">Total: {formatINR(toNumber(row.total))}</span></div>
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-sm text-slate-600 dark:text-slate-300"><span>Quantity: {row.quantity}</span><span>Price: {formatNativeMoney(toNumber(row.price_per_unit), selectedHolding.currency)}</span><span>Fees: {row.fees}</span><span>Taxes: {row.taxes}</span><span className="font-semibold">Total: {formatINR(toNumber(row.total))}</span>{row.transaction_type === 'SELL' ? <span className={['font-semibold', privacyMode ? 'text-slate-400' : getTrendClass(toNumber(row.realized_pnl))].join(' ')}>Pocket: <PrivateValue value={formatINR(toNumber(row.realized_pnl))} mask="••••" hideColor /></span> : null}</div>
                       {row.notes ? <div className="mt-2 text-xs text-slate-500">{row.notes}</div> : null}
                       <div className="mt-3 flex gap-2"><button type="button" onClick={() => openTransactionModal(selectedHolding, row.transaction_type, row)} className="text-xs font-semibold text-sky-500">Edit</button><button type="button" onClick={() => void handleDeleteTransaction(row)} className="text-xs font-semibold text-rose-500">Delete</button></div>
                     </div>
@@ -1949,7 +2055,7 @@ export default function StocksPage() {
             {transactionError ? <div className="mt-4 rounded-lg bg-rose-500/10 p-3 text-sm text-rose-500">{transactionError}</div> : null}
             <div className="mt-5 grid grid-cols-2 gap-4">
               <FormField label="Transaction Type"><select value={transactionForm.transaction_type} onChange={(event) => setTransactionForm((current) => ({ ...current, transaction_type: event.target.value as 'BUY' | 'SELL' }))} className="h-11 w-full rounded-lg border border-slate-300 bg-transparent px-3 dark:border-slate-700"><option>BUY</option><option>SELL</option></select></FormField>
-              <FormField label="Mode"><select value={transactionForm.transaction_mode} onChange={(event) => setTransactionForm((current) => ({ ...current, transaction_mode: event.target.value as 'One Time' | 'SIP' }))} className="h-11 w-full rounded-lg border border-slate-300 bg-transparent px-3 dark:border-slate-700"><option>One Time</option><option>SIP</option></select></FormField>
+              <FormField label="Mode"><select value={transactionForm.transaction_mode} onChange={(event) => setTransactionForm((current) => ({ ...current, transaction_mode: event.target.value as 'One Time' | 'SIP' | 'IPO' }))} className="h-11 w-full rounded-lg border border-slate-300 bg-transparent px-3 dark:border-slate-700"><option>One Time</option><option>SIP</option><option>IPO</option></select></FormField>
               <FormField label={selectedHolding.asset_type === 'mutual_fund' ? 'Units' : 'Quantity'}><input required type="number" min="0.0001" step="any" value={transactionForm.quantity} onChange={(event) => setTransactionForm((current) => ({ ...current, quantity: event.target.value }))} className="h-11 w-full rounded-lg border border-slate-300 bg-transparent px-3 dark:border-slate-700" /></FormField>
               <FormField label={selectedHolding.asset_type === 'mutual_fund' ? 'NAV' : 'Price per Unit'}><input required type="number" min="0" step="any" value={transactionForm.price_per_unit} onChange={(event) => setTransactionForm((current) => ({ ...current, price_per_unit: event.target.value }))} className="h-11 w-full rounded-lg border border-slate-300 bg-transparent px-3 dark:border-slate-700" /></FormField>
               <FormField label="Fees"><input type="number" min="0" step="any" value={transactionForm.fees} onChange={(event) => setTransactionForm((current) => ({ ...current, fees: event.target.value }))} className="h-11 w-full rounded-lg border border-slate-300 bg-transparent px-3 dark:border-slate-700" /></FormField>

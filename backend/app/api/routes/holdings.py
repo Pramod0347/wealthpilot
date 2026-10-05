@@ -150,7 +150,10 @@ def refresh_price(holding_id: int, db: Session = Depends(get_db)) -> HoldingRead
 
 @router.post("/refresh-prices", response_model=BulkPriceRefreshResponse)
 def refresh_prices(db: Session = Depends(get_db)) -> BulkPriceRefreshResponse:
-    holdings = db.scalars(select(Holding).order_by(Holding.created_at.desc())).all()
+    # Exited positions are valued from their ledger, not live prices, so skip them.
+    holdings = db.scalars(
+        select(Holding).where(Holding.quantity > 0).order_by(Holding.created_at.desc())
+    ).all()
     updated_count = 0
     failures: list[BulkPriceRefreshFailure] = []
 

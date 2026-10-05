@@ -1,29 +1,35 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react'
+import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import {
   ApiError,
   createCashflowEntry,
   createGoalEMIPayment,
+  createHomeContribution,
   deleteCashflowEntry,
   deleteGoalEMIPayment,
+  deleteHomeContribution,
   updateFinancialGoal,
   type EMIPayment,
+  type HomeContribution,
   type FinancialGoal,
   type CashflowEntry,
   type CashflowEntryPayload,
   type CashflowSummary,
+  type AnalyticsSummary,
   updateCashflowEntry,
 } from '../lib/api'
 import { formatINR, formatINRShort, formatPct, getTrendClass } from '../lib/format'
 import { usePrivacyMode } from '../context/PrivacyContext'
 import { Icon } from './Icon'
 import PrivateValue from './ui/PrivateValue'
-import { useCashflowEntriesQuery, useCashflowMonthsQuery, useCashflowSummaryQuery, useFinancialGoalsQuery, useGoalEMIPaymentsQuery } from '../queries/hooks'
+import { useAnalyticsSummaryQuery, useCashflowEntriesQuery, useCashflowMonthsQuery, useCashflowSummaryQuery, useFinancialGoalsQuery, useGoalEMIPaymentsQuery, useHomeContributionsQuery } from '../queries/hooks'
 import { queryKeys } from '../queries/queryKeys'
 import { primaryButtonClass, secondaryButtonClass } from '../styles/buttonStyles'
 
 const incomeCategories = ['Salary', 'Freelance', 'Bonus', 'Interest', 'Other'] as const
-const expenseCategories = ['Food', 'Grocery', 'Bike', 'Social Life', 'House Rent', 'Personal Exp', 'Utilities', 'Subscription', 'Other', 'Going Home', 'Home'] as const
+const expenseCategories = ['Food', 'Grocery', 'Whey Protein', 'Bike', 'Social Life', 'House Rent', 'Personal Exp', 'Utilities', 'Subscription', 'Other', 'Going Home', 'Home'] as const
+const chartColors = ['#fb7185', '#f59e0b', '#a78bfa', '#60a5fa', '#2dd4bf', '#34d399', '#94a3b8']
 
 type EntryType = 'income' | 'expense'
 
@@ -190,7 +196,7 @@ function BreakdownList({
 export default function CashflowPage() {
   const { privacyMode } = usePrivacyMode()
   const queryClient = useQueryClient()
-  const [activeView, setActiveView] = useState<'monthly' | 'emi'>('monthly')
+  const [activeView, setActiveView] = useState<'monthly' | 'emi' | 'home'>('monthly')
   const [selectedMonth, setSelectedMonth] = useState(currentMonthString())
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDrawerMounted, setIsDrawerMounted] = useState(false)
@@ -255,14 +261,24 @@ export default function CashflowPage() {
   }
   const [emiPaymentError, setEmiPaymentError] = useState<string | null>(null)
   const [isEMIPaymentSaving, setIsEMIPaymentSaving] = useState(false)
+  const [homeContributionForm, setHomeContributionForm] = useState({
+    amount: '',
+    contribution_date: new Date().toISOString().slice(0, 10),
+    reason: '',
+    purpose: '',
+    notes: '',
+  })
+  const [isHomeContributionSaving, setIsHomeContributionSaving] = useState(false)
 
   const monthsQuery = useCashflowMonthsQuery()
   const entriesQuery = useCashflowEntriesQuery(selectedMonth)
   const summaryQuery = useCashflowSummaryQuery(selectedMonth)
+  const analyticsQuery = useAnalyticsSummaryQuery()
   const goalsQuery = useFinancialGoalsQuery()
   const months = monthsQuery.data ?? []
   const entries = (entriesQuery.data as CashflowEntry[] | undefined) ?? []
   const summary = (summaryQuery.data as CashflowSummary | undefined) ?? null
+  const analytics = (analyticsQuery.data as AnalyticsSummary | undefined) ?? null
   const goals = (goalsQuery.data as FinancialGoal[] | undefined) ?? []
   const monthsLoading = monthsQuery.isLoading
   const entriesLoading = entriesQuery.isLoading
@@ -275,6 +291,19 @@ export default function CashflowPage() {
     const set = new Set([selectedMonth, currentMonthString(), ...months])
     return Array.from(set).sort((left, right) => right.localeCompare(left))
   }, [months, selectedMonth])
+  const selectedMonthIndex = availableMonths.indexOf(selectedMonth)
+  const previousMonth = selectedMonthIndex >= 0 ? availableMonths[selectedMonthIndex + 1] ?? null : null
+  const nextMonth = selectedMonthIndex > 0 ? availableMonths[selectedMonthIndex - 1] : null
+  const monthlyTrend = analytics?.cashflow_analytics.monthly_trend ?? []
+  const previousMonthData = previousMonth ? monthlyTrend.find((item) => item.month === previousMonth) : null
+  const monthComparison = [
+    { label: previousMonth ? formatMonthLabel(previousMonth) : 'Previous', income: toNumber(previousMonthData?.income), expense: toNumber(previousMonthData?.expense), savings: toNumber(previousMonthData?.net_savings) },
+    { label: formatMonthLabel(selectedMonth), income: toNumber(summary?.total_income), expense: toNumber(summary?.total_expense), savings: toNumber(summary?.net_savings) },
+  ]
+  const expensePieData = (summary?.expenses_by_category ?? []).map((item) => ({ name: item.category, value: toNumber(item.amount), percentage: toNumber(item.percentage) }))
+  const incomePieData = (summary?.income_by_category ?? []).map((item) => ({ name: item.category, value: toNumber(item.amount), percentage: toNumber(item.percentage) }))
+  const incomeEntries = entries.filter((entry) => entry.entry_type === 'income')
+  const expenseEntries = entries.filter((entry) => entry.entry_type === 'expense')
 
   const selectedEMIGoal = useMemo(
     () => goals.find((goal) => goal.id === selectedEMIGoalId) ?? null,
@@ -282,6 +311,9 @@ export default function CashflowPage() {
   )
   const emiPaymentsQuery = useGoalEMIPaymentsQuery(selectedEMIGoalId)
   const emiPayments = (emiPaymentsQuery.data as EMIPayment[] | undefined) ?? []
+  const homeContributionsQuery = useHomeContributionsQuery()
+  const homeContributions = (homeContributionsQuery.data as HomeContribution[] | undefined) ?? []
+  const homeContributionsTotal = homeContributions.reduce((total, item) => total + toNumber(item.amount), 0)
 
   useEffect(() => {
     if (!selectedEMIGoal || emiPaymentsQuery.isLoading) return
@@ -301,20 +333,34 @@ export default function CashflowPage() {
 
   useEffect(() => {
     if (!selectedEMIGoalId || emiPaymentsQuery.isLoading || emiPayments.length === 0) return
-    setEmiPaymentRows((current) => current.map((row) => {
-      const savedPayment = emiPayments.find((payment) => payment.payment_month === row.payment_month)
-      if (!savedPayment) return row
-      return {
-        ...row,
-        payment_date: savedPayment.payment_date,
-        principal_amount: String(savedPayment.principal_amount),
-        interest_amount: String(savedPayment.interest_amount),
-        gst_amount: String(savedPayment.gst_amount),
-        amount: String(savedPayment.amount),
-        notes: savedPayment.notes ?? '',
-      }
-    }))
-  }, [emiPayments, emiPaymentsQuery.isLoading, selectedEMIGoalId])
+    setEmiPaymentRows((current) => {
+      const savedMonths = new Set(emiPayments.map((payment) => payment.payment_month))
+      const rowsByMonth = new Map(current.map((row) => [row.payment_month, row]))
+      const hydratedRows = emiPayments.map((payment) => {
+        const existingRow = rowsByMonth.get(payment.payment_month) ?? {
+          ...createEmptyEMIRow(),
+          payment_month: payment.payment_month,
+        }
+        return {
+          ...existingRow,
+          payment_date: payment.payment_date,
+          principal_amount: String(payment.principal_amount),
+          interest_amount: String(payment.interest_amount),
+          gst_amount: String(payment.gst_amount),
+          amount: String(payment.amount),
+          notes: payment.notes ?? '',
+        }
+      })
+      const unsavedRows = current.filter((row) => !savedMonths.has(row.payment_month))
+      const plannedRowCount = Math.max(
+        Number(selectedEMIGoal?.emi_total_months ?? selectedEMIGoal?.months_remaining ?? current.length) || current.length,
+        1,
+      )
+      return [...hydratedRows, ...unsavedRows]
+        .sort((left, right) => left.payment_month.localeCompare(right.payment_month))
+        .slice(0, plannedRowCount)
+    })
+  }, [emiPayments, emiPaymentsQuery.isLoading, selectedEMIGoal, selectedEMIGoalId])
 
   const categoryOptions = useMemo(() => getCategories(form.entry_type), [form.entry_type])
 
@@ -546,7 +592,7 @@ export default function CashflowPage() {
       const principal = Number(row.principal_amount || 0)
       const interest = Number(row.interest_amount || 0)
       const gst = Number(row.gst_amount || 0)
-      return row.payment_month || row.payment_date || principal > 0 || interest > 0 || gst > 0
+      return principal > 0 || interest > 0 || gst > 0 || Number(row.amount || 0) > 0
     })
 
     if (rowsToSave.length === 0) {
@@ -624,6 +670,43 @@ export default function CashflowPage() {
     }
   }
 
+  async function addHomeContribution(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!homeContributionForm.amount || !homeContributionForm.contribution_date || !homeContributionForm.reason.trim() || !homeContributionForm.purpose.trim()) return
+    setIsHomeContributionSaving(true)
+    try {
+      await createHomeContribution({
+        amount: homeContributionForm.amount,
+        contribution_date: homeContributionForm.contribution_date,
+        reason: homeContributionForm.reason.trim(),
+        purpose: homeContributionForm.purpose.trim(),
+        notes: homeContributionForm.notes.trim() || null,
+      })
+      setHomeContributionForm((current) => ({ ...current, amount: '', reason: '', purpose: '', notes: '' }))
+      await queryClient.invalidateQueries({ queryKey: ['homeContributions'] })
+      setStatusTone('emerald')
+      setStatusMessage('Home contribution recorded.')
+    } catch (error) {
+      setStatusTone('rose')
+      setStatusMessage(formatApiError(error))
+    } finally {
+      setIsHomeContributionSaving(false)
+    }
+  }
+
+  async function removeHomeContribution(item: HomeContribution) {
+    if (!window.confirm(`Delete home contribution of ${formatINRShort(Number(item.amount))}?`)) return
+    try {
+      await deleteHomeContribution(item.id)
+      await queryClient.invalidateQueries({ queryKey: ['homeContributions'] })
+      setStatusTone('amber')
+      setStatusMessage('Home contribution removed.')
+    } catch (error) {
+      setStatusTone('rose')
+      setStatusMessage(formatApiError(error))
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -673,6 +756,18 @@ export default function CashflowPage() {
             ].join(' ')}
           >
             EMI Tracker
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveView('home')}
+            className={[
+              'rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors',
+              activeView === 'home'
+                ? 'bg-teal-500 text-white'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700',
+            ].join(' ')}
+          >
+            Home Contributions
           </button>
         </div>
       </SectionCard>
@@ -950,83 +1045,88 @@ export default function CashflowPage() {
         </div>
       ) : null}
 
+      {activeView === 'home' ? (
+        <SectionCard className="p-4 sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700/50 dark:bg-slate-900/50">
+            <div>
+              <div className="text-sm font-semibold text-slate-900 dark:text-white">Home contributions</div>
+              <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Global record of money you give at home, separate from monthly transactions</div>
+            </div>
+            <div className="text-right">
+              <div className={sectionTitle}>Total given</div>
+              <div className="mt-1 font-mono text-lg font-bold text-emerald-400"><PrivateValue value={formatINRShort(homeContributionsTotal)} mask="••••" hideColor /></div>
+            </div>
+          </div>
+
+          <form onSubmit={addHomeContribution} className="mt-4 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700/50 dark:bg-slate-900/40 sm:grid-cols-2 xl:grid-cols-5">
+            <FormField label="Amount">
+              <input type="number" min="0.01" step="0.01" required value={homeContributionForm.amount} onChange={(event) => setHomeContributionForm((current) => ({ ...current, amount: event.target.value }))} className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
+            </FormField>
+            <FormField label="Date">
+              <input type="date" required value={homeContributionForm.contribution_date} onChange={(event) => setHomeContributionForm((current) => ({ ...current, contribution_date: event.target.value }))} className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
+            </FormField>
+            <FormField label="Reason">
+              <input required placeholder="Monthly support" value={homeContributionForm.reason} onChange={(event) => setHomeContributionForm((current) => ({ ...current, reason: event.target.value }))} className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
+            </FormField>
+            <FormField label="For what">
+              <input required placeholder="Groceries, rent, medicine..." value={homeContributionForm.purpose} onChange={(event) => setHomeContributionForm((current) => ({ ...current, purpose: event.target.value }))} className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
+            </FormField>
+            <div className="flex items-end">
+              <button type="submit" disabled={isHomeContributionSaving} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-teal-500 px-4 text-sm font-semibold text-white hover:bg-teal-400 disabled:opacity-60">
+                <Icon name="add" className="h-4 w-4" />
+                {isHomeContributionSaving ? 'Saving...' : 'Add contribution'}
+              </button>
+            </div>
+            <div className="sm:col-span-2 xl:col-span-5">
+              <FormField label="Notes">
+                <input placeholder="Optional details" value={homeContributionForm.notes} onChange={(event) => setHomeContributionForm((current) => ({ ...current, notes: event.target.value }))} className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" />
+              </FormField>
+            </div>
+          </form>
+
+          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700/50">
+            {homeContributionsQuery.isLoading ? <div className="p-6 text-center text-sm text-slate-500">Loading contributions…</div> : homeContributions.length === 0 ? <div className="p-6 text-center text-sm text-slate-500">No home contributions recorded yet.</div> : (
+              <div className="divide-y divide-slate-200 dark:divide-slate-700/50">
+                {homeContributions.map((item) => (
+                  <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 bg-white px-4 py-3 dark:bg-slate-900/30">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white"><span>{item.reason}</span><span className="text-slate-400">·</span><span className="font-normal text-slate-500 dark:text-slate-400">For {item.purpose}</span></div>
+                      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{item.contribution_date}{item.notes ? ` · ${item.notes}` : ''}</div>
+                    </div>
+                    <div className="flex items-center gap-3"><PrivateValue value={formatINRShort(toNumber(item.amount))} mask="••••" hideColor /><button type="button" onClick={() => removeHomeContribution(item)} className="text-xs font-semibold text-slate-400 hover:text-rose-400">Remove</button></div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </SectionCard>
+      ) : null}
+
       {activeView === 'monthly' ? (
         <>
-          <SectionCard className="p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className={sectionTitle}>Viewing month</div>
-            <select
-              value={selectedMonth}
-              onChange={(event) => setSelectedMonth(event.target.value)}
-              className="mt-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition-colors focus:border-teal-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-            >
-              {availableMonths.map((month) => (
-                <option key={month} value={month}>
-                  {formatMonthLabel(month)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="text-sm text-slate-500 dark:text-slate-400">
-            {monthsLoading ? 'Loading saved months…' : `${availableMonths.length} month${availableMonths.length === 1 ? '' : 's'} available`}
-          </div>
-        </div>
-          </SectionCard>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {summaryCards.map((card) => (
-          <SectionCard key={card.label} className="p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className={sectionTitle}>{card.label}</div>
-                <div className={['mt-2 font-mono text-2xl font-bold tabular-nums', card.tone === 'emerald' ? privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-emerald-400' : card.tone === 'rose' ? privacyMode ? 'text-slate-300 dark:text-slate-300' : 'text-rose-400' : 'text-slate-900 dark:text-white'].join(' ')}>
-                  {card.label === 'Savings Rate' ? <PrivateValue value={card.value} mask="••••" hideColor /> : card.value === 'Not added' || card.value === 'Loading...' ? card.value : <PrivateValue value={card.value} mask="••••" hideColor />}
-                </div>
-                <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">{card.meta}</div>
-              </div>
-              <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-slate-100 dark:bg-slate-800">
-                <Icon name={card.icon} className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+          <SectionCard className="overflow-hidden p-0">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 px-5 py-4 dark:border-slate-700/50">
+              <div><div className={sectionTitle}>Cashflow workspace</div><div className="mt-1 text-base font-semibold text-slate-900 dark:text-white">{formatMonthLabel(selectedMonth)}</div></div>
+              <div className="flex items-center gap-2">
+                <button type="button" disabled={!previousMonth} onClick={() => previousMonth && setSelectedMonth(previousMonth)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 disabled:opacity-40 dark:border-slate-700 dark:text-slate-300">← Previous</button>
+                <select value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white">{availableMonths.map((month) => <option key={month} value={month}>{formatMonthLabel(month)}</option>)}</select>
+                <button type="button" disabled={!nextMonth} onClick={() => nextMonth && setSelectedMonth(nextMonth)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 disabled:opacity-40 dark:border-slate-700 dark:text-slate-300">Next →</button>
               </div>
             </div>
-          </SectionCard>
-        ))}
-          </div>
-
-          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)]">
-        <SectionCard title="Income vs Expense" className="p-5">
-          {summaryError ? (
-            <div className="text-sm text-rose-400">{summaryError}</div>
-          ) : !hasMonthData ? (
-            <div className="text-sm text-slate-500 dark:text-slate-400">No cashflow entries for this month</div>
-          ) : (
-            <div>
-              <div className="flex h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                <div className="h-full bg-emerald-400" style={{ width: `${incomeWidth}%` }} />
-                <div className="h-full bg-rose-400" style={{ width: `${expenseWidth}%` }} />
-              </div>
-              <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
-                <div>
-                  <div className="text-slate-500 dark:text-slate-400">Income</div>
-                  <div className="mt-1 font-mono font-semibold text-emerald-400"><PrivateValue value={formatINR(toNumber(summary?.total_income))} mask="••••" hideColor /></div>
-                </div>
-                <div>
-                  <div className="text-slate-500 dark:text-slate-400">Expense</div>
-                  <div className="mt-1 font-mono font-semibold text-rose-400"><PrivateValue value={formatINR(toNumber(summary?.total_expense))} mask="••••" hideColor /></div>
-                </div>
-                <div>
-                  <div className="text-slate-500 dark:text-slate-400">Savings</div>
-                  <div className={['mt-1 font-mono font-semibold', privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(netSavings)].join(' ')}>
-                    <PrivateValue value={formatINR(netSavings)} mask="••••" hideColor />
-                  </div>
-                </div>
-              </div>
+            <div className="grid gap-3 p-5 sm:grid-cols-3">
+              <div><div className={sectionTitle}>Money in</div><div className="mt-1 font-mono text-xl font-semibold text-emerald-400"><PrivateValue value={formatINRShort(toNumber(summary?.total_income))} mask="••••" hideColor /></div></div>
+              <div><div className={sectionTitle}>Money out</div><div className="mt-1 font-mono text-xl font-semibold text-rose-400"><PrivateValue value={formatINRShort(toNumber(summary?.total_expense))} mask="••••" hideColor /></div></div>
+              <div><div className={sectionTitle}>Kept this month</div><div className={['mt-1 font-mono text-xl font-semibold', privacyMode ? 'text-slate-300' : getTrendClass(netSavings)].join(' ')}><PrivateValue value={formatINRShort(netSavings)} mask="••••" hideColor /></div><div className="mt-1 text-xs text-slate-500"><PrivateValue value={formatPct(savingsRate)} mask="••" hideColor /> savings rate</div></div>
             </div>
-          )}
-        </SectionCard>
+          </SectionCard>
 
-        <BreakdownList title="Expense Breakdown" emptyText="No expense categories for this month" items={summary?.expenses_by_category ?? []} color="#fb7185" privacyMode={privacyMode} />
-        <BreakdownList title="Income Breakdown" emptyText="No income categories for this month" items={summary?.income_by_category ?? []} color="#34d399" privacyMode={privacyMode} />
+          <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+            <SectionCard title="Month-on-month comparison" className="p-5">
+              {summaryError ? <div className="text-sm text-rose-400">{summaryError}</div> : <><p className="mb-3 text-xs text-slate-500">Compare the selected month with the previous recorded month.</p><div className="h-64"><ResponsiveContainer width="100%" height="100%"><BarChart data={monthComparison} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}><CartesianGrid stroke="rgba(148,163,184,.12)" vertical={false}/><XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 10 }} tickLine={false} axisLine={false}/><YAxis width={70} tickFormatter={(value: number) => privacyMode ? '•••' : formatINRShort(value)} tick={{ fill: '#64748b', fontSize: 10 }} tickLine={false} axisLine={false}/><Tooltip formatter={(value) => privacyMode ? '••••' : formatINR(toNumber(Array.isArray(value) ? value[0] : value))} contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '12px' }}/><Bar dataKey="income" name="Income" fill="#2dd4bf" radius={[5, 5, 0, 0]}/><Bar dataKey="expense" name="Spend" fill="#fb7185" radius={[5, 5, 0, 0]}/></BarChart></ResponsiveContainer></div></>}
+            </SectionCard>
+            <SectionCard title="Where the money went" className="p-5">
+              {expensePieData.length ? <div className="grid items-center gap-3 sm:grid-cols-[190px_1fr]"><div className="h-60"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={expensePieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={52} outerRadius={86} paddingAngle={2} stroke="none">{expensePieData.map((item, index) => <Cell key={item.name} fill={chartColors[index % chartColors.length]}/>)}</Pie><Tooltip formatter={(value) => privacyMode ? '••••' : formatINR(toNumber(Array.isArray(value) ? value[0] : value))} contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '12px' }}/></PieChart></ResponsiveContainer></div><div className="space-y-2.5">{expensePieData.slice(0, 6).map((item, index) => <div key={item.name} className="flex items-center gap-2 text-sm"><i className="h-2 w-2 rounded-full" style={{ background: chartColors[index % chartColors.length] }}/><span className="min-w-0 flex-1 truncate text-slate-400">{item.name}</span><span className="text-xs text-slate-200"><PrivateValue value={formatPct(item.percentage)} mask="••" hideColor /></span></div>)}</div></div> : <div className="py-16 text-center text-sm text-slate-500">No expenses recorded for this month.</div>}
+            </SectionCard>
           </div>
         </>
       ) : null}
@@ -1174,48 +1274,20 @@ export default function CashflowPage() {
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left">
-              <thead className="border-b border-slate-200 dark:border-slate-700/50">
-                <tr className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-500">
-                  <th className="px-6 py-3">Month</th>
-                  <th className="px-4 py-3">Type</th>
-                  <th className="px-4 py-3">Category</th>
-                  <th className="px-4 py-3">Source</th>
-                  <th className="px-4 py-3">Amount</th>
-                  <th className="px-4 py-3">Notes</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {entries.map((entry) => (
-                  <tr key={entry.id} className="border-b border-slate-100 text-sm transition-colors duration-150 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/30">
-                    <td className="px-6 py-3 font-medium text-slate-900 dark:text-white">{formatMonthLabel(entry.month)}</td>
-                    <td className="px-4 py-3">
-                      <span className={['inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold', getTypeTone(entry.entry_type)].join(' ')}>
-                        {entry.entry_type === 'income' ? 'Income' : 'Expense'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{entry.category}</td>
-                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{entry.source || '—'}</td>
-                    <td className={['px-4 py-3 font-mono font-semibold', privacyMode ? 'text-slate-300 dark:text-slate-300' : entry.entry_type === 'income' ? 'text-emerald-400' : 'text-rose-400'].join(' ')}>
-                      <PrivateValue value={formatINR(toNumber(entry.amount))} mask="••••" hideColor />
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{entry.notes || '—'}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex justify-end gap-2">
-                        <button type="button" onClick={() => openEdit(entry)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors duration-200 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
-                          <Icon name="edit" className="h-4 w-4" />
-                        </button>
-                        <button type="button" onClick={() => handleDelete(entry)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-500/20 text-rose-400 transition-colors duration-200 hover:bg-rose-500/10">
-                          <Icon name="remove" className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="grid gap-5 p-4 lg:grid-cols-2">
+            {[{ label: 'Income entries', entries: incomeEntries, tone: 'emerald' }, { label: 'Expense entries', entries: expenseEntries, tone: 'rose' }].map((group) => (
+              <div key={group.label} className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700/50">
+                <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-slate-700/50 dark:bg-slate-900/60"><div className="text-sm font-semibold text-slate-900 dark:text-white">{group.label}</div><span className={group.tone === 'emerald' ? 'text-xs text-emerald-400' : 'text-xs text-rose-400'}>{group.entries.length} entries</span></div>
+                <div className="divide-y divide-slate-200 dark:divide-slate-700/50">{group.entries.map((entry) => (
+                  <div key={entry.id} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                    <span className={['grid h-9 w-9 shrink-0 place-items-center rounded-xl text-xs font-bold', group.tone === 'emerald' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'].join(' ')}>{entry.category.slice(0, 1)}</span>
+                    <div className="min-w-0 flex-1"><div className="truncate text-sm font-medium text-slate-900 dark:text-white">{entry.category}</div><div className="truncate text-xs text-slate-500">{[entry.source, entry.notes].filter(Boolean).join(' · ') || 'No details added'}</div></div>
+                    <div className={['text-right font-mono text-sm font-semibold', privacyMode ? 'text-slate-300' : group.tone === 'emerald' ? 'text-emerald-400' : 'text-rose-400'].join(' ')}><PrivateValue value={formatINR(toNumber(entry.amount))} mask="••••" hideColor /></div>
+                    <div className="flex gap-1"><button type="button" aria-label={`Edit ${entry.category}`} onClick={() => openEdit(entry)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"><Icon name="edit" className="h-4 w-4" /></button><button type="button" aria-label={`Delete ${entry.category}`} onClick={() => handleDelete(entry)} className="grid h-8 w-8 place-items-center rounded-lg text-rose-400 hover:bg-rose-500/10"><Icon name="remove" className="h-4 w-4" /></button></div>
+                  </div>
+                ))}</div>
+              </div>
+            ))}
           </div>
           )}
         </SectionCard>

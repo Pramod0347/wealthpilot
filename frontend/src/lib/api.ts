@@ -272,7 +272,7 @@ export type InvestmentTransaction = {
   investment_symbol: string
   investment_asset_type: string
   transaction_type: 'BUY' | 'SELL'
-  transaction_mode: 'One Time' | 'SIP'
+  transaction_mode: 'One Time' | 'SIP' | 'IPO'
   quantity: string | number
   price_per_unit: string | number
   fees: string | number
@@ -281,12 +281,13 @@ export type InvestmentTransaction = {
   transaction_date: string
   notes: string | null
   total: string | number
+  realized_pnl: string | number
   created_at: string
 }
 
 export type InvestmentTransactionPayload = {
   transaction_type: 'BUY' | 'SELL'
-  transaction_mode: 'One Time' | 'SIP'
+  transaction_mode: 'One Time' | 'SIP' | 'IPO'
   quantity: string
   price_per_unit: string
   fees: string
@@ -473,6 +474,25 @@ export type EMIPaymentPayload = {
   processing_fee: string
   processing_fee_gst: string
   amount: string
+  notes: string | null
+}
+
+export type HomeContribution = {
+  id: number
+  amount: string | number
+  contribution_date: string
+  reason: string
+  purpose: string
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type HomeContributionPayload = {
+  amount: string
+  contribution_date: string
+  reason: string
+  purpose: string
   notes: string | null
 }
 
@@ -668,6 +688,8 @@ export type AnalyticsSummary = {
     cash_buffer_months: string | number | null
     average_expense_by_category: AnalyticsCategoryAverageItem[]
     average_income_by_category: AnalyticsCategoryAverageItem[]
+    current_expense_by_category: AnalyticsCategoryAverageItem[]
+    current_income_by_category: AnalyticsCategoryAverageItem[]
     monthly_trend: AnalyticsMonthlyTrendItem[]
     top_spending_categories: Array<{
       category: string
@@ -1241,6 +1263,21 @@ export function deleteGoalEMIPayment(goalId: number, paymentId: number) {
   return apiFetch<void>(`/api/goals/${goalId}/emi-payments/${paymentId}`, {
     method: 'DELETE',
   })
+}
+
+export function getHomeContributions(signal?: AbortSignal) {
+  return apiFetch<HomeContribution[]>('/api/home-contributions', { signal })
+}
+
+export function createHomeContribution(payload: HomeContributionPayload) {
+  return apiFetch<HomeContribution>('/api/home-contributions', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteHomeContribution(contributionId: number) {
+  return apiFetch<void>(`/api/home-contributions/${contributionId}`, { method: 'DELETE' })
 }
 
 export function getCashflowEntries(month?: string, signal?: AbortSignal) {

@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from decimal import Decimal
 
 from fastapi import HTTPException, status
@@ -46,7 +47,55 @@ def recalculate_holding(db: Session, holding: Holding) -> Holding:
     return holding
 
 
-def serialize_transaction(row: InvestmentTransaction) -> dict[str, object]:
+def realized_pnl_by_transaction(db: Session, investment_ids: Iterable[int]) -> dict[int, Decimal]:
+    """Replay each investment ledger once and book realized P&L against every SELL."""
+    ids = sorted({investment_id for investment_id in investment_ids})
+    if not ids:
+        return {}
+
+    rows = db.scalars(
+        select(InvestmentTransaction)
+        .where(InvestmentTransaction.investment_id.in_(ids))
+        .order_by(
+            InvestmentTransaction.investment_id,
+            InvestmentTransaction.transaction_date,
+            InvestmentTransaction.id,
+        )
+    ).all()
+
+    realized: dict[int, Decimal] = {}
+    positions: dict[int, tuple[Decimal, Decimal]] = {}
+    for row in rows:
+        quantity, average_price = positions.get(row.investment_id, (ZERO, ZERO))
+        trade_quantity = Decimal(row.quantity)
+        if row.transaction_type == "BUY":
+            new_quantity = quantity + trade_quantity
+            average_price = (
+                ((quantity * average_price) + (trade_quantity * Decimal(row.price_per_unit))) / new_quantity
+                if new_quantity else ZERO
+            )
+            quantity = new_quantity
+        else:
+            realized[row.id] = (
+                trade_quantity * (Decimal(row.price_per_unit) - average_price)
+                - Decimal(row.fees)
+                - Decimal(row.taxes)
+            ) * Decimal(row.exchange_rate)
+            quantity -= trade_quantity
+            if quantity == ZERO:
+                average_price = ZERO
+        positions[row.investment_id] = (quantity, average_price)
+
+    return realized
+
+
+def calculate_realized_pnl(db: Session, row: InvestmentTransaction) -> Decimal:
+    if row.transaction_type != "SELL":
+        return ZERO
+    return realized_pnl_by_transaction(db, [row.investment_id]).get(row.id, ZERO)
+
+
+def serialize_transaction(row: InvestmentTransaction, realized_pnl: Decimal = ZERO) -> dict[str, object]:
     return {
         "id": row.id,
         "investment_id": row.investment_id,
@@ -67,5 +116,6 @@ def serialize_transaction(row: InvestmentTransaction) -> dict[str, object]:
             if row.transaction_type == "BUY"
             else (row.quantity * row.price_per_unit - row.fees - row.taxes)
         ) * row.exchange_rate,
+        "realized_pnl": realized_pnl,
         "created_at": row.created_at,
     }

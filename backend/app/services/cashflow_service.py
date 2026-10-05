@@ -25,10 +25,13 @@ def previous_month_string() -> str:
 
 def get_reporting_month(db: Session) -> str:
     current_month = current_month_string()
+    previous_month = previous_month_string()
     months = db.scalars(select(CashflowEntry.month).distinct().order_by(CashflowEntry.month.desc())).all()
     if not months:
         return current_month
-    if len(months) > 1:
+    if previous_month in months:
+        return previous_month
+    if current_month in months and len(months) > 1:
         return months[1]
     return months[0]
 
@@ -129,9 +132,6 @@ def build_dashboard_cashflow_metrics(db: Session, month: str | None = None) -> D
     current = CashflowMetricWindow()
     if monthly_rows:
         months = [row[0] for row in monthly_rows]
-        if current_month_string() in months:
-            monthly_rows = [row for row in monthly_rows if row[0] != current_month_string()]
-
         monthly_map: dict[str, tuple[Decimal, Decimal, int]] = {
             month_key: (_to_decimal(income), _to_decimal(expense), int(entries_count))
             for month_key, income, expense, entries_count in monthly_rows

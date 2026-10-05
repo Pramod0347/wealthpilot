@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
@@ -10,7 +11,12 @@ from app.models.investment_transaction import InvestmentTransaction
 from app.schemas.investment_transaction import (
     InvestmentTransactionCreate, InvestmentTransactionRead, InvestmentTransactionUpdate,
 )
-from app.services.investment_transactions_service import recalculate_holding, serialize_transaction
+from app.services.investment_transactions_service import (
+    calculate_realized_pnl,
+    realized_pnl_by_transaction,
+    recalculate_holding,
+    serialize_transaction,
+)
 from app.services.portfolio_snapshot_service import upsert_today_snapshot
 
 router = APIRouter(prefix="/investment-transactions", tags=["investment transactions"])
@@ -29,7 +35,8 @@ def list_transactions(investment_id: int | None = Query(default=None), db: Sessi
     if investment_id is not None:
         query = query.where(InvestmentTransaction.investment_id == investment_id)
     rows = db.scalars(query.order_by(InvestmentTransaction.transaction_date.desc(), InvestmentTransaction.id.desc())).all()
-    return [serialize_transaction(row) for row in rows]
+    realized = realized_pnl_by_transaction(db, (row.investment_id for row in rows))
+    return [serialize_transaction(row, realized.get(row.id, Decimal("0"))) for row in rows]
 
 
 @router.post("/investments/{investment_id}", response_model=InvestmentTransactionRead, status_code=201)
@@ -51,7 +58,7 @@ def create_transaction(investment_id: int, payload: InvestmentTransactionCreate,
         upsert_today_snapshot(db)
     except Exception:
         pass
-    return serialize_transaction(row)
+    return serialize_transaction(row, calculate_realized_pnl(db, row))
 
 
 @router.patch("/{transaction_id}", response_model=InvestmentTransactionRead)
@@ -66,7 +73,8 @@ def update_transaction(transaction_id: int, payload: InvestmentTransactionUpdate
     except Exception:
         db.rollback()
         raise
-    return serialize_transaction(_row(db, transaction_id))
+    updated = _row(db, transaction_id)
+    return serialize_transaction(updated, calculate_realized_pnl(db, updated))
 
 
 @router.delete("/{transaction_id}", status_code=204)
