@@ -98,7 +98,7 @@ function MarketTickerCard({
         </span>
         <span
           className={[
-            'inline-flex items-center gap-0.5 rounded px-1 py-0.5 font-mono text-[10px] font-bold tabular-nums leading-none',
+            'inline-flex items-center gap-0.5 rounded px-1 py-0.5 font-mono text-[10px] font-semibold tabular-nums leading-none',
             isPositive
               ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400'
               : 'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400',
@@ -108,7 +108,7 @@ function MarketTickerCard({
         </span>
       </div>
       {/* Bottom row: Value */}
-      <div className="mt-0.5 font-mono text-sm font-bold tabular-nums text-slate-900 dark:text-white">
+      <div className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
         {formatMarketValue(price, currency, symbol)}
       </div>
     </div>
@@ -251,7 +251,7 @@ export default function Header({
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <Logo mobile />
             <div className="min-w-0 flex-1">
-              <h1 className="truncate text-base font-bold tracking-tight text-slate-900 dark:text-white">
+              <h1 className="truncate text-base font-semibold tracking-[-0.01em] text-slate-900 dark:text-white">
                 {title}
               </h1>
               {subtitle ? (
@@ -279,7 +279,7 @@ export default function Header({
                 {privacyMode ? (
                   '•••'
                 ) : (
-                  <span className="font-mono font-bold">
+                  <span className="font-mono font-semibold">
                     {snapshotComparison.diffAmount >= 0 ? '+' : ''}
                     {snapshotComparison.diffPct.toFixed(1)}%
                   </span>
@@ -322,7 +322,7 @@ export default function Header({
       <div className="hidden min-h-[68px] items-center justify-between gap-4 py-2 lg:flex">
         {/* Left: Page Title & Breadcrumb */}
         <div className="min-w-0 max-w-xs shrink-0">
-          <h1 className="truncate text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+          <h1 className="truncate text-xl font-semibold tracking-[-0.02em] text-slate-900 dark:text-white">
             {title}
           </h1>
           {subtitle ? (
@@ -332,7 +332,7 @@ export default function Header({
 
         {/* Center: EXECUTIVE SNAPSHOT COMMAND CARD */}
         <div className="flex shrink-0 items-center justify-center">
-          <div className="flex items-center gap-3.5 rounded-2xl border border-slate-200/90 bg-white/95 px-4 py-2 shadow-xs transition-all hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/95 dark:hover:border-slate-700">
+          <div className="flex items-center gap-4 rounded-2xl border border-slate-200/90 bg-white/95 px-4.5 py-2 shadow-xs transition-all hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/95 dark:hover:border-slate-700">
             {/* Left Info: Label, Dot, Date, and Values */}
             <div className="flex flex-col">
               {/* Top row: Live Dot + Category Label + vs Date */}
@@ -364,12 +364,12 @@ export default function Header({
               {/* Bottom row: Bold Mono Delta + Return Badge */}
               <div className="mt-0.5 flex items-baseline gap-2">
                 {privacyMode ? (
-                  <span className="font-mono text-base font-bold text-slate-400">••••••</span>
+                  <span className="font-mono text-base font-semibold text-slate-400">••••••</span>
                 ) : snapshotComparison ? (
                   <>
                     <span
                       className={[
-                        'font-mono text-base font-bold tabular-nums',
+                        'font-mono text-base font-semibold tabular-nums',
                         snapshotComparison.diffAmount >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400',
                       ].join(' ')}
                     >
@@ -378,7 +378,7 @@ export default function Header({
                     </span>
                     <span
                       className={[
-                        'inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-[11px] font-bold tabular-nums',
+                        'inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular-nums',
                         snapshotComparison.diffAmount >= 0
                           ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400'
                           : 'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400',

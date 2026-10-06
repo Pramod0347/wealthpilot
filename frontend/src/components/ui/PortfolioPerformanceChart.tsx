@@ -146,11 +146,11 @@ export default function PortfolioPerformanceChart({
   const isCompact = variant === 'compact'
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-500">{title}</div>
-          <div className="mt-1 max-w-2xl text-xs font-medium text-slate-400 dark:text-slate-400">{helperText}</div>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">{title}</div>
+          <div className="mt-1 max-w-2xl text-xs font-medium text-slate-400 dark:text-slate-500">{helperText}</div>
         </div>
         <div className="no-scrollbar -mx-1 flex overflow-x-auto px-1 sm:mx-0 sm:px-0">
           <div className="flex min-w-max items-center gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
@@ -172,28 +172,28 @@ export default function PortfolioPerformanceChart({
       </div>
 
       {isCompact ? (
-        <div className="grid grid-cols-2 gap-3 rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 dark:border-slate-700/50 dark:bg-slate-900/30 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4 dark:border-slate-800/80 dark:bg-slate-800/40 xl:grid-cols-4">
           <div className="min-w-0">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-500">Latest</div>
-            <div className="mt-1 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Latest</div>
+            <div className="mt-1.5 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white">
               {latestValue === null ? '—' : <PrivateValue value={formatMoney(latestValue)} mask="••••" hideColor />}
             </div>
           </div>
           <div className="min-w-0">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-500">Change</div>
-            <div className={['mt-1 font-mono text-base font-semibold tabular-nums', privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(changePct ?? 0)].join(' ')}>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Change</div>
+            <div className={['mt-1.5 font-mono text-base font-semibold tabular-nums', privacyMode ? 'text-slate-300 dark:text-slate-300' : getTrendClass(changePct ?? 0)].join(' ')}>
               {changePct === null ? '—' : <PrivateValue value={formatSignedPct(changePct)} mask="••••" hideColor />}
             </div>
           </div>
           <div className="min-w-0">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-500">Snapshots</div>
-            <div className="mt-1 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white">{data?.summary.snapshot_count ?? 0}</div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Snapshots</div>
+            <div className="mt-1.5 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white">{data?.summary.snapshot_count ?? 0}</div>
           </div>
           <div className="min-w-0">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-500">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">
               {range === '1M' ? 'Est. 7D' : range === '3M' ? 'Est. 30D' : range === '6M' ? 'Est. 60D' : 'Est. 90D'}
             </div>
-            <div className="mt-1 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white">
+            <div className="mt-1.5 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white">
               {projectedValue === null ? '—' : <PrivateValue value={formatMoney(projectedValue)} mask="••••" hideColor />}
             </div>
           </div>

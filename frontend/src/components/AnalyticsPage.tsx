@@ -39,11 +39,11 @@ import PrivateValue from './ui/PrivateValue'
 import { computeSnapshotComparison, formatSnapshotDate } from '../utils/snapshotDelta'
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-const LABEL = 'text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500'
+const LABEL = 'text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500'
 const CARD_CONTAINER =
-  'rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 sm:p-6'
+  'rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 sm:p-7'
 const INNER_TILE =
-  'rounded-2xl border border-slate-100 bg-slate-50/80 p-4 transition-colors dark:border-slate-800/80 dark:bg-slate-800/40'
+  'rounded-2xl border border-slate-100 bg-slate-50/80 p-4 sm:p-5 transition-colors dark:border-slate-800/80 dark:bg-slate-800/40'
 
 const CHART_PALETTE = ['#2dd4bf', '#38bdf8', '#818cf8', '#c084fc', '#fb7185', '#fbbf24', '#34d399', '#94a3b8']
 const RANGES: PortfolioRange[] = ['1M', '3M', '6M', '1Y', 'ALL']
@@ -287,9 +287,9 @@ export default function AnalyticsPage() {
   ].some(Boolean)
 
   return (
-    <div className="min-w-0 w-full space-y-5 pb-12 sm:space-y-6">
+    <div className="min-w-0 w-full space-y-6 lg:space-y-8 pb-12">
       {/* ── TOP COMMAND & PULSE BAR ── */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 lg:flex-row lg:items-center lg:justify-between lg:px-5 lg:py-2.5">
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 lg:flex-row lg:items-center lg:justify-between lg:px-6 lg:py-3">
         {/* Left: Intelligence Status & Coverage */}
         <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
           <div className="flex items-center gap-2">
@@ -297,7 +297,7 @@ export default function AnalyticsPage() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal-400 opacity-75" />
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-teal-500" />
             </span>
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">
               Analytics Engine
             </span>
           </div>
@@ -341,14 +341,14 @@ export default function AnalyticsPage() {
 
       {/* ── ROW 1: YOUR FINANCIAL STORY HERO PILLAR DECK ── */}
       <div className={CARD_CONTAINER}>
-        <div className="flex flex-col gap-2 border-b border-slate-100 pb-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 border-b border-slate-100 pb-5 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-2xl bg-teal-500/15 text-teal-600 dark:text-teal-400">
               <Icon name="analytics" className="h-5 w-5" />
             </span>
             <div>
-              <h1 className="text-lg font-bold text-slate-900 dark:text-white">Financial Analytics & Insights</h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <h2 className="text-base font-semibold tracking-[-0.01em] text-slate-900 dark:text-white">Financial Analytics & Insights</h2>
+              <p className="mt-0.5 text-xs font-medium text-slate-400 dark:text-slate-500">
                 Holistic performance, average run-rates, capital allocation, and long-term liquidity.
               </p>
             </div>
@@ -361,7 +361,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* 4 Pillars Summary Grid */}
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4">
           {/* Pillar 1: Total Portfolio / Net Worth */}
           <div className={INNER_TILE}>
             <div className="flex items-center justify-between">

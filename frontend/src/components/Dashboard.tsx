@@ -190,7 +190,7 @@ const assetTypePalette: Record<string, { label: string; color: string; bg: strin
   other: { label: 'Other Assets', color: '#64748b', bg: 'bg-slate-500/15' },
 }
 
-const LABEL = 'text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400'
+const LABEL = 'text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -734,7 +734,7 @@ export default function Dashboard({
   const portfolioHasSnapshots = (portfolioPerformance?.summary.snapshot_count ?? 0) > 0
 
   return (
-    <div className="min-w-0 w-full space-y-4 sm:space-y-6">
+    <div className="min-w-0 w-full space-y-6 lg:space-y-8">
       <WealthBucketModal bucket={selectedBucket} onClose={() => setSelectedBucketKey(null)} />
 
       {/* Toast Alert Banner */}
@@ -769,14 +769,14 @@ export default function Dashboard({
       ) : null}
 
       {/* ── TOP COMMAND & PULSE BAR ── */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 lg:flex-row lg:items-center lg:justify-between lg:px-5 lg:py-2.5">
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 lg:flex-row lg:items-center lg:justify-between lg:px-6 lg:py-3">
         {/* Left: Sync Pulse */}
         <div className="flex items-center gap-2.5">
           <span className="relative flex h-2.5 w-2.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
           </span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Live Pulse</span>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Live Pulse</span>
           <span className="hidden text-slate-300 dark:text-slate-700 sm:inline">|</span>
           <span className="text-xs text-slate-600 dark:text-slate-300">
             Synced {latestHoldingUpdate ? formatCompactDateTime(latestHoldingUpdate) : 'recently'}
@@ -841,30 +841,30 @@ export default function Dashboard({
       </div>
 
       {/* ── ROW 1: BALANCE SHEET HERO & ACTION CENTER ── */}
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
         {/* Net Worth Balance Sheet Card */}
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 sm:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-4 dark:border-slate-800">
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 sm:p-7">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-5 dark:border-slate-800">
             <div>
               <div className={LABEL}>Total Net Worth</div>
               <div className="mt-1 flex items-baseline gap-3">
-                <span className="font-mono text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-4xl">
+                <span className="font-mono text-3xl font-bold tabular-nums tracking-[-0.02em] text-slate-900 dark:text-white sm:text-4xl">
                   {summaryLoading ? '—' : <PrivateValue value={formatMoney(netWorth)} mask="••••••" hideColor />}
                 </span>
               </div>
             </div>
 
             {/* Capital Structure Badges */}
-            <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium">
-              <span className="inline-flex items-center gap-1 rounded-lg bg-teal-50 px-2 py-1 text-teal-700 dark:bg-teal-500/10 dark:text-teal-300">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-medium">
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-teal-50 px-2.5 py-1 text-teal-700 dark:bg-teal-500/10 dark:text-teal-300">
                 <span className="h-1.5 w-1.5 rounded-full bg-teal-500" />
                 Liquid: {totalAssets > 0 ? `${((liquidCashValue / totalAssets) * 100).toFixed(0)}%` : '0%'}
               </span>
-              <span className="inline-flex items-center gap-1 rounded-lg bg-sky-50 px-2 py-1 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-sky-50 px-2.5 py-1 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">
                 <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
                 Invested: {totalAssets > 0 ? `${((marketLinkedValue / totalAssets) * 100).toFixed(0)}%` : '0%'}
               </span>
-              <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 Locked: {totalAssets > 0 ? `${((lockedLongTermValue / totalAssets) * 100).toFixed(0)}%` : '0%'}
               </span>
@@ -872,42 +872,42 @@ export default function Dashboard({
           </div>
 
           {/* 4 Core Balance Sheet Pillars */}
-          <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-5">
             {/* Total Assets */}
-            <div className="rounded-2xl bg-slate-50/80 p-3.5 dark:bg-slate-800/40">
+            <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 sm:p-5 dark:border-slate-800/60 dark:bg-slate-800/40">
               <div className="flex items-center justify-between">
                 <span className={LABEL}>Total Assets</span>
                 <Icon name="netWorth" className="h-3.5 w-3.5 text-slate-400" />
               </div>
-              <div className="mt-2 font-mono text-lg font-bold tabular-nums text-slate-900 dark:text-white">
+              <div className="mt-2 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white sm:text-lg">
                 {summaryLoading ? '—' : <PrivateValue value={formatMoney(totalAssets)} mask="••••" hideColor />}
               </div>
-              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              <div className="mt-1 text-xs font-medium text-slate-400 dark:text-slate-500">
                 {summary ? `${summary.holdings_count + summary.bank_accounts_count + summary.fixed_savings_accounts_count} items across 6 buckets` : '—'}
               </div>
             </div>
 
             {/* Total Liabilities */}
-            <div className="rounded-2xl bg-slate-50/80 p-3.5 dark:bg-slate-800/40">
+            <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 sm:p-5 dark:border-slate-800/60 dark:bg-slate-800/40">
               <div className="flex items-center justify-between">
                 <span className={LABEL}>Liabilities</span>
                 <Icon name="cards" className="h-3.5 w-3.5 text-rose-400" />
               </div>
-              <div className={['mt-2 font-mono text-lg font-bold tabular-nums', totalLiabilities > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'].join(' ')}>
+              <div className={['mt-2 font-mono text-base font-semibold tabular-nums sm:text-lg', totalLiabilities > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'].join(' ')}>
                 {summaryLoading ? '—' : <PrivateValue value={formatMoney(totalLiabilities)} mask="••••" hideColor />}
               </div>
-              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              <div className="mt-1 text-xs font-medium text-slate-400 dark:text-slate-500">
                 {creditCards.length} cards · {cardUtilizationPct.toFixed(1)}% limit used
               </div>
             </div>
 
             {/* Invested Capital & P&L */}
-            <div className="rounded-2xl bg-slate-50/80 p-3.5 dark:bg-slate-800/40">
+            <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 sm:p-5 dark:border-slate-800/60 dark:bg-slate-800/40">
               <div className="flex items-center justify-between">
                 <span className={LABEL}>Invested Capital</span>
                 <Icon name="stocks" className="h-3.5 w-3.5 text-teal-400" />
               </div>
-              <div className="mt-2 font-mono text-lg font-bold tabular-nums text-slate-900 dark:text-white">
+              <div className="mt-2 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white sm:text-lg">
                 {summaryLoading ? '—' : <PrivateValue value={formatMoney(totalInvested)} mask="••••" hideColor />}
               </div>
               <div className={['mt-1 font-mono text-xs font-medium tabular-nums', getTrendClass(totalPnl)].join(' ')}>
@@ -916,28 +916,28 @@ export default function Dashboard({
             </div>
 
             {/* Liquid Cash */}
-            <div className="rounded-2xl bg-slate-50/80 p-3.5 dark:bg-slate-800/40">
+            <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 sm:p-5 dark:border-slate-800/60 dark:bg-slate-800/40">
               <div className="flex items-center justify-between">
                 <span className={LABEL}>Liquid Reserves</span>
                 <Icon name="banks" className="h-3.5 w-3.5 text-orange-400" />
               </div>
-              <div className="mt-2 font-mono text-lg font-bold tabular-nums text-slate-900 dark:text-white">
+              <div className="mt-2 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white sm:text-lg">
                 {summaryLoading ? '—' : <PrivateValue value={formatMoney(totalBankCash)} mask="••••" hideColor />}
               </div>
-              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              <div className="mt-1 text-xs font-medium text-slate-400 dark:text-slate-500">
                 {bankAccounts.length} banks · {cashBufferMonths.toFixed(1)} mo runway
               </div>
             </div>
           </div>
 
           {/* Interactive Wealth Buckets Bar */}
-          <div className="mt-6">
+          <div className="mt-7">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold text-slate-700 dark:text-slate-300">Wealth Allocation Breakdown</span>
-              <span className="text-[11px] text-slate-400">Click any bucket to inspect underlying holdings</span>
+              <span className="font-semibold tracking-[-0.01em] text-slate-700 dark:text-slate-300">Wealth Allocation Breakdown</span>
+              <span className="text-xs font-medium text-slate-400">Click any bucket to inspect underlying holdings</span>
             </div>
 
-            <div className="mt-2.5 flex h-3 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800 shadow-inner">
+            <div className="mt-3 flex h-3 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800 shadow-inner">
               {allocationData.map((entry) => (
                 <button
                   key={entry.key}
@@ -952,20 +952,20 @@ export default function Dashboard({
             </div>
 
             {/* Legend Chips with values */}
-            <div className="mt-3.5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               {allocationData.map((entry) => (
                 <button
                   key={entry.key}
                   type="button"
                   onClick={() => setSelectedBucketKey(entry.key)}
-                  className="flex flex-col rounded-xl border border-slate-100 bg-slate-50/50 p-2 text-left transition-all hover:border-slate-300 hover:bg-slate-100/70 dark:border-slate-800/80 dark:bg-slate-800/30 dark:hover:border-slate-700 dark:hover:bg-slate-800/60"
+                  className="flex flex-col rounded-xl border border-slate-100 bg-slate-50/60 p-3 text-left transition-all hover:border-slate-300 hover:bg-slate-100/70 dark:border-slate-800/80 dark:bg-slate-800/40 dark:hover:border-slate-700 dark:hover:bg-slate-800/60"
                 >
                   <div className="flex items-center gap-1.5">
                     <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: entry.color }} />
-                    <span className="truncate text-[11px] font-semibold text-slate-700 dark:text-slate-300">{entry.label}</span>
+                    <span className="truncate text-xs font-medium text-slate-700 dark:text-slate-300">{entry.label}</span>
                   </div>
-                  <div className="mt-1 flex items-baseline justify-between gap-1 font-mono text-xs tabular-nums text-slate-900 dark:text-white">
-                    <span className="font-bold">{privacyMode ? '•••' : `${entry.percentage.toFixed(1)}%`}</span>
+                  <div className="mt-1.5 flex items-baseline justify-between gap-1 font-mono text-xs tabular-nums text-slate-900 dark:text-white">
+                    <span className="font-semibold">{privacyMode ? '•••' : `${entry.percentage.toFixed(1)}%`}</span>
                     <span className="text-[10px] text-slate-500 dark:text-slate-400">
                       <PrivateValue value={formatINRShort(entry.value)} mask="•••" hideColor />
                     </span>
@@ -977,27 +977,27 @@ export default function Dashboard({
         </div>
 
         {/* Action & Priority Center */}
-        <div className="flex flex-col justify-between rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 sm:p-6">
+        <div className="flex flex-col justify-between rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 sm:p-7">
           <div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <span className="grid h-6 w-6 place-items-center rounded-lg bg-rose-500/15 text-rose-500">
                   <Icon name="alert" className="h-3.5 w-3.5" />
                 </span>
                 <span className={LABEL}>Action & Priority Center</span>
               </div>
-              <span className="text-[11px] font-medium text-slate-400">
+              <span className="text-xs font-medium text-slate-400">
                 {actionItems.length} active item{actionItems.length === 1 ? '' : 's'}
               </span>
             </div>
 
-            <div className="mt-4 divide-y divide-slate-100 dark:divide-slate-800/60">
+            <div className="mt-5 divide-y divide-slate-100 dark:divide-slate-800/60">
               {actionItems.map((item, i) => (
                 <div
                   key={`${item.title}-${i}`}
                   onClick={item.onClick}
                   className={[
-                    'group flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0 transition-colors',
+                    'group flex items-start justify-between gap-3 py-3.5 first:pt-0 last:pb-0 transition-colors',
                     item.onClick ? 'cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-800/30 -mx-2 px-2 rounded-xl' : '',
                   ].join(' ')}
                 >
@@ -1010,10 +1010,10 @@ export default function Dashboard({
                         <Icon name="collapse" className="h-3 w-3 rotate-180 opacity-0 transition-opacity group-hover:opacity-100 text-slate-400" />
                       )}
                     </div>
-                    <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{item.subtitle}</div>
+                    <div className="mt-0.5 text-xs font-medium text-slate-400 dark:text-slate-500">{item.subtitle}</div>
                   </div>
                   <div className="shrink-0 text-right">
-                    <div className="font-mono text-sm font-bold tabular-nums text-slate-900 dark:text-white">
+                    <div className="font-mono text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
                       <PrivateValue value={item.amount} mask="••••" hideColor />
                     </div>
                     <div className="mt-1">
@@ -1026,20 +1026,20 @@ export default function Dashboard({
           </div>
 
           {/* Bottom Card Summary Pill */}
-          <div className="mt-5 rounded-2xl border border-slate-100 bg-slate-50/70 p-3 dark:border-slate-800/80 dark:bg-slate-800/30">
-            <div className="flex items-center justify-between text-xs">
+          <div className="mt-6 rounded-2xl border border-slate-100 bg-slate-50/70 p-4 dark:border-slate-800/80 dark:bg-slate-800/30">
+            <div className="flex items-center justify-between text-xs font-medium">
               <span className="text-slate-500 dark:text-slate-400">Total Credit Exposure</span>
-              <span className="font-mono font-bold text-slate-900 dark:text-white">
+              <span className="font-mono font-semibold tabular-nums text-slate-900 dark:text-white">
                 <PrivateValue value={formatMoney(totalLiabilities)} mask="••••" hideColor />
               </span>
             </div>
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+            <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
               <div
                 style={{ width: `${Math.min(cardUtilizationPct, 100)}%` }}
                 className={['h-full rounded-full transition-all', cardUtilizationPct > 50 ? 'bg-rose-500' : 'bg-teal-500'].join(' ')}
               />
             </div>
-            <div className="mt-1.5 flex items-center justify-between text-[10px] text-slate-400">
+            <div className="mt-2 flex items-center justify-between text-xs text-slate-400 font-medium">
               <span>{cardUtilizationPct.toFixed(1)}% of limit</span>
               <span>Available: {formatINRShort(Math.max(totalCardLimit - totalCardUsed, 0))}</span>
             </div>
@@ -1048,11 +1048,11 @@ export default function Dashboard({
       </div>
 
       {/* ── ROW 2: SIX BALANCED STAT METRIC CARDS ── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6 sm:gap-5">
         {/* 1. Total Portfolio */}
         <div
           onClick={onOpenStocks}
-          className="group cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-teal-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/90 dark:hover:border-teal-500/40"
+          className="group cursor-pointer rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-teal-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/90 dark:hover:border-teal-500/40"
         >
           <div className="flex items-center justify-between">
             <div className={LABEL}>Investments</div>
@@ -1060,10 +1060,10 @@ export default function Dashboard({
               <Icon name="stocks" className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="mt-2 font-mono text-lg font-bold tabular-nums text-slate-900 dark:text-white">
+          <div className="mt-2.5 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white sm:text-lg">
             {summaryLoading ? '—' : <PrivateValue value={formatMoney(currentInvestedValue)} mask="••••" hideColor />}
           </div>
-          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          <div className="mt-1.5 text-xs font-medium text-slate-400 dark:text-slate-500">
             {totalInvested > 0 ? (
               <span className={['font-mono font-medium', getTrendClass(totalPnl)].join(' ')}>
                 {privacyMode ? '•••' : `${totalPnl >= 0 ? '+' : ''}${formatSignedPct(totalReturnPct)}`}
@@ -1078,7 +1078,7 @@ export default function Dashboard({
         {/* 2. Bank Cash */}
         <div
           onClick={onOpenBanks}
-          className="group cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-orange-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/90 dark:hover:border-orange-500/40"
+          className="group cursor-pointer rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-orange-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/90 dark:hover:border-orange-500/40"
         >
           <div className="flex items-center justify-between">
             <div className={LABEL}>Bank Cash</div>
@@ -1086,10 +1086,10 @@ export default function Dashboard({
               <Icon name="banks" className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="mt-2 font-mono text-lg font-bold tabular-nums text-slate-900 dark:text-white">
+          <div className="mt-2.5 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white sm:text-lg">
             {summaryLoading ? '—' : <PrivateValue value={formatMoney(totalBankCash)} mask="••••" hideColor />}
           </div>
-          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          <div className="mt-1.5 text-xs font-medium text-slate-400 dark:text-slate-500">
             <span>{bankAccounts.length} accounts</span>
             <span className="text-orange-600 dark:text-orange-400 font-semibold"> · {cashBufferMonths.toFixed(1)} mo runway</span>
           </div>
@@ -1098,7 +1098,7 @@ export default function Dashboard({
         {/* 3. PF / EPF */}
         <div
           onClick={onOpenPFEPF}
-          className="group cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-emerald-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/90 dark:hover:border-emerald-500/40"
+          className="group cursor-pointer rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-emerald-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/90 dark:hover:border-emerald-500/40"
         >
           <div className="flex items-center justify-between">
             <div className={LABEL}>PF / EPF</div>
@@ -1106,19 +1106,19 @@ export default function Dashboard({
               <Icon name="pfepf" className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="mt-2 font-mono text-lg font-bold tabular-nums text-slate-900 dark:text-white">
+          <div className="mt-2.5 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white sm:text-lg">
             {summaryLoading ? '—' : <PrivateValue value={formatMoney(totalFixedSavings)} mask="••••" hideColor />}
           </div>
-          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          <div className="mt-1.5 text-xs font-medium text-slate-400 dark:text-slate-500">
             <span>{summary?.fixed_savings_accounts_count ?? 0} accounts</span>
-            <span className="text-emerald-600 dark:text-emerald-400"> · Compounding</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold"> · Compounding</span>
           </div>
         </div>
 
         {/* 4. Deposits */}
         <div
           onClick={onOpenDeposits}
-          className="group cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-yellow-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/90 dark:hover:border-yellow-500/40"
+          className="group cursor-pointer rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-yellow-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/90 dark:hover:border-yellow-500/40"
         >
           <div className="flex items-center justify-between">
             <div className={LABEL}>Deposits</div>
@@ -1126,19 +1126,19 @@ export default function Dashboard({
               <Icon name="netWorth" className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="mt-2 font-mono text-lg font-bold tabular-nums text-slate-900 dark:text-white">
+          <div className="mt-2.5 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white sm:text-lg">
             {summaryLoading ? '—' : <PrivateValue value={formatMoney(depositsValue)} mask="••••" hideColor />}
           </div>
-          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          <div className="mt-1.5 text-xs font-medium text-slate-400 dark:text-slate-500">
             <span>Security & rent</span>
-            <span className="text-yellow-600 dark:text-yellow-400"> · Refundable</span>
+            <span className="text-yellow-600 dark:text-yellow-400 font-semibold"> · Refundable</span>
           </div>
         </div>
 
         {/* 5. US Stocks */}
         <div
           onClick={onOpenStocks}
-          className="group cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-sky-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/90 dark:hover:border-sky-500/40"
+          className="group cursor-pointer rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-sky-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/90 dark:hover:border-sky-500/40"
         >
           <div className="flex items-center justify-between">
             <div className={LABEL}>US Stocks</div>
@@ -1146,10 +1146,10 @@ export default function Dashboard({
               <Icon name="portfolio" className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="mt-2 font-mono text-lg font-bold tabular-nums text-slate-900 dark:text-white">
+          <div className="mt-2.5 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white sm:text-lg">
             {usStocksValue > 0 ? <PrivateValue value={formatMoney(usStocksValue)} mask="••••" hideColor /> : '₹0'}
           </div>
-          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          <div className="mt-1.5 text-xs font-medium text-slate-400 dark:text-slate-500">
             {usStocksInUSD > 0 ? (
               <span>${usStocksInUSD.toFixed(1)} USD · ₹{liveUsdInrRate.toFixed(1)}/$</span>
             ) : (
@@ -1161,18 +1161,18 @@ export default function Dashboard({
         {/* 6. Card Dues */}
         <div
           onClick={onOpenCards}
-          className="group cursor-pointer rounded-2xl border border-rose-200 bg-rose-50/50 p-4 shadow-sm transition-all hover:border-rose-400 hover:shadow-md dark:border-rose-500/30 dark:bg-rose-500/10 dark:hover:border-rose-500/50"
+          className="group cursor-pointer rounded-2xl border border-rose-200 bg-rose-50/50 p-5 shadow-sm transition-all hover:border-rose-400 hover:shadow-md dark:border-rose-500/30 dark:bg-rose-500/10 dark:hover:border-rose-500/50"
         >
           <div className="flex items-center justify-between">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-rose-500 dark:text-rose-400">Card Dues</div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-rose-500 dark:text-rose-400">Card Dues</div>
             <div className="grid h-7 w-7 place-items-center rounded-lg bg-rose-500/20 text-rose-500 group-hover:scale-110 transition-transform">
               <Icon name="cards" className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="mt-2 font-mono text-lg font-bold tabular-nums text-rose-700 dark:text-rose-400">
+          <div className="mt-2.5 font-mono text-base font-semibold tabular-nums text-rose-700 dark:text-rose-400 sm:text-lg">
             {summaryLoading ? '—' : <PrivateValue value={formatMoney(totalLiabilities)} mask="••••" hideColor />}
           </div>
-          <div className="mt-1 text-xs text-rose-600 dark:text-rose-300">
+          <div className="mt-1.5 text-xs font-medium text-rose-600 dark:text-rose-300">
             <span>{urgentCards.length > 0 ? `${urgentCards.length} due soon` : 'All clear'}</span>
             <span> · {cardUtilizationPct.toFixed(1)}% limit</span>
           </div>
@@ -1180,16 +1180,16 @@ export default function Dashboard({
       </div>
 
       {/* ── ROW 3: MONTHLY CASHFLOW & SPEND INTELLIGENCE ── */}
-      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4 dark:border-slate-800">
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 sm:p-7">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-5 dark:border-slate-800">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="grid h-6 w-6 place-items-center rounded-lg bg-cyan-500/15 text-cyan-500">
-                <Icon name="transactions" className="h-3.5 w-3.5" />
+            <div className="flex items-center gap-2.5">
+              <span className="grid h-7 w-7 place-items-center rounded-xl bg-cyan-500/15 text-cyan-500">
+                <Icon name="transactions" className="h-4 w-4" />
               </span>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">Monthly Cashflow & Spend Intelligence</h2>
+              <h2 className="text-base font-semibold tracking-[-0.01em] text-slate-900 dark:text-white">Monthly Cashflow & Spend Intelligence</h2>
             </div>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-xs font-medium text-slate-400 dark:text-slate-500">
               {trackedMonthsCount > 0 ? `Analysis based on ${trackedMonthsCount} tracked months` : 'Add monthly cashflow entries to track velocity'}
             </p>
           </div>
@@ -1204,51 +1204,51 @@ export default function Dashboard({
         </div>
 
         {/* 4 Cashflow Stats */}
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-5">
           {/* Income */}
-          <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-800/40">
+          <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4.5 sm:p-5 dark:border-slate-800/80 dark:bg-slate-800/40">
             <span className={LABEL}>Monthly Income</span>
-            <div className="mt-1.5 font-mono text-xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+            <div className="mt-2 font-mono text-xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
               {monthlyHasData ? <PrivateValue value={formatMoney(toNumber(currentCashflow?.income))} mask="••••" hideColor /> : '—'}
             </div>
-            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <div className="mt-1.5 text-xs font-medium text-slate-400 dark:text-slate-500">
               {averageCashflowHasData ? `Avg: ${privacyMode ? '•••' : formatMoney(toNumber(averageCashflow?.income))}/mo` : 'No average yet'}
             </div>
           </div>
 
           {/* Spend */}
-          <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-800/40">
+          <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4.5 sm:p-5 dark:border-slate-800/80 dark:bg-slate-800/40">
             <span className={LABEL}>Monthly Spend</span>
-            <div className="mt-1.5 font-mono text-xl font-bold tabular-nums text-rose-600 dark:text-rose-400">
+            <div className="mt-2 font-mono text-xl font-bold tabular-nums text-rose-600 dark:text-rose-400">
               {monthlyHasData ? <PrivateValue value={formatMoney(toNumber(currentCashflow?.expense))} mask="••••" hideColor /> : '—'}
             </div>
-            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <div className="mt-1.5 text-xs font-medium text-slate-400 dark:text-slate-500">
               {averageCashflowHasData ? `Avg: ${privacyMode ? '•••' : formatMoney(toNumber(averageCashflow?.expense))}/mo` : 'No average yet'}
             </div>
           </div>
 
           {/* Net Savings */}
-          <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-800/40">
+          <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4.5 sm:p-5 dark:border-slate-800/80 dark:bg-slate-800/40">
             <span className={LABEL}>Net Savings</span>
-            <div className={['mt-1.5 font-mono text-xl font-bold tabular-nums', getTrendClass(toNumber(currentCashflow?.net_savings))].join(' ')}>
+            <div className={['mt-2 font-mono text-xl font-bold tabular-nums', getTrendClass(toNumber(currentCashflow?.net_savings))].join(' ')}>
               {monthlyHasData ? <PrivateValue value={formatMoney(toNumber(currentCashflow?.net_savings))} mask="••••" hideColor /> : '—'}
             </div>
-            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <div className="mt-1.5 text-xs font-medium text-slate-400 dark:text-slate-500">
               {averageCashflowHasData ? `Avg: ${privacyMode ? '•••' : formatMoney(toNumber(averageCashflow?.net_savings))}/mo` : 'No average yet'}
             </div>
           </div>
 
           {/* Savings Rate */}
-          <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-800/40">
+          <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4.5 sm:p-5 dark:border-slate-800/80 dark:bg-slate-800/40">
             <span className={LABEL}>Savings Rate</span>
-            <div className={['mt-1.5 font-mono text-xl font-bold tabular-nums', getTrendClass(toNumber(currentCashflow?.savings_rate))].join(' ')}>
+            <div className={['mt-2 font-mono text-xl font-bold tabular-nums', getTrendClass(toNumber(currentCashflow?.savings_rate))].join(' ')}>
               {monthlyHasData && currentCashflow?.savings_rate != null ? (
                 <PrivateValue value={formatPct(toNumber(currentCashflow.savings_rate))} mask="••••" hideColor />
               ) : (
                 '—'
               )}
             </div>
-            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <div className="mt-1.5 text-xs font-medium text-slate-400 dark:text-slate-500">
               {averageCashflowHasData && averageCashflow?.savings_rate != null ? (
                 <span>Avg: {privacyMode ? '•••' : formatPct(toNumber(averageCashflow.savings_rate))}</span>
               ) : (
@@ -1259,25 +1259,25 @@ export default function Dashboard({
         </div>
 
         {/* Visual Split: 6-Month Trend Chart + Top Spending Categories */}
-        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1.4fr_1fr]">
+        <div className="mt-7 grid grid-cols-1 gap-6 lg:grid-cols-[1.4fr_1fr]">
           {/* Trend Chart */}
-          <div className="rounded-2xl border border-slate-100 bg-slate-50/40 p-4 dark:border-slate-800 dark:bg-slate-800/30">
+          <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5 sm:p-6 dark:border-slate-800/80 dark:bg-slate-800/30">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Income vs Spend Trend</span>
-              <div className="flex items-center gap-3 text-xs text-slate-500">
-                <span className="inline-flex items-center gap-1">
+              <span className="text-sm font-semibold tracking-[-0.01em] text-slate-800 dark:text-slate-200">Income vs Spend Trend</span>
+              <div className="flex items-center gap-3.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+                <span className="inline-flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-teal-400" /> Income
                 </span>
-                <span className="inline-flex items-center gap-1">
+                <span className="inline-flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-rose-400" /> Spend
                 </span>
-                <span className="inline-flex items-center gap-1">
+                <span className="inline-flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-sky-400" /> Saved
                 </span>
               </div>
             </div>
 
-            <div className="mt-4 h-48 w-full">
+            <div className="mt-5 h-52 w-full">
               {cashflowTrendData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={cashflowTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -1305,23 +1305,23 @@ export default function Dashboard({
           </div>
 
           {/* Top Spending Categories */}
-          <div className="rounded-2xl border border-slate-100 bg-slate-50/40 p-4 dark:border-slate-800 dark:bg-slate-800/30">
+          <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5 sm:p-6 dark:border-slate-800/80 dark:bg-slate-800/30">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Top Spend Categories</span>
-              <span className="text-[11px] text-slate-400">Monthly averages</span>
+              <span className="text-sm font-semibold tracking-[-0.01em] text-slate-800 dark:text-slate-200">Top Spend Categories</span>
+              <span className="text-xs font-medium text-slate-400">Monthly averages</span>
             </div>
 
-            <div className="mt-4 space-y-3.5">
+            <div className="mt-5 space-y-4">
               {topSpendingCategories.length > 0 ? (
                 topSpendingCategories.slice(0, 4).map((cat, idx) => {
                   const pct = toNumber(cat.percentage_of_avg_spend)
                   const colors = ['#f43f5e', '#f97316', '#a855f7', '#06b6d4']
                   const col = colors[idx % colors.length]
                   return (
-                    <div key={cat.category} className="space-y-1">
+                    <div key={cat.category} className="space-y-1.5">
                       <div className="flex items-center justify-between text-xs font-medium">
                         <span className="text-slate-700 dark:text-slate-200">{cat.category}</span>
-                        <div className="font-mono tabular-nums text-slate-900 dark:text-white">
+                        <div className="font-mono text-xs font-semibold tabular-nums text-slate-900 dark:text-white">
                           <PrivateValue value={formatMoney(toNumber(cat.average_amount))} mask="••••" hideColor />
                           <span className="ml-1.5 text-slate-400">({pct.toFixed(0)}%)</span>
                         </div>
@@ -1346,16 +1346,16 @@ export default function Dashboard({
       </div>
 
       {/* ── ROW 4: FINANCIAL GOALS PROGRESS HUB ── */}
-      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4 dark:border-slate-800">
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 sm:p-7">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-5 dark:border-slate-800">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="grid h-6 w-6 place-items-center rounded-lg bg-purple-500/15 text-purple-500">
-                <Icon name="portfolio" className="h-3.5 w-3.5" />
+            <div className="flex items-center gap-2.5">
+              <span className="grid h-7 w-7 place-items-center rounded-xl bg-purple-500/15 text-purple-500">
+                <Icon name="portfolio" className="h-4 w-4" />
               </span>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">Financial Goals & Target Tracker</h2>
+              <h2 className="text-base font-semibold tracking-[-0.01em] text-slate-900 dark:text-white">Financial Goals & Target Tracker</h2>
             </div>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-xs font-medium text-slate-400 dark:text-slate-500">
               {goalsSummary
                 ? `${goalsSummary.active_goals_count} active target${goalsSummary.active_goals_count === 1 ? '' : 's'} · ${goalsSummary.achieved_goals_count} achieved`
                 : 'Plan and fund high-priority financial goals'}
@@ -1373,28 +1373,28 @@ export default function Dashboard({
 
         {/* Goals Summary Bar */}
         {goalsSummary && (
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-xl bg-slate-50/70 p-3 dark:bg-slate-800/40">
+          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-5">
+            <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 dark:border-slate-800/80 dark:bg-slate-800/40">
               <div className={LABEL}>Total Goal Targets</div>
-              <div className="mt-1 font-mono text-base font-bold text-slate-900 dark:text-white">
+              <div className="mt-1.5 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white">
                 <PrivateValue value={formatMoney(toNumber(goalsSummary.total_target_amount))} mask="••••" hideColor />
               </div>
             </div>
-            <div className="rounded-xl bg-slate-50/70 p-3 dark:bg-slate-800/40">
+            <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 dark:border-slate-800/80 dark:bg-slate-800/40">
               <div className={LABEL}>Accumulated Funding</div>
-              <div className="mt-1 font-mono text-base font-bold text-teal-600 dark:text-teal-400">
+              <div className="mt-1.5 font-mono text-base font-semibold tabular-nums text-teal-600 dark:text-teal-400">
                 <PrivateValue value={formatMoney(toNumber(goalsSummary.total_current_amount))} mask="••••" hideColor />
               </div>
             </div>
-            <div className="rounded-xl bg-slate-50/70 p-3 dark:bg-slate-800/40">
+            <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 dark:border-slate-800/80 dark:bg-slate-800/40">
               <div className={LABEL}>Remaining Shortfall</div>
-              <div className="mt-1 font-mono text-base font-bold text-rose-600 dark:text-rose-400">
+              <div className="mt-1.5 font-mono text-base font-semibold tabular-nums text-rose-600 dark:text-rose-400">
                 <PrivateValue value={formatMoney(toNumber(goalsSummary.total_shortfall_amount))} mask="••••" hideColor />
               </div>
             </div>
-            <div className="rounded-xl bg-slate-50/70 p-3 dark:bg-slate-800/40">
+            <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4 dark:border-slate-800/80 dark:bg-slate-800/40">
               <div className={LABEL}>Monthly Saving Needed</div>
-              <div className="mt-1 font-mono text-base font-bold text-purple-600 dark:text-purple-400">
+              <div className="mt-1.5 font-mono text-base font-semibold tabular-nums text-purple-600 dark:text-purple-400">
                 <PrivateValue value={formatMoney(toNumber(goalsSummary.monthly_saving_needed_total))} mask="••••" hideColor />
               </div>
             </div>
@@ -1402,7 +1402,7 @@ export default function Dashboard({
         )}
 
         {/* Goals Cards Grid */}
-        <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
           {topGoals.map((goal) => {
             const progress = Math.min(Math.max(toNumber(goal.progress_pct), 0), 100)
             const isCompleted = goal.status === 'achieved' || progress >= 100
@@ -1427,14 +1427,14 @@ export default function Dashboard({
               <div
                 key={goal.id}
                 onClick={onOpenGoals}
-                className="group cursor-pointer rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4 transition-all hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800/40 dark:hover:border-slate-700"
+                className="group cursor-pointer rounded-2xl border border-slate-200/80 bg-slate-50/50 p-5 transition-all hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800/40 dark:hover:border-slate-700"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <span className="truncate text-sm font-bold text-slate-900 dark:text-white group-hover:text-teal-600 dark:group-hover:text-teal-400">
+                    <span className="truncate text-sm font-semibold tracking-[-0.01em] text-slate-900 dark:text-white group-hover:text-teal-600 dark:group-hover:text-teal-400">
                       {goal.name}
                     </span>
-                    <div className="mt-0.5 text-xs text-slate-400">
+                    <div className="mt-1 text-xs font-medium text-slate-400">
                       {goal.target_date ? `Target: ${formatDisplayDate(goal.target_date)}` : 'No target date'}
                     </div>
                   </div>
@@ -1445,14 +1445,14 @@ export default function Dashboard({
                 </div>
 
                 {/* Progress bar */}
-                <div className="mt-4">
+                <div className="mt-5">
                   <div className="flex items-baseline justify-between text-xs font-semibold">
                     <span className="text-slate-600 dark:text-slate-300">Progress</span>
                     <span className="font-mono tabular-nums text-slate-900 dark:text-white">
                       {privacyMode ? '•••' : `${progress.toFixed(1)}%`}
                     </span>
                   </div>
-                  <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
                     <div
                       style={{ width: `${progress}%` }}
                       className={['h-full rounded-full transition-all duration-500', barColor].join(' ')}
@@ -1461,16 +1461,16 @@ export default function Dashboard({
                 </div>
 
                 {/* Amount figures */}
-                <div className="mt-3.5 flex items-center justify-between border-t border-slate-200/60 pt-3 text-xs dark:border-slate-700/50">
+                <div className="mt-4.5 flex items-center justify-between border-t border-slate-200/60 pt-3.5 text-xs dark:border-slate-700/50">
                   <div>
-                    <div className="text-[10px] uppercase text-slate-400">Saved</div>
-                    <div className="font-mono font-bold text-slate-900 dark:text-white">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Saved</div>
+                    <div className="mt-0.5 font-mono text-xs font-semibold tabular-nums text-slate-900 dark:text-white">
                       <PrivateValue value={formatMoney(toNumber(goal.current_amount))} mask="••••" hideColor />
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-[10px] uppercase text-slate-400">Target</div>
-                    <div className="font-mono font-bold text-slate-900 dark:text-white">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Target</div>
+                    <div className="mt-0.5 font-mono text-xs font-semibold tabular-nums text-slate-900 dark:text-white">
                       <PrivateValue value={formatMoney(toNumber(goal.target_amount))} mask="••••" hideColor />
                     </div>
                   </div>
@@ -1482,9 +1482,9 @@ export default function Dashboard({
       </div>
 
       {/* ── ROW 5: PERFORMANCE CHART & ASSET COMPOSITION / TOP MOVERS ── */}
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
         {/* Performance Chart */}
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 sm:p-6">
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 sm:p-7">
           {portfolioError ? (
             <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
               {portfolioError}
@@ -1506,15 +1506,15 @@ export default function Dashboard({
         </div>
 
         {/* Composition & Top Movers Tabbed Card */}
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 sm:p-6">
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 sm:p-7">
           {/* Segmented Control */}
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3.5 dark:border-slate-800">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
             <div className="inline-flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800/80">
               <button
                 type="button"
                 onClick={() => setCompositionTab('buckets')}
                 className={[
-                  'rounded-lg px-3 py-1.5 text-xs font-semibold transition-all',
+                  'rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all',
                   compositionTab === 'buckets'
                     ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white'
                     : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white',
@@ -1526,7 +1526,7 @@ export default function Dashboard({
                 type="button"
                 onClick={() => setCompositionTab('holdings')}
                 className={[
-                  'rounded-lg px-3 py-1.5 text-xs font-semibold transition-all',
+                  'rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all',
                   compositionTab === 'holdings'
                     ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white'
                     : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white',
@@ -1542,15 +1542,15 @@ export default function Dashboard({
 
           {/* TAB 1: Asset Breakdown */}
           {compositionTab === 'buckets' && (
-            <div className="mt-5 space-y-4">
+            <div className="mt-6 space-y-4">
               {allocationData.map((entry) => (
                 <button
                   key={entry.key}
                   type="button"
                   onClick={() => setSelectedBucketKey(entry.key)}
-                  className="flex w-full items-center gap-3 text-left transition-opacity hover:opacity-85"
+                  className="flex w-full items-center gap-3 py-1 text-left transition-opacity hover:opacity-85"
                 >
-                  <div className="flex w-28 shrink-0 items-center gap-2">
+                  <div className="flex w-32 shrink-0 items-center gap-2">
                     <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: entry.color }} />
                     <span className="truncate text-sm font-medium tracking-[-0.01em] text-slate-700 dark:text-slate-300">
                       {entry.label}
@@ -1568,16 +1568,16 @@ export default function Dashboard({
                 </button>
               ))}
 
-              <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4 dark:border-slate-800">
+              <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4.5 dark:border-slate-800">
                 <div>
                   <div className={LABEL}>Total Equity Share</div>
-                  <div className="mt-0.5 font-mono text-base font-bold text-slate-900 dark:text-white">
+                  <div className="mt-1 font-mono text-base font-semibold tabular-nums text-slate-900 dark:text-white">
                     <PrivateValue value={formatPct(equityExposurePct)} mask="••••" hideColor />
                   </div>
                 </div>
                 <div className="text-right">
                   <div className={LABEL}>Diversification Score</div>
-                  <div className="mt-0.5 text-sm font-bold text-emerald-500">Balanced (Healthy)</div>
+                  <div className="mt-1 text-sm font-semibold text-emerald-500">Balanced (Healthy)</div>
                 </div>
               </div>
             </div>
@@ -1585,19 +1585,19 @@ export default function Dashboard({
 
           {/* TAB 2: Top Holdings */}
           {compositionTab === 'holdings' && (
-            <div className="mt-4 divide-y divide-slate-100 dark:divide-slate-800">
+            <div className="mt-5 divide-y divide-slate-100 dark:divide-slate-800/80">
               {topHoldings.length > 0 ? (
                 topHoldings.map((holding) => (
-                  <div key={holding.symbol} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                  <div key={holding.symbol} className="flex items-center justify-between gap-3 py-3.5 first:pt-0 last:pb-0">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="truncate font-semibold text-slate-900 dark:text-white text-sm">
+                        <span className="truncate text-sm font-semibold tracking-[-0.01em] text-slate-900 dark:text-white">
                           {holding.symbol}
                         </span>
                         {holding.return_pct != null && (
                           <span
                             className={[
-                              'font-mono text-xs font-bold tabular-nums',
+                              'font-mono text-xs font-semibold tabular-nums',
                               getTrendClass(toNumber(holding.return_pct)),
                             ].join(' ')}
                           >
@@ -1605,13 +1605,13 @@ export default function Dashboard({
                           </span>
                         )}
                       </div>
-                      <div className="truncate text-xs text-slate-400">{holding.name}</div>
+                      <div className="truncate text-xs font-medium text-slate-400">{holding.name}</div>
                     </div>
                     <div className="shrink-0 text-right">
-                      <div className="font-mono text-sm font-bold text-slate-900 dark:text-white">
+                      <div className="font-mono text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
                         <PrivateValue value={formatMoney(toNumber(holding.value))} mask="••••" hideColor />
                       </div>
-                      <div className="text-[11px] text-slate-400 font-mono">
+                      <div className="text-xs font-mono text-slate-400">
                         {privacyMode ? '•••' : `${toNumber(holding.percentage_of_portfolio).toFixed(1)}% of assets`}
                       </div>
                     </div>
@@ -1626,14 +1626,14 @@ export default function Dashboard({
       </div>
 
       {/* ── ROW 6: ACCOUNTS + UPCOMING PAYMENTS + SMART ADVISORY ── */}
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
         {/* Accounts & Cash Reserves */}
-        <div className="flex flex-col justify-between rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
+        <div className="flex flex-col justify-between rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 sm:p-7">
           <div>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
               <div>
                 <span className={LABEL}>Bank Accounts</span>
-                <div className="mt-0.5 text-xs text-slate-400">Liquid cash balances</div>
+                <div className="mt-0.5 text-xs font-medium text-slate-400">Liquid cash balances</div>
               </div>
               <button
                 type="button"
@@ -1644,30 +1644,30 @@ export default function Dashboard({
               </button>
             </div>
 
-            <div className="mt-3.5 divide-y divide-slate-100 dark:divide-slate-800">
+            <div className="mt-5 divide-y divide-slate-100 dark:divide-slate-800/80">
               {bankAccounts.length > 0 ? (
                 bankAccounts.map((account) => {
                   const balance = toNumber(account.balance)
                   const shareOfCash = totalBankCash > 0 ? (balance / totalBankCash) * 100 : 0
                   return (
-                    <div key={account.id} className="py-3 first:pt-0 last:pb-0">
+                    <div key={account.id} className="py-3.5 first:pt-0 last:pb-0">
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                          <div className="truncate text-sm font-semibold tracking-[-0.01em] text-slate-900 dark:text-white">
                             {account.bank_name}
                           </div>
-                          <div className="text-xs text-slate-400">{account.account_type}</div>
+                          <div className="mt-0.5 text-xs font-medium text-slate-400">{account.account_type}</div>
                         </div>
                         <div className="text-right">
-                          <div className="font-mono text-sm font-bold text-slate-900 dark:text-white">
+                          <div className="font-mono text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
                             <PrivateValue value={formatMoney(balance)} mask="••••" hideColor />
                           </div>
-                          <div className="text-[11px] text-slate-400 font-mono">
+                          <div className="mt-0.5 text-xs font-mono text-slate-400">
                             {privacyMode ? '•••' : `${shareOfCash.toFixed(1)}% of cash`}
                           </div>
                         </div>
                       </div>
-                      <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                         <div style={{ width: `${shareOfCash}%` }} className="h-full rounded-full bg-orange-400" />
                       </div>
                     </div>
@@ -1679,21 +1679,21 @@ export default function Dashboard({
             </div>
           </div>
 
-          <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs dark:border-slate-800">
+          <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4 text-xs font-medium dark:border-slate-800">
             <span className="text-slate-500">Total Liquid Reserves</span>
-            <span className="font-mono font-bold text-slate-900 dark:text-white">
+            <span className="font-mono font-semibold tabular-nums text-slate-900 dark:text-white">
               <PrivateValue value={formatMoney(totalBankCash)} mask="••••" hideColor />
             </span>
           </div>
         </div>
 
         {/* Credit Cards & Upcoming Dues */}
-        <div className="flex flex-col justify-between rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
+        <div className="flex flex-col justify-between rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 sm:p-7">
           <div>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
               <div>
                 <span className={LABEL}>Credit Cards</span>
-                <div className="mt-0.5 text-xs text-slate-400">Bills & limit utilization</div>
+                <div className="mt-0.5 text-xs font-medium text-slate-400">Bills & limit utilization</div>
               </div>
               <button
                 type="button"
@@ -1704,7 +1704,7 @@ export default function Dashboard({
               </button>
             </div>
 
-            <div className="mt-3.5 divide-y divide-slate-100 dark:divide-slate-800">
+            <div className="mt-5 divide-y divide-slate-100 dark:divide-slate-800/80">
               {creditCards.length > 0 ? (
                 creditCards.map((card) => {
                   const bill = toNumber(card.current_bill_amount)
@@ -1713,27 +1713,29 @@ export default function Dashboard({
                   const daysInfo = getDaysUntil(card.due_date)
 
                   return (
-                    <div key={card.id} className="py-3 first:pt-0 last:pb-0">
+                    <div key={card.id} className="py-3.5 first:pt-0 last:pb-0">
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                          <div className="truncate text-sm font-semibold tracking-[-0.01em] text-slate-900 dark:text-white">
                             {card.card_name}
                           </div>
-                          <div className="text-xs text-slate-400">
+                          <div className="mt-0.5 text-xs font-medium text-slate-400">
                             {card.bank_name} ••{card.last4} · {card.status === 'paid' ? 'Paid' : daysInfo.label}
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="font-mono text-sm font-bold text-slate-900 dark:text-white">
+                          <div className="font-mono text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
                             <PrivateValue value={formatMoney(bill)} mask="••••" hideColor />
                           </div>
-                          <StatusPill
-                            tone={card.status === 'paid' ? 'emerald' : card.status === 'overdue' ? 'rose' : 'amber'}
-                            label={card.status === 'paid' ? 'Paid' : card.status === 'overdue' ? 'Overdue' : 'Due Soon'}
-                          />
+                          <div className="mt-1">
+                            <StatusPill
+                              tone={card.status === 'paid' ? 'emerald' : card.status === 'overdue' ? 'rose' : 'amber'}
+                              label={card.status === 'paid' ? 'Paid' : card.status === 'overdue' ? 'Overdue' : 'Due Soon'}
+                            />
+                          </div>
                         </div>
                       </div>
-                      <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                      <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                         <div
                           style={{ width: `${Math.min(util, 100)}%` }}
                           className={['h-full rounded-full', util > 50 ? 'bg-rose-500' : 'bg-teal-500'].join(' ')}
@@ -1748,21 +1750,21 @@ export default function Dashboard({
             </div>
           </div>
 
-          <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs dark:border-slate-800">
+          <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4 text-xs font-medium dark:border-slate-800">
             <span className="text-slate-500">Total Dues Payable</span>
-            <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
+            <span className="font-mono font-semibold tabular-nums text-rose-600 dark:text-rose-400">
               <PrivateValue value={formatMoney(totalLiabilities)} mask="••••" hideColor />
             </span>
           </div>
         </div>
 
         {/* Smart Financial Intelligence & Advisory */}
-        <div className="flex flex-col justify-between rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
+        <div className="flex flex-col justify-between rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 sm:p-7">
           <div>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
               <div>
                 <span className={LABEL}>Financial Intelligence</span>
-                <div className="mt-0.5 text-xs text-slate-400">Automated wealth signals</div>
+                <div className="mt-0.5 text-xs font-medium text-slate-400">Automated wealth signals</div>
               </div>
               <button
                 type="button"
@@ -1773,7 +1775,7 @@ export default function Dashboard({
               </button>
             </div>
 
-            <div className="mt-3.5 space-y-3">
+            <div className="mt-5 space-y-3.5">
               {smartInsights.length > 0 ? (
                 smartInsights.map((insight, idx) => {
                   const borderTone =
@@ -1795,15 +1797,15 @@ export default function Dashboard({
                           : 'text-sky-500'
 
                   return (
-                    <div key={idx} className={['rounded-2xl border p-3', borderTone].join(' ')}>
+                    <div key={idx} className={['rounded-2xl border p-3.5 sm:p-4', borderTone].join(' ')}>
                       <div className="flex items-center gap-2">
                         <Icon
                           name={insight.tone === 'rose' ? 'warning' : insight.tone === 'amber' ? 'alert' : 'stocks'}
                           className={['h-3.5 w-3.5 shrink-0', iconCol].join(' ')}
                         />
-                        <span className="text-xs font-bold text-slate-900 dark:text-white">{insight.title}</span>
+                        <span className="text-xs font-semibold tracking-[-0.01em] text-slate-900 dark:text-white">{insight.title}</span>
                       </div>
-                      <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                      <p className="mt-1.5 text-xs font-normal leading-relaxed text-slate-600 dark:text-slate-300">
                         {maskSensitiveText(insight.text, privacyMode, '••••')}
                       </p>
                     </div>
@@ -1815,7 +1817,7 @@ export default function Dashboard({
             </div>
           </div>
 
-          <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs dark:border-slate-800">
+          <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4 text-xs font-medium dark:border-slate-800">
             <span className="text-slate-500">Overall Financial Posture</span>
             <span className="font-semibold text-emerald-500">Prime & Balanced</span>
           </div>

@@ -1048,7 +1048,7 @@ export default function StocksPage() {
   }
 
   return (
-    <div className="min-w-0 w-full space-y-4 sm:space-y-6">
+    <div className="min-w-0 w-full space-y-6 lg:space-y-8">
       {/* Toast Alert Banner */}
       {statusMessage ? (
         <div
@@ -1081,7 +1081,7 @@ export default function StocksPage() {
       ) : null}
 
       {/* ── TOP COMMAND & PULSE BAR ── */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 lg:flex-row lg:items-center lg:justify-between lg:px-5 lg:py-2.5">
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 lg:flex-row lg:items-center lg:justify-between lg:px-6 lg:py-3">
         {/* Left: Sync Pulse & Rate */}
         <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
           <div className="flex items-center gap-2">
@@ -1089,7 +1089,7 @@ export default function StocksPage() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
             </span>
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Live Feed</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">Live Feed</span>
           </div>
           <span className="hidden text-slate-300 dark:text-slate-700 sm:inline">|</span>
           <span className="text-xs text-slate-600 dark:text-slate-300">
@@ -1349,19 +1349,19 @@ export default function StocksPage() {
       {pageTab === 'holdings' ? (
         <>
           {/* ── ROW 1: HERO VALUATION DECK & 4 ASSET PILLARS ── */}
-          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
             {/* Main Portfolio Balance Hero */}
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 sm:p-6">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4 dark:border-slate-800">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 sm:p-7">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-5 dark:border-slate-800">
                 <div>
                   <div className={LABEL}>Total Portfolio Valuation</div>
                   <div className="mt-1 flex items-baseline gap-3">
-                    <span className="font-mono text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-4xl">
+                    <span className="font-mono text-3xl font-bold tabular-nums tracking-[-0.02em] text-slate-900 dark:text-white sm:text-4xl">
                       {holdingsLoading ? '—' : <PrivateValue value={formatMoney(totalCurrentValue)} mask="••••••" hideColor />}
                     </span>
                     <span
                       className={[
-                        'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-mono text-xs font-bold tabular-nums',
+                        'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-mono text-xs font-semibold tabular-nums',
                         privacyMode
                           ? 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
                           : totalPnlClass(totalUnrealizedPnl),
@@ -1394,41 +1394,41 @@ export default function StocksPage() {
               </div>
 
               {/* 3 Metric Summary Banner */}
-              <div className="mt-5 grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-3">
-                <div className="rounded-2xl bg-slate-50/80 p-3.5 dark:bg-slate-800/40">
+              <div className="mt-6 grid grid-cols-1 gap-4 sm:gap-5 sm:grid-cols-3">
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 sm:p-5 dark:border-slate-800/60 dark:bg-slate-800/40">
                   <div className={LABEL}>Unrealized P&L</div>
-                  <div className={['mt-1.5 font-mono text-base font-bold tabular-nums sm:text-lg', privacyMode ? 'text-slate-400' : getTrendClass(totalUnrealizedPnl)].join(' ')}>
+                  <div className={['mt-2 font-mono text-base font-semibold tabular-nums sm:text-lg', privacyMode ? 'text-slate-400' : getTrendClass(totalUnrealizedPnl)].join(' ')}>
                     <PrivateValue
                       value={`${totalUnrealizedPnl >= 0 ? '+' : ''}${formatMoney(totalUnrealizedPnl)}`}
                       mask="••••"
                       hideColor
                     />
                   </div>
-                  <div className="mt-0.5 text-[11px] text-slate-400">Current open positions</div>
+                  <div className="mt-1 text-xs font-medium text-slate-400">Current open positions</div>
                 </div>
 
-                <div className="rounded-2xl bg-slate-50/80 p-3.5 dark:bg-slate-800/40">
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 sm:p-5 dark:border-slate-800/60 dark:bg-slate-800/40">
                   <div className={LABEL}>Booked Realized P&L</div>
-                  <div className={['mt-1.5 font-mono text-base font-bold tabular-nums sm:text-lg', privacyMode ? 'text-slate-400' : getTrendClass(realizedProfitTotal)].join(' ')}>
+                  <div className={['mt-2 font-mono text-base font-semibold tabular-nums sm:text-lg', privacyMode ? 'text-slate-400' : getTrendClass(realizedProfitTotal)].join(' ')}>
                     <PrivateValue
                       value={`${realizedProfitTotal >= 0 ? '+' : ''}${formatMoney(realizedProfitTotal)}`}
                       mask="••••"
                       hideColor
                     />
                   </div>
-                  <div className="mt-0.5 text-[11px] text-slate-400">From sells & IPOs</div>
+                  <div className="mt-1 text-xs font-medium text-slate-400">From sells & IPOs</div>
                 </div>
 
-                <div className="rounded-2xl bg-slate-50/80 p-3.5 dark:bg-slate-800/40">
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 sm:p-5 dark:border-slate-800/60 dark:bg-slate-800/40">
                   <div className={LABEL}>Net Lifetime Profit</div>
-                  <div className={['mt-1.5 font-mono text-base font-bold tabular-nums sm:text-lg', privacyMode ? 'text-slate-400' : getTrendClass(totalLifetimePnl)].join(' ')}>
+                  <div className={['mt-2 font-mono text-base font-semibold tabular-nums sm:text-lg', privacyMode ? 'text-slate-400' : getTrendClass(totalLifetimePnl)].join(' ')}>
                     <PrivateValue
                       value={`${totalLifetimePnl >= 0 ? '+' : ''}${formatMoney(totalLifetimePnl)}`}
                       mask="••••"
                       hideColor
                     />
                   </div>
-                  <div className="mt-0.5 text-[11px] text-slate-400">Realized + Unrealized</div>
+                  <div className="mt-1 text-xs font-medium text-slate-400">Realized + Unrealized</div>
                 </div>
               </div>
 
