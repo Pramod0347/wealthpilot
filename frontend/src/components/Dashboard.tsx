@@ -47,6 +47,7 @@ import {
 } from '../queries/hooks'
 import { queryKeys } from '../queries/queryKeys'
 import { secondaryButtonClass } from '../styles/buttonStyles'
+import { computeSnapshotComparison, formatSnapshotDate } from '../utils/snapshotDelta'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -399,6 +400,7 @@ export default function Dashboard({
   const cardsQuery = useCreditCardsQuery()
   const bankAccountsQuery = useBankAccountsQuery()
   const portfolioPerformanceQuery = usePortfolioPerformanceQuery(activeFilter)
+  const allPerformanceQuery = usePortfolioPerformanceQuery('ALL')
   const analyticsQuery = useAnalyticsSummaryQuery()
   const intelligenceQuery = usePortfolioIntelligenceQuery()
   const goalsQuery = useFinancialGoalsQuery()
@@ -427,6 +429,11 @@ export default function Dashboard({
 
   // Net Worth & Core Metrics
   const netWorth = toNumber(summary?.net_worth)
+
+  const snapshotComparison = useMemo(() => {
+    const snapshots = allPerformanceQuery.data?.snapshots ?? portfolioPerformanceQuery.data?.snapshots
+    return computeSnapshotComparison(snapshots, netWorth)
+  }, [allPerformanceQuery.data?.snapshots, portfolioPerformanceQuery.data?.snapshots, netWorth])
   const totalAssets = toNumber(summary?.total_assets)
   const totalLiabilities = toNumber(summary?.total_liabilities)
   const totalInvested = toNumber(summary?.total_invested)
@@ -610,19 +617,31 @@ export default function Dashboard({
       })
     }
 
-    // 4. Portfolio return snapshot info
-    const latestSnapshotReturn = portfolioPerformance?.summary.change_pct
-    if (portfolioPerformance && (portfolioPerformance.summary.snapshot_count ?? 0) > 0) {
-      const ret = toNumber(latestSnapshotReturn ?? 0)
+    // 4. Portfolio return snapshot info / Snapshot valuation delta
+    if (snapshotComparison) {
       items.push({
-        title: 'Portfolio Snapshot Trend',
-        amount: formatSignedPct(ret),
-        statusLabel: ret >= 0 ? 'Profitable' : 'Drawdown',
-        statusTone: ret >= 0 ? 'emerald' : 'rose',
-        subtitle: `Calculated across ${portfolioPerformance.summary.snapshot_count} recorded snapshots`,
+        title: 'Snapshot Valuation Delta',
+        amount: `${snapshotComparison.diffAmount >= 0 ? '+' : ''}${formatMoney(snapshotComparison.diffAmount)}`,
+        statusLabel: snapshotComparison.diffAmount >= 0 ? `+${snapshotComparison.diffPct.toFixed(2)}%` : `${snapshotComparison.diffPct.toFixed(2)}%`,
+        statusTone: snapshotComparison.diffAmount >= 0 ? 'emerald' : 'rose',
+        subtitle: `Compared to ${formatSnapshotDate(snapshotComparison.lastDate)} (${formatMoney(snapshotComparison.lastValue)})`,
         icon: 'stocks',
         onClick: onOpenAnalytics,
       })
+    } else {
+      const latestSnapshotReturn = portfolioPerformance?.summary.change_pct
+      if (portfolioPerformance && (portfolioPerformance.summary.snapshot_count ?? 0) > 0) {
+        const ret = toNumber(latestSnapshotReturn ?? 0)
+        items.push({
+          title: 'Portfolio Snapshot Trend',
+          amount: formatSignedPct(ret),
+          statusLabel: ret >= 0 ? 'Profitable' : 'Drawdown',
+          statusTone: ret >= 0 ? 'emerald' : 'rose',
+          subtitle: `Calculated across ${portfolioPerformance.summary.snapshot_count} recorded snapshots`,
+          icon: 'stocks',
+          onClick: onOpenAnalytics,
+        })
+      }
     }
 
     return items.slice(0, 4)
@@ -706,6 +725,7 @@ export default function Dashboard({
     goalsSummary,
     totalBankCash,
     urgentCards,
+    snapshotComparison,
   ])
 
   // Snapshot trigger
@@ -822,8 +842,29 @@ export default function Dashboard({
           </div>
         </div>
 
-        {/* Right: Snapshot trigger button */}
-        <div className="flex items-center justify-end">
+        {/* Right: Snapshot trigger button and delta badge */}
+        <div className="flex flex-wrap items-center gap-2 justify-end">
+          {snapshotComparison ? (
+            <span
+              className={[
+                'inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold tabular-nums shadow-sm',
+                snapshotComparison.diffAmount >= 0
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400'
+                  : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400',
+              ].join(' ')}
+              title={`Compared to snapshot from ${formatSnapshotDate(snapshotComparison.lastDate)}`}
+            >
+              <span className="text-slate-400 font-normal">Vs Last Snapshot:</span>
+              {privacyMode ? (
+                '••••'
+              ) : (
+                <>
+                  <span>{snapshotComparison.diffAmount >= 0 ? '+' : ''}{formatMoney(snapshotComparison.diffAmount)}</span>
+                  <span className="opacity-80">({snapshotComparison.diffAmount >= 0 ? '+' : ''}{snapshotComparison.diffPct.toFixed(2)}%)</span>
+                </>
+              )}
+            </span>
+          ) : null}
           <button
             type="button"
             onClick={handleSaveTodaySnapshot}
@@ -851,7 +892,21 @@ export default function Dashboard({
                 <span className="font-mono text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-4xl">
                   {summaryLoading ? '—' : <PrivateValue value={formatMoney(netWorth)} mask="••••••" hideColor />}
                 </span>
-                {portfolioHasSnapshots && (
+                {snapshotComparison ? (
+                  <span
+                    className={[
+                      'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-mono text-xs font-bold tabular-nums',
+                      privacyMode
+                        ? 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                        : snapshotComparison.diffAmount >= 0
+                          ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400'
+                          : 'bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400',
+                    ].join(' ')}
+                    title={`vs ${formatSnapshotDate(snapshotComparison.lastDate)} (${formatMoney(snapshotComparison.lastValue)})`}
+                  >
+                    {privacyMode ? '•••' : `${snapshotComparison.diffAmount >= 0 ? '↑ +' : '↓ '}${formatSignedPct(snapshotComparison.diffPct)}`}
+                  </span>
+                ) : portfolioHasSnapshots ? (
                   <span
                     className={[
                       'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-mono text-xs font-bold tabular-nums',
@@ -864,8 +919,20 @@ export default function Dashboard({
                   >
                     {privacyMode ? '•••' : `${toNumber(latestSnapshotReturn ?? 0) >= 0 ? '↑' : '↓'} ${formatPct(Math.abs(toNumber(latestSnapshotReturn ?? 0)))}`}
                   </span>
-                )}
+                ) : null}
               </div>
+              {snapshotComparison ? (
+                <div className="mt-1 text-xs text-slate-400 flex items-center gap-1.5 font-medium">
+                  <span>Vs last snapshot ({formatSnapshotDate(snapshotComparison.lastDate)}):</span>
+                  <span className={['font-mono font-semibold', getTrendClass(snapshotComparison.diffAmount)].join(' ')}>
+                    <PrivateValue
+                      value={`${snapshotComparison.diffAmount >= 0 ? '+' : ''}${formatMoney(snapshotComparison.diffAmount)} (${snapshotComparison.diffAmount >= 0 ? '+' : ''}${snapshotComparison.diffPct.toFixed(2)}%)`}
+                      mask="••••"
+                      hideColor
+                    />
+                  </span>
+                </div>
+              ) : null}
             </div>
 
             {/* Capital Structure Badges */}

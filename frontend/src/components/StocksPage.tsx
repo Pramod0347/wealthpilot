@@ -31,6 +31,7 @@ import {
 } from '../queries/hooks'
 import { queryKeys } from '../queries/queryKeys'
 import { primaryButtonClass, secondaryButtonClass } from '../styles/buttonStyles'
+import { computeSnapshotComparison, formatSnapshotDate } from '../utils/snapshotDelta'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -460,6 +461,7 @@ export default function StocksPage() {
   const holdingsQuery = useHoldingsQuery()
   const analyticsQuery = useHoldingsAnalyticsQuery()
   const portfolioPerformanceQuery = usePortfolioPerformanceQuery(activeRange)
+  const allPerformanceQuery = usePortfolioPerformanceQuery('ALL')
   const transactionsQuery = useInvestmentTransactionsQuery(undefined)
 
   const holdings = (holdingsQuery.data ?? []) as ApiHolding[]
@@ -505,6 +507,11 @@ export default function StocksPage() {
     if (analytics) return toNumber(analytics.current_value)
     return openHoldings.reduce((sum, h) => sum + toNumber(h.current_value), 0)
   }, [analytics, openHoldings])
+
+  const snapshotComparison = useMemo(() => {
+    const snapshots = allPerformanceQuery.data?.snapshots ?? portfolioPerformanceQuery.data?.snapshots
+    return computeSnapshotComparison(snapshots, totalCurrentValue)
+  }, [allPerformanceQuery.data?.snapshots, portfolioPerformanceQuery.data?.snapshots, totalCurrentValue])
 
   const totalInvestedCapital = useMemo(() => {
     if (analytics) return toNumber(analytics.total_invested)
@@ -1099,6 +1106,27 @@ export default function StocksPage() {
               USD/INR: ₹{privacyMode ? '•••' : liveUsdInrRate.toFixed(2)}
             </span>
           )}
+          {snapshotComparison ? (
+            <span
+              className={[
+                'inline-flex items-center gap-1.5 rounded-lg px-2 py-0.5 text-xs font-medium tabular-nums',
+                snapshotComparison.diffAmount >= 0
+                  ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300'
+                  : 'border border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300',
+              ].join(' ')}
+              title={`Compared to snapshot on ${formatSnapshotDate(snapshotComparison.lastDate)}`}
+            >
+              <span className="text-slate-400 font-normal">Snap Δ:</span>
+              {privacyMode ? (
+                '•••'
+              ) : (
+                <>
+                  <span>{snapshotComparison.diffAmount >= 0 ? '+' : ''}{formatMoney(snapshotComparison.diffAmount)}</span>
+                  <span className="opacity-75">({snapshotComparison.diffAmount >= 0 ? '+' : ''}{snapshotComparison.diffPct.toFixed(2)}%)</span>
+                </>
+              )}
+            </span>
+          ) : null}
         </div>
 
         {/* Center: Market Breadth Indicators */}
@@ -1389,11 +1417,23 @@ export default function StocksPage() {
                       />
                     </span>
                   </div>
+                  {snapshotComparison ? (
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-1.5 text-xs dark:border-slate-800 dark:bg-slate-800/60">
+                      <span className="text-slate-400">Snap Δ: </span>
+                      <span className={['font-mono font-bold', getTrendClass(snapshotComparison.diffAmount)].join(' ')}>
+                        <PrivateValue
+                          value={`${snapshotComparison.diffAmount >= 0 ? '+' : ''}${formatMoney(snapshotComparison.diffAmount)} (${snapshotComparison.diffAmount >= 0 ? '+' : ''}${snapshotComparison.diffPct.toFixed(2)}%)`}
+                          mask="••••"
+                          hideColor
+                        />
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
-              {/* 3 Metric Summary Banner */}
-              <div className="mt-5 grid grid-cols-3 gap-3 sm:gap-4">
+              {/* 4 Metric Summary Banner */}
+              <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
                 <div className="rounded-2xl bg-slate-50/80 p-3.5 dark:bg-slate-800/40">
                   <div className={LABEL}>Unrealized P&L</div>
                   <div className={['mt-1.5 font-mono text-base font-bold tabular-nums sm:text-lg', privacyMode ? 'text-slate-400' : getTrendClass(totalUnrealizedPnl)].join(' ')}>
@@ -1428,6 +1468,31 @@ export default function StocksPage() {
                     />
                   </div>
                   <div className="mt-0.5 text-[11px] text-slate-400">Realized + Unrealized</div>
+                </div>
+
+                <div className="rounded-2xl bg-slate-50/80 p-3.5 dark:bg-slate-800/40">
+                  <div className="flex items-center justify-between">
+                    <div className={LABEL}>Vs Last Snapshot</div>
+                    {snapshotComparison ? (
+                      <span className={['font-mono text-[11px] font-bold', getTrendClass(snapshotComparison.diffAmount)].join(' ')}>
+                        {snapshotComparison.diffAmount >= 0 ? '+' : ''}{snapshotComparison.diffPct.toFixed(2)}%
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className={['mt-1.5 font-mono text-base font-bold tabular-nums sm:text-lg', privacyMode ? 'text-slate-400' : (snapshotComparison ? getTrendClass(snapshotComparison.diffAmount) : 'text-slate-900 dark:text-white')].join(' ')}>
+                    {snapshotComparison ? (
+                      <PrivateValue
+                        value={`${snapshotComparison.diffAmount >= 0 ? '+' : ''}${formatMoney(snapshotComparison.diffAmount)}`}
+                        mask="••••"
+                        hideColor
+                      />
+                    ) : (
+                      '—'
+                    )}
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-slate-400 truncate">
+                    {snapshotComparison ? `vs ${formatSnapshotDate(snapshotComparison.lastDate)} (${formatMoney(snapshotComparison.lastValue)})` : 'No prior snapshot'}
+                  </div>
                 </div>
               </div>
 
