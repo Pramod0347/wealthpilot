@@ -154,7 +154,7 @@ export default function AnalyticsPage() {
   const goals = analytics?.goals_analytics
 
   // Portfolio valuation and snapshot diff
-  const latestValuation = toNumber(performance?.summary.latest_value ?? investments?.net_worth ?? intelligence?.net_worth?.net_worth ?? 0)
+  const latestValuation = toNumber(performance?.summary.latest_value ?? dashboard?.current_value ?? 0)
   const snapshotComparison = useMemo(() => {
     const snapshots = allPerformanceQuery.data?.snapshots ?? performance?.snapshots
     return computeSnapshotComparison(snapshots, latestValuation)
@@ -312,36 +312,8 @@ export default function AnalyticsPage() {
           )}
         </div>
 
-        {/* Right: Snapshot Delta Pill & Refresh Action */}
+        {/* Right: Refresh Action */}
         <div className="flex flex-wrap items-center gap-2 justify-end">
-          {snapshotComparison ? (
-            <span
-              className={[
-                'inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold tabular-nums shadow-sm',
-                snapshotComparison.diffAmount >= 0
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400'
-                  : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400',
-              ].join(' ')}
-              title={`Compared to snapshot on ${formatSnapshotDate(snapshotComparison.lastDate)}`}
-            >
-              <span className="text-slate-400 font-normal">Snap Δ:</span>
-              {privacyMode ? (
-                '••••'
-              ) : (
-                <>
-                  <span>
-                    {snapshotComparison.diffAmount >= 0 ? '+' : ''}
-                    {formatMoney(snapshotComparison.diffAmount)}
-                  </span>
-                  <span className="opacity-80">
-                    ({snapshotComparison.diffAmount >= 0 ? '+' : ''}
-                    {snapshotComparison.diffPct.toFixed(2)}%)
-                  </span>
-                </>
-              )}
-            </span>
-          ) : null}
-
           <button
             type="button"
             onClick={handleRefresh}

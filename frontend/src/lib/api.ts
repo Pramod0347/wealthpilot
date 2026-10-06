@@ -224,6 +224,18 @@ export type FixedSavingsAccountPayload = {
 }
 
 export type DashboardSummary = {
+  total_invested?: string | number
+  current_value?: string | number
+  total_bank_cash?: string | number
+  bank_accounts_count?: number
+  total_fixed_savings_value?: string | number
+  fixed_savings_accounts_count?: number
+  total_assets?: string | number
+  total_liabilities?: string | number
+  net_worth?: string | number
+  total_pnl?: string | number
+  total_return_pct?: string | number
+  holdings_count?: number
   total_credit_card_dues: string | number
   total_card_limit: string | number
   total_card_used: string | number
