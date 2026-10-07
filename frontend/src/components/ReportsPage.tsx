@@ -249,7 +249,7 @@ export default function ReportsPage() {
   )
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto min-w-0 w-full max-w-[1600px] space-y-5 pb-12">
       <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm dark:border-slate-700/50 dark:bg-slate-900/80">
         <div className="flex items-start gap-3">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-amber-500/10 text-amber-300">

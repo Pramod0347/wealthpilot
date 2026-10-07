@@ -734,7 +734,7 @@ export default function Dashboard({
   const portfolioHasSnapshots = (portfolioPerformance?.summary.snapshot_count ?? 0) > 0
 
   return (
-    <div className="min-w-0 w-full space-y-6 lg:space-y-8">
+    <div className="mx-auto min-w-0 w-full max-w-[1600px] space-y-6 lg:space-y-8">
       <WealthBucketModal bucket={selectedBucket} onClose={() => setSelectedBucketKey(null)} />
 
       {/* Toast Alert Banner */}

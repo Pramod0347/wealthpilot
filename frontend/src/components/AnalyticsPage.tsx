@@ -287,7 +287,7 @@ export default function AnalyticsPage() {
   ].some(Boolean)
 
   return (
-    <div className="min-w-0 w-full space-y-6 lg:space-y-8 pb-12">
+    <div className="mx-auto min-w-0 w-full max-w-[1600px] space-y-6 lg:space-y-8 pb-12">
       {/* ── TOP COMMAND & PULSE BAR ── */}
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 lg:flex-row lg:items-center lg:justify-between lg:px-6 lg:py-3">
         {/* Left: Intelligence Status & Coverage */}

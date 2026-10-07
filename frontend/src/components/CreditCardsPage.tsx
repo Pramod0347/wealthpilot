@@ -818,7 +818,7 @@ export default function CreditCardsPage() {
   }
 
   return (
-    <div className="min-w-0 w-full overflow-x-hidden space-y-6 pb-12">
+    <div className="mx-auto min-w-0 w-full max-w-[1600px] overflow-x-hidden space-y-6 pb-12">
       {/* ── Toast Notification ────────────────────────────────────────── */}
       {statusMessage ? (
         <div

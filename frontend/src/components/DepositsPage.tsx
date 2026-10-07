@@ -446,7 +446,7 @@ export default function DepositsPage() {
   }
 
   return (
-    <div className="min-w-0 w-full space-y-6 lg:space-y-8 pb-12">
+    <div className="mx-auto min-w-0 w-full max-w-[1600px] space-y-6 lg:space-y-8 pb-12">
       {/* Toast Alert Banner */}
       {statusMessage ? (
         <div

@@ -561,7 +561,7 @@ export default function BanksPage() {
   }, [highestBalanceAccount, totalCash])
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="mx-auto min-w-0 w-full max-w-[1600px] space-y-6 pb-12">
       {/* ── STATUS BANNER ── */}
       {statusMessage && (
         <div

@@ -293,7 +293,7 @@ export default function App() {
         />
 
         <main className="flex-1 overflow-y-auto overflow-x-hidden bg-slate-50 dark:bg-transparent">
-          <div className="p-4 pb-24 sm:p-5 sm:pb-28 lg:p-8 lg:pb-8">
+          <div className="mx-auto w-full max-w-[1600px] p-4 pb-24 sm:p-5 sm:pb-28 lg:p-8 lg:pb-8">
             {pageConfig.content}
           </div>
         </main>
