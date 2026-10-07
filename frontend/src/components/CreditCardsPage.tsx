@@ -53,7 +53,7 @@ import { primaryButtonClass, secondaryButtonClass } from '../styles/buttonStyles
 // ─── Design Tokens & Constants ────────────────────────────────────────────────
 
 const CARD_SHELL = 'rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/90'
-const LABEL_TEXT = 'text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500'
+const LABEL_TEXT = 'text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500'
 
 type ApiDashboardSummary = {
   total_credit_card_dues: string | number
@@ -818,7 +818,7 @@ export default function CreditCardsPage() {
   }
 
   return (
-    <div className="mx-auto min-w-0 w-full max-w-[1600px] overflow-x-hidden space-y-6 pb-12">
+    <div className="mx-auto min-w-0 w-full max-w-[1600px] overflow-x-hidden space-y-6 lg:space-y-8 pb-12">
       {/* ── Toast Notification ────────────────────────────────────────── */}
       {statusMessage ? (
         <div
@@ -848,47 +848,47 @@ export default function CreditCardsPage() {
       ) : null}
 
       {/* ── Executive Header Command Bar ───────────────────────────────── */}
-      <div className={`${CARD_SHELL} p-5 sm:p-6`}>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-indigo-500/10 to-purple-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+      <div className={`${CARD_SHELL} p-6 sm:p-7`}>
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500/10 to-purple-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
                 <CreditCardIcon className="h-5 w-5" />
               </div>
               <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-2xl">
                 Credit Cards & Dues
               </h1>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
                 <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
                 Active Lines: {cards.length}
               </span>
               {overdueCount > 0 ? (
-                <span className="inline-flex items-center gap-1 rounded-full border border-rose-500/30 bg-rose-500/10 px-2.5 py-0.5 text-xs font-semibold text-rose-600 dark:text-rose-400 animate-pulse">
-                  <AlertTriangle className="h-3 w-3" />
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1 text-xs font-semibold text-rose-600 dark:text-rose-400 animate-pulse">
+                  <AlertTriangle className="h-3.5 w-3.5" />
                   {overdueCount} Overdue
                 </span>
               ) : dueSoonCount > 0 ? (
-                <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
-                  <Clock className="h-3 w-3" />
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                  <Clock className="h-3.5 w-3.5" />
                   {dueSoonCount} Due Soon
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                  <CheckCircle2 className="h-3 w-3" />
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
                   All Paid
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
+            <p className="text-xs text-slate-500 dark:text-slate-400 sm:text-sm pl-0.5">
               Limits, automated billing cycles, real-time utilization analytics, and dues settlement tracking.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5 pt-2 sm:pt-0">
+          <div className="flex flex-wrap items-center gap-3 pt-1 sm:pt-0">
             <button
               type="button"
               onClick={() => void refreshData()}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80 px-3.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition active:scale-95 shadow-sm"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80 px-4 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition active:scale-95 shadow-sm"
               title="Refresh credit card data"
             >
               <RefreshCw className="h-3.5 w-3.5" />
@@ -898,7 +898,7 @@ export default function CreditCardsPage() {
             <button
               type="button"
               onClick={openCreateModal}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 px-4 text-xs font-semibold text-white shadow-sm transition active:scale-95"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 px-4.5 text-xs font-semibold text-white shadow-sm transition active:scale-95"
             >
               <Plus className="h-4 w-4" />
               <span>Add Credit Card</span>
@@ -908,31 +908,33 @@ export default function CreditCardsPage() {
       </div>
 
       {/* ── 4 Executive Bento KPI Cards ─────────────────────────────────── */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-1 gap-5 sm:gap-6 sm:grid-cols-2 xl:grid-cols-4">
         {/* Metric 1: Total Dues */}
-        <div className={`${CARD_SHELL} p-5 relative overflow-hidden group hover:border-indigo-500/30 transition-all`}>
-          <div className="flex items-center justify-between">
-            <span className={LABEL_TEXT}>Total Active Dues</span>
-            <div className={['grid h-8 w-8 place-items-center rounded-xl border', totalDues > 0 ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'].join(' ')}>
-              {totalDues > 0 ? <Clock className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+        <div className={`${CARD_SHELL} p-6 sm:p-7 relative overflow-hidden group hover:border-indigo-500/30 transition-all flex flex-col justify-between`}>
+          <div>
+            <div className="flex items-center justify-between">
+              <span className={LABEL_TEXT}>Total Active Dues</span>
+              <div className={['grid h-9 w-9 place-items-center rounded-xl border', totalDues > 0 ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'].join(' ')}>
+                {totalDues > 0 ? <Clock className="h-4.5 w-4.5" /> : <ShieldCheck className="h-4.5 w-4.5" />}
+              </div>
+            </div>
+            <div className="mt-4 sm:mt-5">
+              <div className={['font-mono text-2xl sm:text-3xl font-bold tracking-tight', privacyMode ? 'text-slate-400' : totalDues > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white'].join(' ')}>
+                <PrivateValue value={formatINR(totalDues)} mask="••••••••" hideColor />
+              </div>
+              <div className="mt-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <span>{overdueCount} overdue · {dueSoonCount} due soon</span>
+                {totalDues > 0 && totalLimit > 0 ? (
+                  <span className="font-semibold text-amber-600 dark:text-amber-400">
+                    {privacyMode ? '••%' : `${((totalDues / totalLimit) * 100).toFixed(1)}% of limit`}
+                  </span>
+                ) : (
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">Clear</span>
+                )}
+              </div>
             </div>
           </div>
-          <div className="mt-3">
-            <div className={['font-mono text-2xl font-bold tracking-tight', privacyMode ? 'text-slate-400' : totalDues > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white'].join(' ')}>
-              <PrivateValue value={formatINR(totalDues)} mask="••••••••" hideColor />
-            </div>
-            <div className="mt-1 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-              <span>{overdueCount} overdue · {dueSoonCount} due soon</span>
-              {totalDues > 0 && totalLimit > 0 ? (
-                <span className="font-semibold text-amber-600 dark:text-amber-400">
-                  {privacyMode ? '••%' : `${((totalDues / totalLimit) * 100).toFixed(1)}% of limit`}
-                </span>
-              ) : (
-                <span className="font-semibold text-emerald-600 dark:text-emerald-400">Clear</span>
-              )}
-            </div>
-          </div>
-          <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+          <div className="mt-5 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
             <div
               className={['h-full rounded-full transition-all duration-500', totalDues > 0 ? 'bg-amber-500' : 'bg-emerald-500'].join(' ')}
               style={{ width: `${Math.min(totalLimit > 0 ? (totalDues / totalLimit) * 100 : 0, 100)}%` }}
@@ -941,25 +943,27 @@ export default function CreditCardsPage() {
         </div>
 
         {/* Metric 2: Total Card Limit */}
-        <div className={`${CARD_SHELL} p-5 relative overflow-hidden group hover:border-indigo-500/30 transition-all`}>
-          <div className="flex items-center justify-between">
-            <span className={LABEL_TEXT}>Total Credit Line</span>
-            <div className="grid h-8 w-8 place-items-center rounded-xl border border-blue-500/20 bg-blue-500/10 text-blue-500">
-              <CreditCardIcon className="h-4 w-4" />
+        <div className={`${CARD_SHELL} p-6 sm:p-7 relative overflow-hidden group hover:border-indigo-500/30 transition-all flex flex-col justify-between`}>
+          <div>
+            <div className="flex items-center justify-between">
+              <span className={LABEL_TEXT}>Total Credit Line</span>
+              <div className="grid h-9 w-9 place-items-center rounded-xl border border-blue-500/20 bg-blue-500/10 text-blue-500">
+                <CreditCardIcon className="h-4.5 w-4.5" />
+              </div>
+            </div>
+            <div className="mt-4 sm:mt-5">
+              <div className="font-mono text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+                <PrivateValue value={formatINR(totalLimit)} mask="••••••••" hideColor />
+              </div>
+              <div className="mt-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <span>Available Credit</span>
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                  <PrivateValue value={formatINRShort(totalAvailable)} mask="••••" hideColor />
+                </span>
+              </div>
             </div>
           </div>
-          <div className="mt-3">
-            <div className="font-mono text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              <PrivateValue value={formatINR(totalLimit)} mask="••••••••" hideColor />
-            </div>
-            <div className="mt-1 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-              <span>Available Credit</span>
-              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                <PrivateValue value={formatINRShort(totalAvailable)} mask="••••" hideColor />
-              </span>
-            </div>
-          </div>
-          <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+          <div className="mt-5 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
             <div
               className="h-full rounded-full bg-blue-500 transition-all duration-500"
               style={{ width: `${Math.min(totalLimit > 0 ? (totalAvailable / totalLimit) * 100 : 0, 100)}%` }}
@@ -968,23 +972,25 @@ export default function CreditCardsPage() {
         </div>
 
         {/* Metric 3: Total Used Amount */}
-        <div className={`${CARD_SHELL} p-5 relative overflow-hidden group hover:border-indigo-500/30 transition-all`}>
-          <div className="flex items-center justify-between">
-            <span className={LABEL_TEXT}>Current Spending / Debt</span>
-            <div className="grid h-8 w-8 place-items-center rounded-xl border border-violet-500/20 bg-violet-500/10 text-violet-500">
-              <Receipt className="h-4 w-4" />
+        <div className={`${CARD_SHELL} p-6 sm:p-7 relative overflow-hidden group hover:border-indigo-500/30 transition-all flex flex-col justify-between`}>
+          <div>
+            <div className="flex items-center justify-between">
+              <span className={LABEL_TEXT}>Current Spending / Debt</span>
+              <div className="grid h-9 w-9 place-items-center rounded-xl border border-violet-500/20 bg-violet-500/10 text-violet-500">
+                <Receipt className="h-4.5 w-4.5" />
+              </div>
+            </div>
+            <div className="mt-4 sm:mt-5">
+              <div className="font-mono text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+                <PrivateValue value={formatINR(totalUsed)} mask="••••••••" hideColor />
+              </div>
+              <div className="mt-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <span>Across {cards.length} cards</span>
+                <span>Avg {formatINRShort(cards.length > 0 ? totalUsed / cards.length : 0)}/card</span>
+              </div>
             </div>
           </div>
-          <div className="mt-3">
-            <div className="font-mono text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              <PrivateValue value={formatINR(totalUsed)} mask="••••••••" hideColor />
-            </div>
-            <div className="mt-1 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-              <span>Across {cards.length} cards</span>
-              <span>Avg {formatINRShort(cards.length > 0 ? totalUsed / cards.length : 0)}/card</span>
-            </div>
-          </div>
-          <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+          <div className="mt-5 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
             <div
               className="h-full rounded-full bg-violet-500 transition-all duration-500"
               style={{ width: `${Math.min(totalLimit > 0 ? (totalUsed / totalLimit) * 100 : 0, 100)}%` }}
@@ -993,25 +999,27 @@ export default function CreditCardsPage() {
         </div>
 
         {/* Metric 4: Utilization & CIBIL Health */}
-        <div className={`${CARD_SHELL} p-5 relative overflow-hidden group hover:border-indigo-500/30 transition-all`}>
-          <div className="flex items-center justify-between">
-            <span className={LABEL_TEXT}>Overall Utilization</span>
-            <span className={['inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold', utilizationScale.badgeTone].join(' ')}>
-              {utilizationScale.label}
-            </span>
-          </div>
-          <div className="mt-3">
-            <div className={['font-mono text-2xl font-bold tracking-tight', privacyMode ? 'text-slate-400' : utilizationScale.textTone].join(' ')}>
-              {privacyMode ? '••••' : `${overallUtilization.toFixed(2)}%`}
-            </div>
-            <div className="mt-1 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-              <span>CIBIL ceiling: 30%</span>
-              <span className="font-medium text-slate-600 dark:text-slate-300">
-                {overallUtilization < 30 ? 'Safe for score' : 'Reduce balance'}
+        <div className={`${CARD_SHELL} p-6 sm:p-7 relative overflow-hidden group hover:border-indigo-500/30 transition-all flex flex-col justify-between`}>
+          <div>
+            <div className="flex items-center justify-between">
+              <span className={LABEL_TEXT}>Overall Utilization</span>
+              <span className={['inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold', utilizationScale.badgeTone].join(' ')}>
+                {utilizationScale.label}
               </span>
             </div>
+            <div className="mt-4 sm:mt-5">
+              <div className={['font-mono text-2xl sm:text-3xl font-bold tracking-tight', privacyMode ? 'text-slate-400' : utilizationScale.textTone].join(' ')}>
+                {privacyMode ? '••••' : `${overallUtilization.toFixed(2)}%`}
+              </div>
+              <div className="mt-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <span>CIBIL ceiling: 30%</span>
+                <span className="font-medium text-slate-600 dark:text-slate-300">
+                  {overallUtilization < 30 ? 'Safe for score' : 'Reduce balance'}
+                </span>
+              </div>
+            </div>
           </div>
-          <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800 relative">
+          <div className="mt-5 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800 relative">
             <div
               className={['h-full rounded-full transition-all duration-500', utilizationScale.barColor].join(' ')}
               style={{ width: `${Math.min(Math.max(overallUtilization, 0), 100)}%` }}
@@ -1023,24 +1031,26 @@ export default function CreditCardsPage() {
       </section>
 
       {/* ── Dual Credit Intelligence Widgets ───────────────────────────── */}
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+      <section className="grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-12">
         {/* Left: Upcoming Dues Horizon */}
-        <div className={`${CARD_SHELL} p-5 lg:col-span-6 flex flex-col justify-between`}>
+        <div className={`${CARD_SHELL} p-6 sm:p-7 lg:col-span-6 flex flex-col justify-between`}>
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-indigo-500" />
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2.5">
+                <div className="grid h-8 w-8 place-items-center rounded-xl bg-indigo-500/10 text-indigo-500">
+                  <Calendar className="h-4 w-4" />
+                </div>
                 <h2 className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">
                   Payment Horizon & Due Dates
                 </h2>
               </div>
-              <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">
+              <span className="text-xs font-medium text-slate-400 dark:text-slate-500">
                 Chronological order
               </span>
             </div>
 
             {upcomingBills.length === 0 ? (
-              <div className="my-6 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-6 text-center">
+              <div className="my-6 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-8 text-center">
                 <div className="mx-auto grid h-10 w-10 place-items-center rounded-xl bg-emerald-500/10 text-emerald-500 mb-2">
                   <ShieldCheck className="h-5 w-5" />
                 </div>
@@ -1050,40 +1060,40 @@ export default function CreditCardsPage() {
                 </p>
               </div>
             ) : (
-              <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
                 {upcomingBills.map((card) => {
                   const countdown = getDueCountdownMeta(card.days_until_due)
                   const brand = getCreditCardBrandTheme(card.bank_name, card.card_name)
                   const billVal = toNumber(card.current_bill_amount)
 
                   return (
-                    <div key={card.id} className="py-2.5 flex items-center justify-between gap-3 first:pt-1 last:pb-1">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br ${brand.gradient} text-white font-mono text-[10px] font-bold shadow-sm`}>
+                    <div key={card.id} className="py-3.5 sm:py-4 flex items-center justify-between gap-4 first:pt-1 last:pb-1">
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${brand.gradient} text-white font-mono text-[10px] font-bold shadow-sm`}>
                           {card.bank_name.slice(0, 2).toUpperCase()}
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-0 space-y-0.5">
                           <div className="flex items-center gap-2 truncate">
-                            <span className="truncate text-xs font-semibold text-slate-900 dark:text-white">
+                            <span className="truncate text-xs sm:text-sm font-semibold text-slate-900 dark:text-white">
                               {card.card_name}
                             </span>
-                            <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">
+                            <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500">
                               ••{card.last4}
                             </span>
                           </div>
-                          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+                          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                             <span>Due {formatDisplayDate(card.due_date)}</span>
                             <span>•</span>
-                            <span className={countdown.badgeClass + ' px-1.5 py-0.2 rounded text-[10px]'}>
+                            <span className={countdown.badgeClass + ' px-2 py-0.5 rounded-md text-[10px] font-semibold'}>
                               {countdown.label}
                             </span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3 shrink-0">
+                      <div className="flex items-center gap-3.5 shrink-0">
                         <div className="text-right">
-                          <div className="font-mono text-xs font-bold text-slate-900 dark:text-white">
+                          <div className="font-mono text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
                             <PrivateValue value={formatINR(billVal)} mask="••••" hideColor />
                           </div>
                           <div className="text-[10px] text-slate-400">Bill Dues</div>
@@ -1092,13 +1102,13 @@ export default function CreditCardsPage() {
                           <button
                             type="button"
                             onClick={() => openMarkPaidModal(card)}
-                            className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm transition active:scale-95"
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition active:scale-95"
                           >
-                            <Check className="h-3 w-3" />
-                            Pay
+                            <Check className="h-3.5 w-3.5" />
+                            <span>Pay</span>
                           </button>
                         ) : (
-                          <span className="rounded-lg bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-500">
+                          <span className="rounded-lg bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-500">
                             Settled
                           </span>
                         )}
@@ -1110,33 +1120,35 @@ export default function CreditCardsPage() {
             )}
           </div>
 
-          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
+          <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between">
             <span>Log payments immediately after clearing your statement</span>
             <span className="font-semibold text-indigo-500 dark:text-indigo-400">{cards.length} tracked lines</span>
           </div>
         </div>
 
         {/* Right: Credit Capacity & Card Distribution */}
-        <div className={`${CARD_SHELL} p-5 lg:col-span-6 flex flex-col justify-between`}>
+        <div className={`${CARD_SHELL} p-6 sm:p-7 lg:col-span-6 flex flex-col justify-between`}>
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Zap className="h-4 w-4 text-violet-500" />
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2.5">
+                <div className="grid h-8 w-8 place-items-center rounded-xl bg-violet-500/10 text-violet-500">
+                  <Zap className="h-4 w-4" />
+                </div>
                 <h2 className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">
                   Credit Line Allocation & Utilization
                 </h2>
               </div>
-              <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">
+              <span className="text-xs font-medium text-slate-400 dark:text-slate-500">
                 Limit capacity
               </span>
             </div>
 
             {cards.length === 0 ? (
-              <div className="my-6 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-6 text-center text-xs text-slate-500">
+              <div className="my-6 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-8 text-center text-xs text-slate-500">
                 No credit cards to analyze.
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {cards.slice(0, 4).map((card) => {
                   const cardLimit = toNumber(card.total_limit)
                   const cardUsed = toNumber(card.used_amount)
@@ -1145,7 +1157,7 @@ export default function CreditCardsPage() {
                   const scale = getUtilizationScale(utilPct)
 
                   return (
-                    <div key={card.id} className="space-y-1">
+                    <div key={card.id} className="space-y-1.5">
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-slate-900 dark:text-white truncate max-w-[140px] sm:max-w-[200px]">
@@ -1162,7 +1174,7 @@ export default function CreditCardsPage() {
                           </span>
                         </div>
                       </div>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                         <div
                           className={['h-full rounded-full transition-all duration-500', scale.barColor].join(' ')}
                           style={{ width: `${Math.min(Math.max(utilPct, 0), 100)}%` }}
@@ -1175,7 +1187,7 @@ export default function CreditCardsPage() {
             )}
           </div>
 
-          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+          <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
             <span>Available credit headroom:</span>
             <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
               <PrivateValue value={formatINR(totalAvailable)} mask="••••••••" hideColor />
@@ -1185,8 +1197,8 @@ export default function CreditCardsPage() {
       </section>
 
       {/* ── Interactive Command Deck (Filter & Search) ─────────────────── */}
-      <div className={`${CARD_SHELL} p-4 sm:p-5 space-y-4`}>
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className={`${CARD_SHELL} p-6 sm:p-7 space-y-6`}>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           {/* Search bar */}
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -1195,22 +1207,22 @@ export default function CreditCardsPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search cards by name, bank, last 4..."
-              className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/60 pl-9 pr-8 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition"
+              className="h-11 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/60 pl-10 pr-9 text-xs sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition"
             />
             {searchQuery ? (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
               >
-                <X className="h-3.5 w-3.5" />
+                <X className="h-4 w-4" />
               </button>
             ) : null}
           </div>
 
           {/* Status filter pills & sort & view mode */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80 p-0.5">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80 p-1">
               {(
                 [
                   { id: 'all', label: `All (${cards.length})` },
@@ -1224,7 +1236,7 @@ export default function CreditCardsPage() {
                   type="button"
                   onClick={() => setStatusFilter(tab.id as 'all' | ApiCreditCard['status'])}
                   className={[
-                    'rounded-lg px-2.5 py-1 text-xs font-semibold transition',
+                    'rounded-lg px-3 py-1.5 text-xs font-semibold transition',
                     statusFilter === tab.id
                       ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                       : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white',
@@ -1239,7 +1251,7 @@ export default function CreditCardsPage() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-              className="h-9 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 px-3 text-xs font-medium text-slate-700 dark:text-slate-200 shadow-sm focus:border-indigo-500 focus:outline-none"
+              className="h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 px-3.5 text-xs font-medium text-slate-700 dark:text-slate-200 shadow-sm focus:border-indigo-500 focus:outline-none"
             >
               <option value="due_date_asc">Soonest Due</option>
               <option value="dues_desc">Highest Dues</option>
@@ -1249,12 +1261,12 @@ export default function CreditCardsPage() {
             </select>
 
             {/* View Switcher: Cards vs Table */}
-            <div className="flex items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80 p-0.5">
+            <div className="flex items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80 p-1">
               <button
                 type="button"
                 onClick={() => setViewMode('cards')}
                 className={[
-                  'rounded-lg px-2.5 py-1 text-xs font-semibold transition flex items-center gap-1',
+                  'rounded-lg px-3 py-1.5 text-xs font-semibold transition flex items-center gap-1.5',
                   viewMode === 'cards'
                     ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400',
@@ -1268,7 +1280,7 @@ export default function CreditCardsPage() {
                 type="button"
                 onClick={() => setViewMode('table')}
                 className={[
-                  'rounded-lg px-2.5 py-1 text-xs font-semibold transition flex items-center gap-1',
+                  'rounded-lg px-3 py-1.5 text-xs font-semibold transition flex items-center gap-1.5',
                   viewMode === 'table'
                     ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400',
@@ -1302,7 +1314,7 @@ export default function CreditCardsPage() {
           </div>
         ) : viewMode === 'cards' ? (
           /* ── Fintech Sleek Compact Smart Cards Grid ────────────────── */
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredAndSortedCards.map((card) => {
               const theme = getCreditCardBrandTheme(card.bank_name, card.card_name)
               const tone = buildStatusTone(card.status)
@@ -1314,70 +1326,75 @@ export default function CreditCardsPage() {
               return (
                 <div
                   key={card.id}
-                  className={`relative overflow-hidden rounded-2xl border ${theme.border} bg-gradient-to-br ${theme.gradient} text-white shadow-md ${theme.glow} transition-all duration-200 hover:-translate-y-1 hover:shadow-xl flex flex-col justify-between`}
+                  className={`relative overflow-hidden rounded-3xl border ${theme.border} bg-gradient-to-br ${theme.gradient} text-white shadow-md ${theme.glow} transition-all duration-200 hover:-translate-y-1 hover:shadow-xl flex flex-col justify-between`}
                 >
                   {/* Subtle decorative glow */}
-                  <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-white/[0.04] blur-lg" />
+                  <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-white/[0.05] blur-xl" />
 
                   {/* Card Main Body */}
-                  <div className="relative p-4 pb-3 space-y-3">
-                    {/* Top Row: Bank & Card Title + Countdown Badge */}
-                    <div className="flex items-start justify-between gap-2">
+                  <div className="relative p-5 sm:p-6 pb-4 sm:pb-5 space-y-4">
+                    {/* Top Row: Bank & Card Title + Countdown Badge & Due Date */}
+                    <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[9px] font-mono tracking-wider text-white/60 uppercase font-semibold">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-mono tracking-wider text-white/70 uppercase font-bold">
                             {theme.logoText}
                           </span>
                           <span className="text-[10px] text-white/40">•</span>
-                          <span className="text-[10px] font-mono text-white/70">
+                          <span className="text-[11px] font-mono font-medium text-white/80">
                             ••{card.last4}
                           </span>
                         </div>
-                        <h3 className="text-sm font-bold tracking-tight text-white truncate drop-shadow-sm mt-0.5">
+                        <h3 className="text-base font-bold tracking-tight text-white truncate drop-shadow-sm mt-1">
                           {card.card_name}
                         </h3>
                       </div>
 
-                      <span className={`shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${countdown.badgeClass}`}>
-                        {countdown.label}
-                      </span>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold ${countdown.badgeClass}`}>
+                          {countdown.label}
+                        </span>
+                        <span className="text-[10px] text-white/60 font-mono">
+                          Due {formatDisplayDate(card.due_date)}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Middle Row: EMV chip + Bill Amount */}
-                    <div className="flex items-center justify-between gap-3 pt-0.5">
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between gap-3 pt-1">
+                      <div className="flex items-center gap-2.5">
                         {/* Compact EMV Chip */}
-                        <div className="relative h-6 w-8 rounded bg-gradient-to-br from-amber-200 via-yellow-400 to-amber-500 shadow-inner p-0.5 border border-yellow-200/50 flex flex-col justify-between shrink-0">
+                        <div className="relative h-7 w-9 rounded-md bg-gradient-to-br from-amber-200 via-yellow-400 to-amber-500 shadow-inner p-0.5 border border-yellow-200/50 flex flex-col justify-between shrink-0">
                           <div className="h-full w-full rounded-sm border border-amber-700/30 flex items-center justify-center">
                             <div className="w-full h-[0.5px] bg-amber-800/40" />
                           </div>
                         </div>
                         {/* Contactless Icon */}
-                        <svg className="h-3.5 w-3.5 text-white/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg className="h-4 w-4 text-white/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M8.5 16.5a5 5 0 0 1 0-7" strokeLinecap="round" />
                           <path d="M12 19a8.5 8.5 0 0 0 0-14" strokeLinecap="round" />
                         </svg>
                       </div>
 
                       <div className="text-right">
-                        <div className="text-[9px] uppercase tracking-wider text-white/60 font-medium">
+                        <div className="text-[10px] uppercase tracking-wider text-white/60 font-medium">
                           Bill Due
                         </div>
-                        <div className="font-mono text-base font-bold tracking-tight text-white">
+                        <div className="font-mono text-lg sm:text-xl font-bold tracking-tight text-white mt-0.5">
                           <PrivateValue value={formatINR(billAmount)} mask="••••••" hideColor />
                         </div>
                       </div>
                     </div>
 
                     {/* Utilization Bar & Metrics */}
-                    <div className="space-y-1 pt-1">
-                      <div className="h-1 w-full overflow-hidden rounded-full bg-white/15">
+                    <div className="space-y-1.5 pt-1">
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/20">
                         <div
                           className={`h-full rounded-full ${utilScale.barColor} transition-all duration-500`}
                           style={{ width: `${Math.min(Math.max(utilization, 0), 100)}%` }}
                         />
                       </div>
-                      <div className="flex items-center justify-between text-[10px] font-mono text-white/65">
+                      <div className="flex items-center justify-between text-[11px] font-mono text-white/75 pt-0.5">
                         <span>Used <PrivateValue value={formatINRShort(toNumber(card.used_amount))} mask="•••" hideColor /></span>
                         <span className={`font-semibold ${utilScale.textTone}`}>
                           {privacyMode ? '••%' : `${utilization.toFixed(1)}%`}
@@ -1388,52 +1405,49 @@ export default function CreditCardsPage() {
                   </div>
 
                   {/* Card Footer Toolbar */}
-                  <div className="relative border-t border-white/10 bg-black/30 px-3.5 py-2 flex items-center justify-between gap-1.5 backdrop-blur-sm">
-                    <div className="flex items-center gap-1.5">
+                  <div className="relative border-t border-white/10 bg-black/35 px-4 py-2.5 sm:px-5 sm:py-3 flex items-center justify-between gap-2 backdrop-blur-sm">
+                    <div className="flex items-center gap-2">
                       {billAmount > 0 ? (
                         <button
                           type="button"
                           onClick={() => openMarkPaidModal(card)}
-                          className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 px-2 py-1 text-[11px] font-bold text-slate-950 transition active:scale-95 shadow-sm"
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 px-3 py-1.5 text-xs font-bold text-slate-950 transition active:scale-95 shadow-sm"
                         >
-                          <Check className="h-3 w-3" />
+                          <Check className="h-3.5 w-3.5" />
                           <span>Pay</span>
                         </button>
                       ) : (
-                        <span className="text-[10px] font-semibold text-emerald-400/90 flex items-center gap-1">
-                          <Check className="h-3 w-3" /> Paid
+                        <span className="text-xs font-semibold text-emerald-400/90 flex items-center gap-1.5 py-1">
+                          <Check className="h-3.5 w-3.5" /> Paid
                         </span>
                       )}
 
                       <button
                         type="button"
                         onClick={() => openCardDetail(card)}
-                        className="inline-flex items-center gap-1 rounded-lg bg-white/10 hover:bg-white/20 px-2 py-1 text-[11px] font-medium text-white/90 transition active:scale-95"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 px-3 py-1.5 text-xs font-medium text-white/90 transition active:scale-95"
                       >
-                        <History className="h-3 w-3" />
+                        <History className="h-3.5 w-3.5" />
                         <span>History</span>
                       </button>
                     </div>
 
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px] text-white/50 font-mono mr-1">
-                        Due {formatDisplayDate(card.due_date)}
-                      </span>
+                    <div className="flex items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => openEditModal(card)}
-                        className="grid h-6 w-6 place-items-center rounded-md bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition active:scale-95"
+                        className="grid h-7 w-7 place-items-center rounded-lg bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition active:scale-95"
                         title="Edit Card"
                       >
-                        <Pencil className="h-3 w-3" />
+                        <Pencil className="h-3.5 w-3.5" />
                       </button>
                       <button
                         type="button"
                         onClick={() => void handleDelete(card)}
-                        className="grid h-6 w-6 place-items-center rounded-md bg-white/10 hover:bg-rose-500/30 text-white/80 hover:text-rose-300 transition active:scale-95"
+                        className="grid h-7 w-7 place-items-center rounded-lg bg-white/10 hover:bg-rose-500/30 text-white/80 hover:text-rose-300 transition active:scale-95"
                         title="Delete Card"
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>
@@ -1445,15 +1459,15 @@ export default function CreditCardsPage() {
           /* ── Broker-Grade Data Grid Table View ─────────────────────── */
           <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
             <table className="w-full text-left text-xs">
-              <thead className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              <thead className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 <tr>
-                  <th className="py-3 pl-4 pr-3">Card & Bank</th>
-                  <th className="px-3 py-3">Due Date</th>
-                  <th className="px-3 py-3">Status</th>
-                  <th className="px-3 py-3">Bill Due</th>
-                  <th className="px-3 py-3">Used / Limit</th>
-                  <th className="px-3 py-3">Utilization</th>
-                  <th className="py-3 pl-3 pr-4 text-right">Actions</th>
+                  <th className="py-3.5 pl-5 pr-4">Card & Bank</th>
+                  <th className="px-4 py-3.5">Due Date</th>
+                  <th className="px-4 py-3.5">Status</th>
+                  <th className="px-4 py-3.5">Bill Due</th>
+                  <th className="px-4 py-3.5">Used / Limit</th>
+                  <th className="px-4 py-3.5">Utilization</th>
+                  <th className="py-3.5 pl-4 pr-5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1467,43 +1481,43 @@ export default function CreditCardsPage() {
 
                   return (
                     <tr key={card.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition">
-                      <td className="py-3.5 pl-4 pr-3">
+                      <td className="py-4 pl-5 pr-4">
                         <div className="flex items-center gap-3">
-                          <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br ${theme.gradient} text-white font-mono text-[10px] font-bold shadow-sm`}>
+                          <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${theme.gradient} text-white font-mono text-[10px] font-bold shadow-sm`}>
                             {card.bank_name.slice(0, 2).toUpperCase()}
                           </div>
                           <div>
-                            <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                            <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5 text-xs sm:text-sm">
                               <span>{card.card_name}</span>
-                              <span className="font-mono text-[10px] text-slate-400">••{card.last4}</span>
+                              <span className="font-mono text-[11px] text-slate-400">••{card.last4}</span>
                             </div>
-                            <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                            <div className="text-xs text-slate-500 dark:text-slate-400">
                               {card.bank_name}
                             </div>
                           </div>
                         </div>
                       </td>
 
-                      <td className="px-3 py-3.5 whitespace-nowrap">
-                        <div className="font-medium text-slate-900 dark:text-white">
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <div className="font-medium text-slate-900 dark:text-white text-xs">
                           {formatDisplayDate(card.due_date)}
                         </div>
-                        <span className={`inline-block mt-0.5 rounded px-1.5 py-0.2 text-[10px] font-semibold ${countdown.badgeClass}`}>
+                        <span className={`inline-block mt-0.5 rounded px-2 py-0.5 text-[10px] font-semibold ${countdown.badgeClass}`}>
                           {countdown.label}
                         </span>
                       </td>
 
-                      <td className="px-3 py-3.5 whitespace-nowrap">
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${tone.badge}`}>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${tone.badge}`}>
                           {card.status.replace('_', ' ')}
                         </span>
                       </td>
 
-                      <td className="px-3 py-3.5 whitespace-nowrap font-mono font-bold text-slate-900 dark:text-white">
+                      <td className="px-4 py-4 whitespace-nowrap font-mono font-bold text-slate-900 dark:text-white text-xs sm:text-sm">
                         <PrivateValue value={formatINR(billAmount)} mask="••••" hideColor />
                       </td>
 
-                      <td className="px-3 py-3.5 whitespace-nowrap font-mono text-slate-600 dark:text-slate-300">
+                      <td className="px-4 py-4 whitespace-nowrap font-mono text-slate-600 dark:text-slate-300 text-xs">
                         <div>
                           <PrivateValue value={formatINR(toNumber(card.used_amount))} mask="••••" hideColor />
                         </div>
@@ -1512,13 +1526,13 @@ export default function CreditCardsPage() {
                         </div>
                       </td>
 
-                      <td className="px-3 py-3.5 whitespace-nowrap">
+                      <td className="px-4 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          <span className={['font-mono font-bold', utilScale.textTone].join(' ')}>
+                          <span className={['font-mono font-bold text-xs', utilScale.textTone].join(' ')}>
                             {privacyMode ? '••%' : `${util.toFixed(1)}%`}
                           </span>
                         </div>
-                        <div className="mt-1 h-1.5 w-20 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                        <div className="mt-1.5 h-1.5 w-24 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                           <div
                             className={['h-full rounded-full', utilScale.barColor].join(' ')}
                             style={{ width: `${Math.min(Math.max(util, 0), 100)}%` }}
@@ -1526,13 +1540,13 @@ export default function CreditCardsPage() {
                         </div>
                       </td>
 
-                      <td className="py-3.5 pl-3 pr-4 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1.5">
+                      <td className="py-4 pl-4 pr-5 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-2">
                           {billAmount > 0 ? (
                             <button
                               type="button"
                               onClick={() => openMarkPaidModal(card)}
-                              className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm transition active:scale-95"
+                              className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-2.5 py-1 text-xs font-semibold text-white shadow-sm transition active:scale-95"
                             >
                               <Check className="h-3 w-3" />
                               Pay
@@ -1541,7 +1555,7 @@ export default function CreditCardsPage() {
                           <button
                             type="button"
                             onClick={() => openCardDetail(card)}
-                            className="rounded-lg p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition"
+                            className="rounded-lg p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition"
                             title="Statement History"
                           >
                             <History className="h-4 w-4" />
@@ -1549,7 +1563,7 @@ export default function CreditCardsPage() {
                           <button
                             type="button"
                             onClick={() => openEditModal(card)}
-                            className="rounded-lg p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition"
+                            className="rounded-lg p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition"
                             title="Edit Card"
                           >
                             <Pencil className="h-4 w-4" />
@@ -1557,7 +1571,7 @@ export default function CreditCardsPage() {
                           <button
                             type="button"
                             onClick={() => void handleDelete(card)}
-                            className="rounded-lg p-1 text-slate-400 hover:text-rose-500 transition"
+                            className="rounded-lg p-1.5 text-slate-400 hover:text-rose-500 transition"
                             title="Delete Card"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -1574,14 +1588,16 @@ export default function CreditCardsPage() {
       </div>
 
       {/* ── Recent Bill Payments Audit Trail ───────────────────────────── */}
-      <div className={`${CARD_SHELL} p-5 space-y-4`}>
-        <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
-            <h2 className="text-sm font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-              <Receipt className="h-4 w-4 text-indigo-500" />
+      <div className={`${CARD_SHELL} p-6 sm:p-7 space-y-5 sm:space-y-6`}>
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <h2 className="text-base font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
+              <div className="grid h-8 w-8 place-items-center rounded-xl bg-indigo-500/10 text-indigo-500">
+                <Receipt className="h-4.5 w-4.5" />
+              </div>
               Recent Bill Settlement Ledger
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-slate-500 dark:text-slate-400 pl-0.5">
               Audit trail of cleared card statements across all tracked banks.
             </p>
           </div>
@@ -1605,14 +1621,14 @@ export default function CreditCardsPage() {
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
             <table className="w-full text-left text-xs">
-              <thead className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              <thead className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 <tr>
-                  <th className="py-3 pl-4 pr-3">Card Name</th>
-                  <th className="px-3 py-3">Billing Cycle</th>
-                  <th className="px-3 py-3">Due / Paid Date</th>
-                  <th className="px-3 py-3">Billed</th>
-                  <th className="px-3 py-3">Paid Amount</th>
-                  <th className="py-3 pl-3 pr-4 text-right">Status</th>
+                  <th className="py-3.5 pl-5 pr-4">Card Name</th>
+                  <th className="px-4 py-3.5">Billing Cycle</th>
+                  <th className="px-4 py-3.5">Due / Paid Date</th>
+                  <th className="px-4 py-3.5">Billed</th>
+                  <th className="px-4 py-3.5">Paid Amount</th>
+                  <th className="py-3.5 pl-4 pr-5 text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1626,41 +1642,41 @@ export default function CreditCardsPage() {
                       onClick={() => card && openCardDetail(card)}
                       className="cursor-pointer hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition"
                     >
-                      <td className="py-3.5 pl-4 pr-3">
-                        <div className="flex items-center gap-2.5">
-                          <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-indigo-500/10 text-indigo-500 font-bold text-[10px]">
+                      <td className="py-4 pl-5 pr-4">
+                        <div className="flex items-center gap-3">
+                          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-indigo-500/10 text-indigo-500 font-bold text-xs">
                             {card?.bank_name.slice(0, 2).toUpperCase() ?? 'CC'}
                           </div>
                           <div>
-                            <div className="font-semibold text-slate-900 dark:text-white">
+                            <div className="font-semibold text-slate-900 dark:text-white text-xs sm:text-sm">
                               {card?.card_name ?? `Card #${bill.credit_card_id}`}
                             </div>
-                            <div className="text-[10px] text-slate-400">
+                            <div className="text-[11px] text-slate-400">
                               {card ? `${card.bank_name} ••${card.last4}` : 'Card'}
                             </div>
                           </div>
                         </div>
                       </td>
 
-                      <td className="px-3 py-3.5 text-slate-600 dark:text-slate-300">
+                      <td className="px-4 py-4 text-slate-600 dark:text-slate-300 font-mono text-xs">
                         {formatBillingCycle(bill.billing_cycle_start, bill.billing_cycle_end)}
                       </td>
 
-                      <td className="px-3 py-3.5 whitespace-nowrap text-slate-600 dark:text-slate-300">
-                        <div>Paid {formatDisplayDate(bill.paid_date)}</div>
+                      <td className="px-4 py-4 whitespace-nowrap text-slate-600 dark:text-slate-300 text-xs">
+                        <div className="font-medium text-slate-900 dark:text-white">Paid {formatDisplayDate(bill.paid_date)}</div>
                         <div className="text-[10px] text-slate-400">Due {formatDisplayDate(bill.due_date)}</div>
                       </td>
 
-                      <td className="px-3 py-3.5 whitespace-nowrap font-mono font-medium text-slate-900 dark:text-white">
+                      <td className="px-4 py-4 whitespace-nowrap font-mono font-medium text-slate-900 dark:text-white text-xs sm:text-sm">
                         <PrivateValue value={formatINR(toNumber(bill.bill_amount))} mask="••••" hideColor />
                       </td>
 
-                      <td className="px-3 py-3.5 whitespace-nowrap font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                      <td className="px-4 py-4 whitespace-nowrap font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm">
                         <PrivateValue value={formatINR(toNumber(bill.paid_amount))} mask="••••" hideColor />
                       </td>
 
-                      <td className="py-3.5 pl-3 pr-4 text-right whitespace-nowrap">
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${buildBillStatusTone(bill.status)}`}>
+                      <td className="py-4 pl-4 pr-5 text-right whitespace-nowrap">
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${buildBillStatusTone(bill.status)}`}>
                           {bill.status}
                         </span>
                       </td>
