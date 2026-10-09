@@ -23,26 +23,15 @@ type MarketChipData = {
 }
 
 const FALLBACK_MARKETS: MarketChipData[] = [
-  { name: 'NIFTY 50', symbol: '^NSEI', price: 23222, change: -144.9, change_pct: -0.62, currency: 'INR' },
-  { name: 'SENSEX', symbol: '^BSESN', price: 76490, change: -451.2, change_pct: -0.59, currency: 'INR' },
-  { name: 'GOLD 24K', symbol: 'GC=F', price: 76500, change: 320.0, change_pct: 0.42, currency: 'INR' },
-  { name: 'SILVER 1KG', symbol: 'SI=F', price: 92800, change: 650.0, change_pct: 0.70, currency: 'INR' },
+  { name: 'NIFTY 50', symbol: '^NSEI', price: 22600, change: 288.0, change_pct: 1.28, currency: 'INR' },
+  { name: 'SENSEX', symbol: '^BSESN', price: 72600, change: 879.0, change_pct: 1.22, currency: 'INR' },
+  { name: 'GOLD 24K', symbol: 'GC=F', price: 150999, change: 1500.0, change_pct: 1.00, currency: 'INR' },
+  { name: 'SILVER 1KG', symbol: 'SI=F', price: 224300, change: 3100.0, change_pct: 1.40, currency: 'INR' },
 ]
 
 function formatMarketValue(value: number | string, currency: string, symbol: string) {
-  let numVal = typeof value === 'number' ? value : Number(value)
+  const numVal = typeof value === 'number' ? value : Number(value)
   if (Number.isNaN(numVal)) return String(value)
-
-  // Gold 10g 24K sanity normalization:
-  // In India, 10g 24K retail gold is ~₹75,000–₹78,000.
-  // If upstream parsed article with ~₹1.5L, it calculated 20g/2 tolas.
-  if (symbol === 'GC=F' && numVal > 115000 && numVal < 210000) {
-    numVal = numVal / 2
-  }
-  // Silver 1kg sanity normalization:
-  if (symbol === 'SI=F' && numVal > 180000 && numVal < 320000) {
-    numVal = numVal / 2
-  }
 
   if (symbol === '^NSEI' || symbol === '^BSESN') {
     return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(numVal)
@@ -90,7 +79,7 @@ function MarketTickerCard({
     symbol === 'GC=F' ? 'GOLD 24K' : symbol === 'SI=F' ? 'SILVER 1KG' : name
 
   return (
-    <div className="group flex min-w-[124px] shrink-0 flex-col justify-between rounded-xl border border-slate-200/90 bg-white/95 px-3 py-1.5 shadow-2xs transition-all hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/95 dark:hover:border-slate-700">
+    <div className="group flex min-w-[128px] shrink-0 flex-col justify-between rounded-xl border border-slate-200/90 bg-white/95 px-3 py-1.5 shadow-2xs transition-all hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/95 dark:hover:border-slate-700">
       {/* Top row: Label + Trend Badge */}
       <div className="flex items-center justify-between gap-2">
         <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
@@ -117,7 +106,7 @@ function MarketTickerCard({
 
 function MarketTickerSkeleton() {
   return (
-    <div className="flex h-[48px] min-w-[124px] shrink-0 flex-col justify-between rounded-xl border border-slate-200/90 bg-slate-100/90 px-3 py-1.5 dark:border-slate-800 dark:bg-slate-900/80 animate-pulse">
+    <div className="flex h-[48px] min-w-[128px] shrink-0 flex-col justify-between rounded-xl border border-slate-200/90 bg-slate-100/90 px-3 py-1.5 dark:border-slate-800 dark:bg-slate-900/80 animate-pulse">
       <div className="flex items-center justify-between gap-2">
         <div className="h-2.5 w-12 rounded bg-slate-200 dark:bg-slate-700" />
         <div className="h-2.5 w-8 rounded bg-slate-200 dark:bg-slate-700" />

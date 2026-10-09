@@ -239,30 +239,51 @@ def _parse_domestic_precious_metals_from_et() -> dict[str, MarketOverviewItem]:
 
     items: dict[str, MarketOverviewItem] = {}
     if gold_match:
+        gold_price = _to_float(gold_match.group("price").replace(",", ""))
+        gold_change = _to_float(gold_match.group("change").replace(",", ""))
+        gold_change_pct = _to_float(gold_match.group("change_pct_a") or gold_match.group("change_pct_b"))
+        if gold_change_pct is None and gold_price is not None and gold_change is not None:
+            prev_gold_price = gold_price - gold_change
+            if prev_gold_price > 0:
+                gold_change_pct = round((gold_change / prev_gold_price) * 100, 2)
+
         items["GC=F"] = MarketOverviewItem(
             name="GOLD",
             symbol="GC=F",
-            price=_to_float(gold_match.group("price").replace(",", "")),
-            change=_to_float(gold_match.group("change").replace(",", "")),
-            change_pct=_to_float(gold_match.group("change_pct_a") or gold_match.group("change_pct_b")),
+            price=gold_price,
+            change=gold_change,
+            change_pct=gold_change_pct,
             currency="INR",
-            source="yfinance",
+            source="economic_times",
             last_updated=article_updated,
         )
 
     if silver_match:
+        silver_price = _to_float(silver_match.group("price").replace(",", ""))
+        silver_change = _to_float(silver_match.group("change").replace(",", ""))
+        silver_change_pct = _to_float(silver_match.group("change_pct_a") or silver_match.group("change_pct_b"))
+        if silver_change_pct is None and silver_price is not None and silver_change is not None:
+            prev_silver_price = silver_price - silver_change
+            if prev_silver_price > 0:
+                silver_change_pct = round((silver_change / prev_silver_price) * 100, 2)
+
         items["SI=F"] = MarketOverviewItem(
             name="SILVER",
             symbol="SI=F",
-            price=_to_float(silver_match.group("price").replace(",", "")),
-            change=_to_float(silver_match.group("change").replace(",", "")),
-            change_pct=_to_float(silver_match.group("change_pct_a") or silver_match.group("change_pct_b")),
+            price=silver_price,
+            change=silver_change,
+            change_pct=silver_change_pct,
             currency="INR",
-            source="yfinance",
+            source="economic_times",
             last_updated=article_updated,
         )
 
     return items
+
+
+# In India, domestic retail and MCX prices trade at international spot plus
+# customs duty (6%), AIDC cess (5.35%), and GST (3%), giving an effective landed factor ~1.145.
+INDIA_BULLION_LANDED_PREMIUM = 1.145
 
 
 def _convert_commodity_price_to_inr_display_unit(
@@ -274,7 +295,7 @@ def _convert_commodity_price_to_inr_display_unit(
     if price is None or usd_to_inr_rate is None or grams_per_display_unit is None:
         return price, change
 
-    unit_multiplier = grams_per_display_unit / TROY_OUNCE_IN_GRAMS
+    unit_multiplier = (grams_per_display_unit / TROY_OUNCE_IN_GRAMS) * INDIA_BULLION_LANDED_PREMIUM
     converted_price = price * usd_to_inr_rate * unit_multiplier
     converted_change = change * usd_to_inr_rate * unit_multiplier if change is not None else None
     return converted_price, converted_change
